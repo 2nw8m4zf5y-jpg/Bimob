@@ -89,6 +89,8 @@ class DependencyGraph private constructor(
     val edges: List<DependencyEdge> get() = edgeSet.sortedBy { it.stableKey() }
     val nodeCount: Int get() = nodeSet.size
     val edgeCount: Int get() = edgeSet.size
+    /** Number of nodes on the longest dependency chain (zero for an empty graph). */
+    fun longestDependencyDepth(): Int = longestPath().size
 
     override fun equals(other: Any?): Boolean = other is DependencyGraph && nodeSet == other.nodeSet && edgeSet == other.edgeSet && limits == other.limits
     override fun hashCode(): Int = 31 * (31 * nodeSet.hashCode() + edgeSet.hashCode()) + limits.hashCode()

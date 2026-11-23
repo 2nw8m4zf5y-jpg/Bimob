@@ -35,15 +35,16 @@ fun interface DependencyEvaluator {
 
 data class RecomputePlan(val dirtyNodes: List<DependencyNodeKey>, val order: List<DependencyNodeKey>, val inputSources: Map<DependencyNodeKey, List<DependencyNodeKey>> = emptyMap())
 
-enum class EngineBudget { DIRTY_NODES, EVALUATIONS, FAN_OUT, GRAPH_NODES, GRAPH_EDGES }
+enum class EngineBudget { DIRTY_NODES, EVALUATIONS, FAN_OUT, GRAPH_NODES, GRAPH_EDGES, DEPENDENCY_DEPTH }
 data class EngineLimits(
     val maxDirtyNodesPerTransaction: Int = 100_000,
     val maxEvaluationsPerTransaction: Int = 1_000_000,
     val maxFanOutPerNode: Int = 10_000,
     val maxGraphNodes: Int = 250_000,
-    val maxGraphEdges: Int = 1_000_000
+    val maxGraphEdges: Int = 1_000_000,
+    val maxDependencyDepth: Int = 4096
 ) {
-    init { require(maxDirtyNodesPerTransaction > 0 && maxEvaluationsPerTransaction > 0 && maxFanOutPerNode >= 0 && maxGraphNodes > 0 && maxGraphEdges >= 0) }
+    init { require(maxDirtyNodesPerTransaction > 0 && maxEvaluationsPerTransaction > 0 && maxFanOutPerNode >= 0 && maxGraphNodes > 0 && maxGraphEdges >= 0 && maxDependencyDepth > 0) }
 }
 class EngineBudgetExceeded(val budget: EngineBudget, val node: DependencyNodeKey?, val actual: Int, val maximum: Int) :
     RuntimeException("Engine budget $budget exceeded at ${node?.stableKey() ?: "graph"}: $actual > $maximum.")
@@ -53,6 +54,8 @@ object RecomputeEngine {
     fun plan(graph: DependencyGraph, seeds: Set<DependencyNodeKey>, limits: EngineLimits = EngineLimits()): RecomputePlan {
         if (graph.nodeCount > limits.maxGraphNodes) throw EngineBudgetExceeded(EngineBudget.GRAPH_NODES, null, graph.nodeCount, limits.maxGraphNodes)
         if (graph.edgeCount > limits.maxGraphEdges) throw EngineBudgetExceeded(EngineBudget.GRAPH_EDGES, null, graph.edgeCount, limits.maxGraphEdges)
+        val depth = graph.longestDependencyDepth()
+        if (depth > limits.maxDependencyDepth) throw EngineBudgetExceeded(EngineBudget.DEPENDENCY_DEPTH, null, depth, limits.maxDependencyDepth)
         if (seeds.isEmpty()) return RecomputePlan(emptyList(), emptyList())
         val dirty = linkedSetOf<DependencyNodeKey>()
         val queue = ArrayDeque<DependencyNodeKey>()

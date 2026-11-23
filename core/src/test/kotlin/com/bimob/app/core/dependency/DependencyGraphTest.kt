@@ -80,6 +80,20 @@ class DependencyGraphTest {
         assertEquals(1, accepted.graph.edgeCount)
     }
 
+    @Test fun recomputePlanEnforcesDependencyDepthBudgetOnExistingGraph() {
+        val a = level("A"); val b = wall("B"); val c = room("C")
+        val graph = (DependencyGraph.empty().admitEdges(listOf(edge(a,b), edge(b,c))) as EdgeAdmission.Accepted).graph
+        try {
+            RecomputeEngine.plan(graph, setOf(a), EngineLimits(maxDependencyDepth = 2))
+            fail("Expected dependency-depth budget to reject three-node chain")
+        } catch (e: EngineBudgetExceeded) {
+            assertEquals(EngineBudget.DEPENDENCY_DEPTH, e.budget)
+            assertEquals(3, e.actual)
+            assertEquals(2, e.maximum)
+        }
+        assertEquals(3, graph.longestDependencyDepth())
+    }
+
     @Test fun graphSnapshotsAreImmutableAndCopyOnWrite() {
         val a = level("A"); val b = wall("B")
         val g0 = DependencyGraph.empty()
