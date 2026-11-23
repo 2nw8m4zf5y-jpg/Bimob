@@ -47,6 +47,16 @@ class ModelSessionTest {
         assertFalse(session.snapshot().hasUnsavedChanges)
     }
 
+    @Test fun initializationProjectMigrationRunsThroughCommandBus() {
+        val legacy = Project(name="Legacy",elements=listOf(wall("legacy-1")))
+        val session = ModelSession(Project(name="Legacy"))
+        val result = session.execute(ReplaceProjectMutation("Migrate legacy sketch",legacy))
+        assertTrue(result is CommandResult.Committed)
+        assertEquals(1,session.snapshot().revision.project.elements.size)
+        assertEquals(1L,session.snapshot().revision.number)
+        assertTrue(session.snapshot().canUndo)
+    }
+
     @Test fun engineBudgetFailureIsPublishedAndRollsBack() {
         val source = EntityProperty(ModelId("src"), PropertyAspect.PARAMETERS)
         val targets = (0..2).map { EntityProperty(ModelId("dst$it"), PropertyAspect.PARAMETERS) }

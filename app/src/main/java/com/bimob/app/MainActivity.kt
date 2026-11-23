@@ -88,7 +88,9 @@ class MainActivity : ComponentActivity() {
             } else {
                 val migrated = LegacySketchMigrator.migrateJson(stored)
                 val path = revisionPath(migrated)
-                ModelSession(migrated, initiallySaved = true).also { first ->
+                ModelSession(Project(name = migrated.name), initiallySaved = false).also { first ->
+                    val migration = first.execute(ReplaceProjectMutation("Migrate legacy sketch", migrated))
+                    require(migration is CommandResult.Committed) { "Legacy migration command rejected: $migration" }
                     privateRepository.save(path, first.snapshot().revision)
                     first.markSaved(first.snapshot().revision)
                     prefs.edit().putString(name, "revision:${safeId(migrated.id.value)}").apply()
