@@ -1,6 +1,8 @@
 package com.bimob.app
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.app.AlertDialog
 import android.os.Bundle
 import android.graphics.Canvas
@@ -18,6 +20,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.round
 import kotlin.math.sqrt
+import com.bimob.app.persistence.SafDocumentAdapter
+import com.bimob.app.core.model.ModelId
+import com.bimob.app.core.model.Project
+import com.bimob.app.core.model.Site
+import com.bimob.app.core.model.WallElement
+import com.bimob.app.core.model.WallAxis
+import com.bimob.app.core.model.Point2
+import com.bimob.app.core.persistence.BimobArchiveWriter
+import com.bimob.app.core.persistence.BimobArchiveReader
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("bimob_projects", MODE_PRIVATE) }
@@ -25,6 +36,10 @@ class MainActivity : Activity() {
     private val walls = mutableListOf<Wall>()
     private lateinit var canvasView: PlanCanvas
     private lateinit var status: TextView
+    private var importedProject: Project? = null
+    private val safDocuments by lazy { SafDocumentAdapter(contentResolver, cacheDir) }
+    private val REQUEST_OPEN_BIMOB = 4101
+    private val REQUEST_SAVE_BIMOB = 4102
 
     enum class DrawingTool { WALL, SELECT }
 
@@ -33,6 +48,71 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         showHome()
+    }
+
+    private fun launchOpenBimob() {
+        val intent=Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type="application/octet-stream"
+            putExtra(Intent.EXTRA_MIME_TYPES,arrayOf(SafDocumentAdapter.BIMOB_MIME,"application/zip"))
+        }
+        startActivityForResult(intent,REQUEST_OPEN_BIMOB)
+    }
+
+    private fun launchSaveBimob() {
+        val safeName=projectName.trim().ifBlank{"BIMOB-project"}.replace(Regex("[/\\\\:*?\"<>|]"),"_")
+        val intent=Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type=SafDocumentAdapter.BIMOB_MIME
+            putExtra(Intent.EXTRA_TITLE,"$safeName.bimob")
+        }
+        startActivityForResult(intent,REQUEST_SAVE_BIMOB)
+    }
+
+    private fun projectForExport():Project {
+        val previous=importedProject
+        val oldWalls=previous?.elements?.filterIsInstance<WallElement>().orEmpty()
+        val exportedWalls=walls.mapIndexed { index,w ->
+            val old=oldWalls.getOrNull(index)
+            old?.copy(axis=WallAxis(Point2(w.x1.toDouble(),w.y1.toDouble()),Point2(w.x2.toDouble(),w.y2.toDouble())),thicknessMeters=w.thickness.toDouble())
+                ?:WallElement(id=ModelId.newId(),axis=WallAxis(Point2(w.x1.toDouble(),w.y1.toDouble()),Point2(w.x2.toDouble(),w.y2.toDouble())),heightMeters=2.7,thicknessMeters=w.thickness.toDouble())
+        }
+        return (previous ?: Project(name=projectName,site=Site(name="BIMOB site"))).copy(name=projectName,elements=exportedWalls,schemaVersion=1)
+    }
+
+    @Deprecated("Legacy picker callback retained for minSdk compatibility")
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if(resultCode!=RESULT_OK)return
+        val uri=data?.data ?: return
+        try {
+            when(requestCode) {
+                REQUEST_OPEN_BIMOB -> {
+                    val project=BimobArchiveReader().read(safDocuments.read(uri))
+                    importedProject=project
+                    projectName=project.name
+                    walls.clear()
+                    project.elements.filterIsInstance<WallElement>().forEach { w ->
+                        walls.add(Wall(w.axis.start.xMeters.toFloat(),w.axis.start.yMeters.toFloat(),w.axis.end.xMeters.toFloat(),w.axis.end.yMeters.toFloat(),w.thicknessMeters.toFloat()))
+                    }
+                    openEditor()
+                }
+                REQUEST_SAVE_BIMOB -> {
+                    val project=projectForExport()
+                    val archive=BimobArchiveWriter().write(project)
+                    val digest=safDocuments.writeNewDocument(uri,archive)
+                    importedProject=project
+                    statusOrToast("Экспорт подтверждён • SHA-256: "+digest.take(12))
+                }
+            }
+        } catch(e:Exception) {
+            AlertDialog.Builder(this).setTitle("Ошибка работы с файлом").setMessage(e.message ?: "Не удалось открыть/сохранить BIMOB.").setPositiveButton("OK",null).show()
+        }
+    }
+
+    private fun statusOrToast(message:String) {
+        if(::status.isInitialized) status.text=message
+        else android.widget.Toast.makeText(this,message,android.widget.Toast.LENGTH_LONG).show()
     }
 
     private fun baseLayout(): LinearLayout {
@@ -63,6 +143,7 @@ class MainActivity : Activity() {
         })
         addButton(root, "＋  Создать проект") { promptNewProject() }
         addButton(root, "Открыть проекты") { showProjects() }
+        addButton(root, "Открыть файл .bimob") { launchOpenBimob() }
         root.addView(TextView(this).apply {
             text = "Начинаем с точного 2D-плана. 3D-модуль, конструкции и расчёты будут добавляться поверх единой модели проекта."
             textSize = 14f
@@ -78,6 +159,7 @@ class MainActivity : Activity() {
             .setPositiveButton("Создать") { _, _ ->
                 projectName = input.text.toString().trim().ifBlank { "Мой проект" }
                 walls.clear()
+                importedProject = null
                 openEditor()
             }.setNegativeButton("Отмена", null).show()
     }
@@ -148,6 +230,7 @@ class MainActivity : Activity() {
         }
         root.addView(status)
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        addTool(bottom, "Экспорт .bimob") { launchSaveBimob() }
         addTool(bottom, "← Проекты") { showHome() }
         addTool(bottom, "Параметры") {
             AlertDialog.Builder(this).setTitle("Параметры проекта")
