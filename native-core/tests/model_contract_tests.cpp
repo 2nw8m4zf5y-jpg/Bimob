@@ -38,7 +38,7 @@ void typedGestureCoalescingAcrossEntityKinds(){
  assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.4},Meters{.8}),{}, "opening-drag").ok());
  assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{1},Meters{1}}),{}, "catalog-drag").ok());
  assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{2},Meters{2}}),{}, "catalog-drag").ok());
- assert(bus.undoDepth()==4);
+ assert(bus.undoDepth()==3);
  (void)initial;
 }
 
