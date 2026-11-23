@@ -21,7 +21,7 @@
 | `5a25b11276bc` | Initial G2 C++20 port | CI failed on strict indentation warning |
 | `e1d8466e96cb` | Warning fix attempt | CI exposed a literal escaped newline |
 | `82f7346fc529` | Stage F verification and blocker documentation | CI failed on the escaped newline |
-| `d75e5917a100` | Fix literal newline; indexed deterministic scheduler | Run #229 pending at report creation |
+| `d75e5917a100` | Fix literal newline; indexed deterministic scheduler | Run #229 full CI green (recorded below) |
 
 The successive failed G2 runs were failure-driven fixes, not accepted builds. Run #229 is the first CI verification of the corrected indexed scheduler.
 
@@ -44,7 +44,7 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 - All six budgets: dirty nodes 100,000; evaluations 1,000,000; fan-out 10,000; graph nodes 250,000; graph edges 1,000,000; dependency depth 4,096.
 - Budget errors include code, budget name, actual, maximum, and node when applicable.
 
-## Local verification (ASan + UBSan)
+## Remote CI verification\n\n- **Run #229** on code commit `d75e5917a100`: **SUCCESS**. Configure CMake, C++ build, CTest/ASan+UBSan, Kotlin core tests, Android unit tests, `assembleDebug`, and APK upload all succeeded. [Run #229](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45189756919). APK artifact `Bimob-debug-apk` is available on that run.\n- Documentation-only head commit `111f9b54c21d` run #230 is still running at the time of this update; native Configure/Build/CTest steps are already green, Kotlin/Android is in progress.\n\n## Local verification (ASan + UBSan)
 
 - Configure: PASS
 - Build with warnings-as-errors: PASS
@@ -54,7 +54,7 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 
 ## Red Flags / remaining acceptance gates
 
-1. Remote CI for `d75e5917a100` is pending; do not call G1/G2 fully accepted until native CTest, Kotlin tests, Android unit tests and `assembleDebug` all pass.
+1. Run #229 is green for code commit `d75e5917a100`. The current docs-head CI run #230 remains pending; keep final acceptance tied to its completion. G2 still requires the parity and feature gaps below before acceptance.
 2. “Golden parity” currently means deterministic expected-value contract scenarios. The Kotlin-produced fixture set has not yet been exported and compared comprehensively across 100% of scenarios.
 3. Exact Kotlin cycle-path diagnostics are not yet ported.
 4. Cancellation checkpoints, event dispatch/backpressure, history count/memory caps, and no-op semantics are not fully ported.
