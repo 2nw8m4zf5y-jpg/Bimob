@@ -147,7 +147,8 @@ class PersistenceTest {
             Parameter(ModelId("int-g"),ParameterValue.IntNumber(7)),
             Parameter(ModelId("real-g"),ParameterValue.Real(0.5)),
             Parameter(ModelId("ref-g"),ParameterValue.Reference(material.id)),
-            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка\nвторая"))
+            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка
+вторая"))
         ))
         val firstWall=WallElement(
             id=ModelId("wall-a"),typeId=type.id,levelId=ModelId("level-g"),
@@ -164,7 +165,8 @@ class PersistenceTest {
             parameters=listOf(Parameter(ModelId("instance-text"),ParameterValue.Text("UTF-8: ё, 漢字, 🏔️")))
         )
         val rich=Project(
-            id=ModelId("golden-rich"),name="BIMOB \"Кавказ\"\n🌄",schemaVersion=1,
+            id=ModelId("golden-rich"),name="BIMOB \"Кавказ\"
+🌄",schemaVersion=1,
             site=Site(ModelId("site-g"),"Дом 🏡"),buildings=listOf(Building(ModelId("building-g"),"Корпус")),
             levels=listOf(Level(ModelId("level-g"),"Этаж 1",0.5,3.0)),
             elements=listOf(firstWall,secondWall),materials=listOf(material),types=listOf(type)

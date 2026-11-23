@@ -18,7 +18,8 @@ class KotlinParityRunner {
   val s=f.req("initialState").obj();val p=s.req("project").obj()
   val lv=s.req("levels").array().a.map{val x=it.obj();Level(id(x.req("id")),x.req("name").text(),x.req("elevation").double(),x.opt("height").dOrNull())}
   val ws=s.req("walls").array().a.map{val x=it.obj();WallElement(id(x.req("id")),levelId=x.opt("levelId").strOrNull()?.let(::ModelId),axis=WallAxis(point(x.req("start")),point(x.req("end"))),heightMeters=x.req("height").double(),thicknessMeters=x.req("thickness").double())}
-  val joins=s.req("joins").array().a.map{val x=it.obj();WallJoin(id(x.req("id")),id(x.req("wallA")),x.req("endA").bool(),id(x.req("wallB")),x.req("endB").bool(),point(x.req("point")))}\n  val os=s.req("openings").array().a.map{val x=it.obj();OpeningElement(Opening(id(x.req("id")),id(x.req("hostWallId")),OpeningKind.valueOf(x.req("kind").text().uppercase()),x.req("offset").double(),x.req("width").double(),x.req("height").double(),x.req("sill").double()))}
+  val joins=s.req("joins").array().a.map{val x=it.obj();WallJoin(id(x.req("id")),id(x.req("wallA")),x.req("endA").bool(),id(x.req("wallB")),x.req("endB").bool(),point(x.req("point")))}
+  val os=s.req("openings").array().a.map{val x=it.obj();OpeningElement(Opening(id(x.req("id")),id(x.req("hostWallId")),OpeningKind.valueOf(x.req("kind").text().uppercase()),x.req("offset").double(),x.req("width").double(),x.req("height").double(),x.req("sill").double()))}
   val cs=s.req("catalogInstances").array().a.map{val x=it.obj();val w=x.req("width").double();val d=x.req("depth").double();val h=x.req("height").double();CatalogInstanceElement(CatalogInstance(id(x.req("id")),x.req("assetId").text(),point(x.req("position")),x.req("rotation").double(),id(x.req("levelId")),id(x.req("hostWallId")),w,d,h,if(x.req("scalingMode").text()=="freeStretch") ScalingMode.FREE_STRETCH else ScalingMode.valueOf(x.req("scalingMode").text().uppercase()),CatalogInstanceBounds(DimensionBounds(.001,1000.0),DimensionBounds(.001,1000.0),DimensionBounds(.001,1000.0)),x.opt("category").strOrNull()?: "fixture",x.opt("scheduleTag").strOrNull()?: ""))}
   val pid=id(p.req("id"));return Project(pid,p.req("name").text(),site=Site(ModelId(pid.value+"-site"),"Fixture Site"),levels=lv,elements=ws+os+cs,joins=joins)
  }
@@ -34,7 +35,9 @@ class KotlinParityRunner {
  }
  private fun wall(x:JO):ModelMutation=CreateWallMutation(Wall(id(x.req("id")),WallAxis(point(x.req("start")),point(x.req("end"))),x.req("height").double(),x.req("thickness").double(),x.opt("levelId").strOrNull()?.let(::ModelId)?:ModelId("unassigned")))
  private fun mutation(x:JO):ModelMutation=when(x.req("op").text()){
-  "moveWall"->{val d=x.req("delta").array().a;MoveWallCommand(id(x.req("id")),d[0].double(),d[1].double())}\n  "moveWallEndpoint"->MoveWallEndpointMutation(id(x.req("id")),x.req("movedStart").bool(),point(x.req("point")))\n  "deleteJoin"->DeleteWallJoinMutation(id(x.req("id")))
+  "moveWall"->{val d=x.req("delta").array().a;MoveWallCommand(id(x.req("id")),d[0].double(),d[1].double())}
+  "moveWallEndpoint"->MoveWallEndpointMutation(id(x.req("id")),x.req("movedStart").bool(),point(x.req("point")))
+  "deleteJoin"->DeleteWallJoinMutation(id(x.req("id")))
   "resizeWall"->ResizeWallMutation(id(x.req("id")),x.req("length").double())
   "resizeOpening"->{val o=openingById(x.req("id").text());UpdateOpeningMutation(o.copy(width=x.req("width").double(),height=x.req("height").double()))}
   "moveOpening"->{val o=openingById(x.req("id").text());UpdateOpeningMutation(o.copy(offsetAlongWall=x.req("offset").double(),sillHeight=x.req("sill").double()))}
@@ -72,5 +75,6 @@ class KotlinParityRunnerTest {
  @Test fun cascadeDeleteFixture(){KotlinParityRunner().runScenario("cascade_delete")}
  @Test fun cycleRollbackFixture(){KotlinParityRunner().runScenario("cycle_rollback")}
  @Test fun engineLimitsFixture(){KotlinParityRunner().runScenario("engine_limits")}
- @Test fun undoRedoGesturesFixture(){KotlinParityRunner().runScenario("undo_redo_gestures")}\n @Test fun wallJoinTopologiesFixture(){KotlinParityRunner().runScenario("walljoin_topologies")}
+ @Test fun undoRedoGesturesFixture(){KotlinParityRunner().runScenario("undo_redo_gestures")}
+ @Test fun wallJoinTopologiesFixture(){KotlinParityRunner().runScenario("walljoin_topologies")}
 }
