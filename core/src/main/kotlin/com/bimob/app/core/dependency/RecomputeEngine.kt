@@ -48,7 +48,7 @@ object RecomputeEngine {
         }
 
         val indegree = dirty.associateWith { node ->
-            graph.incomingEdges(node).count { it.source in dirty }
+            graph.incomingEdges(node).map { it.source }.distinct().count { it in dirty }
         }.toMutableMap()
         val ready = java.util.PriorityQueue<DependencyNodeKey>(compareBy { it.stableKey() })
         indegree.filterValues { it == 0 }.keys.forEach(ready::add)
