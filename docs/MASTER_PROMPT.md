@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.6
+# BIMOB MASTER PROMPT v1.7
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -264,8 +264,8 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
 C. **CommandBus + Transaction Engine — ACCEPTED / CLOSED.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. CI success for the completed Phase C changes was confirmed by the project owner; acceptance is recorded.  
-D. **Persistence & Crash Recovery — IN PROGRESS.** ADR 001 approved. CI for commit `d1bffdd` is owner-confirmed green; later task commits await a fresh CI run. Added staged+verified journal compaction and an injected switch-failure test, empty and rich multilingual canonical golden fixtures/hashes, and an Android SAF picker adapter in `:app`. SAF is provider-backed and does not claim atomic replace or fsync.  
-E. Dependency DAG/incremental recompute.  
+D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** ADR 001 approved and implementation complete for the current prototype. Project owner confirmed CI green on `65cf542` for `:core:test`, `:app:testDebugUnitTest`, and `:app:assembleDebug` (workflow's `assembleDebug`). Includes versioned archive/repository, SHA-256 integrity, deterministic canonical JSON and golden fixtures, staged+verified crash-safe journal compaction, recovery tests, schema rejection/migration contract, and Android SAF open/export adapter in `:app`. SAF provider limitations (non-atomic write/no fsync guarantee) are explicitly handled; no broad storage permission is used. Platform SAF smoke testing remains device-level follow-up, not a blocker for closing the core persistence stage.  
+E. **Model Ownership & Dependency Engine (DAG) — DESIGN APPROVED / IMPLEMENTATION NOT STARTED.** ADR 002 defines node/edge semantics, cycle detection before commit, dirty propagation, deterministic topological scheduling, transactional CommandBus integration, graph budgets, test strategy, and MainActivity ownership debt/migration plan. First coding gate is E1 graph data model/admission and cycle tests.  
 F. Geometry APIs and backend adapters.  
 G. Architectural families and constraints.  
 H. Projection/drawing and spatial subsystem.  
@@ -274,9 +274,9 @@ J. IFC interop.
 K. Mobile rendering/performance.  
 L. Extension system and AI workflows.
 
-Phase D may proceed because Phase C is accepted. Phase D implementation is active; do not mark it complete until all gates, CI and review are verified. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
+Phase E may proceed because Phase D is accepted by owner-confirmed CI. Stage E starts with architecture only in ADR 002; implementation must be delivered in atomic sub-stages E1–E5 and reviewed before UI ownership migration. Preserve offline core workflows and the Android/core boundary.
 
-## 29. Phase D approved implementation clarifications
+\n## 30. Phase D closure and Stage E architecture\n\n- **Phase D CLOSED:** owner confirmed CI green on commit `65cf542` with `:core:test`, `:app:testDebugUnitTest`, and `:assembleDebug`. This is owner-provided CI evidence.\n- **ADR 002:** [Dependency Engine and Model Ownership](adr/002-dependency-engine.md). Design-only commit; no DAG code was implemented in this step.\n- **UI ownership audit:** `MainActivity` still owns a mutable UI-local `walls` list, `PlanCanvas` directly mutates it, and local sketch persistence uses SharedPreferences/JSON. SAF import/export converts to/from Project but does not route editing through CommandBus or ProjectRepository. This remains tracked debt.\n- **Migration target after Stage E acceptance:** app ModelSession backed by CommandBus + ProjectRepository; wall commands; canvas renders immutable revisions; revision-aware save; migrate legacy sketches and remove the mutable duplicate list.\n- **Stage E is design-approved, implementation pending:** E1 graph types/admission/cycle tests; E2 transactional graph staging; E3 dirty propagation and scheduler/budgets; E4 derived-state/revision and Undo/Redo; E5 oracle/fuzz/performance and acceptance.\n\n## 29. Phase D approved implementation clarifications
 - Canonical JSON is deterministic: fixed schema/key order, UTF-8 without BOM, stable escaping, no insignificant whitespace, locale-independent finite numeric format using shortest-round-trip decimal (`BigDecimal.valueOf` in Kotlin), negative zero normalized to `0`, and exact-byte SHA-256. Kotlin and C++20 must match golden byte/hash fixtures.
 - Manifest declares `chunks/` reserved for future binary geometry/data; chunks remain unimplemented until explicit design.
 - After successful atomic primary save, journal compaction is safe and bounded. Rotation writes/fsyncs and verifies the replacement recovery state before switching; never destroy the only valid journal early.
