@@ -26,7 +26,7 @@ class KotlinParityRunner {
   val name=x.req("budget").text();val maximum=x.req("maximum").long().toInt();val actual=x.req("actual").long().toInt()
   val a=depNode("limit-A");val b=depNode("limit-B");val c=depNode("limit-C")
   val edges=when(name){"dirty_nodes"->listOf(DependencyEdge(a,b));"fan_out"->listOf(DependencyEdge(a,b),DependencyEdge(a,c));"graph_nodes"->listOf(DependencyEdge(a,b));"graph_edges"->listOf(DependencyEdge(a,b));"dependency_depth"->listOf(DependencyEdge(a,b));"evaluations"->emptyList();else->error("Unknown limit budget $name")}
-  val graph=(DependencyGraph.empty().admitEdges(edges) as EdgeAdmission.Accepted).graph
+  val graph=if(name=="evaluations")DependencyGraph.empty().withNode(a) else (DependencyGraph.empty().admitEdges(edges) as EdgeAdmission.Accepted).graph
   val limits=when(name){"dirty_nodes"->EngineLimits(maxDirtyNodesPerTransaction=maximum);"evaluations"->EngineLimits(maxEvaluationsPerTransaction=maximum);"fan_out"->EngineLimits(maxFanOutPerNode=maximum);"graph_nodes"->EngineLimits(maxGraphNodes=maximum);"graph_edges"->EngineLimits(maxGraphEdges=maximum);"dependency_depth"->EngineLimits(maxDependencyDepth=maximum);else->error("Unknown limit")}
   val failure=try {val plan=RecomputeEngine.plan(graph,if(name=="evaluations")setOf(a) else setOf(a),limits);if(name=="evaluations")RecomputeEngine.execute(plan,initial(fixture("engine_limits")),emptyMap(),mapOf(a to DependencyEvaluator{_,_->DerivedValue.NumberValue(1.0)}),limits=limits);fail("Expected $name budget to reject");null} catch(e:EngineBudgetExceeded){e}
   val expected=EngineBudget.valueOf(name.uppercase())
