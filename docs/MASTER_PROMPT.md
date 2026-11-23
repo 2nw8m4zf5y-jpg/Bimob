@@ -241,7 +241,7 @@ Latest commits in this work session:
 - `c411c0242c8775979af95f3f3b1e42aa62799116` — make published snapshot collection wrappers unmodifiable; isolate ordinary listener exceptions without swallowing fatal errors.
 - `045d42b8da4e46285635b7a2a7a2c1e7ecbdfe5b` — snapshot immutability regression test.
 
-Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `ModelCommands.kt`, `ModelValidator.kt` and validator tests. Always re-check current HEAD and files before future work.
+Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `CommandBus.kt`, `ModelValidator.kt` and validator tests. Legacy `ModelCommands.kt`/`ModelStore` was removed; CommandBus is the only canonical model mutation boundary. Always re-check current HEAD and files before future work.
 
 ## 27. Progress tracking (verified state at 2026-11-23)
 
