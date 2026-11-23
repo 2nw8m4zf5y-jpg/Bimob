@@ -48,9 +48,30 @@ class CrashRecoveryJournal(private val storage:AtomicStorage,private val path:St
         return Recovery(recovered,s.lastSequence,s.corrupt)
     }
     fun recover(baseDigest:String,baseProject:Project):Project?=recoverDetailed(baseDigest,baseProject)?.project
-    /** Rotate only after the primary file has been verified and made durable. AtomicStorage replaces the journal atomically. */
+    /**
+     * Crash-safe compaction: stage a replacement at a separate path, read it back and
+     * validate the complete recovery header before atomically switching the live journal.
+     * A failed stage/switch leaves the old journal untouched under AtomicStorage's contract.
+     */
     fun compact(projectId:String,newBaseDigest:String,schemaVersion:Int) {
-        storage.writeAtomically(path,frame(header(projectId,newBaseDigest,schemaVersion)))
+        require(projectId.isNotBlank())
+        require(newBaseDigest.matches(Regex("[0-9a-f]{64}")))
+        require(schemaVersion>0)
+        val stagedPath="$path.compact-stage"
+        val candidate=frame(header(projectId,newBaseDigest,schemaVersion))
+        try {
+            storage.writeAtomically(stagedPath,candidate)
+            val staged=storage.read(stagedPath)
+            require(staged.contentEquals(candidate)){"Compaction staging readback mismatch."}
+            val verified=scan(staged)
+            require(!verified.corrupt&&verified.headerProjectId==projectId&&verified.baseDigest==newBaseDigest&&verified.schemaVersion==schemaVersion&&verified.lastSequence==0L&&verified.latestProject==null){"Staged journal failed verification."}
+            // The final switch is the only operation touching the current journal.
+            storage.writeAtomically(path,staged)
+            val switched=scan(storage.read(path))
+            require(!switched.corrupt&&switched.headerProjectId==projectId&&switched.baseDigest==newBaseDigest&&switched.schemaVersion==schemaVersion&&switched.lastSequence==0L&&switched.latestProject==null){"Switched journal failed verification."}
+        } finally {
+            try { storage.delete(stagedPath) } catch (_:Exception) { /* harmless orphan; startup cleanup may remove it */ }
+        }
     }
     private data class Scan(val headerProjectId:String?,val baseDigest:String?,val schemaVersion:Int,val lastSequence:Long,val latestProject:Project?,val transactionIds:Set<String>,val corrupt:Boolean)
     private fun scan(bytes:ByteArray):Scan {
