@@ -68,6 +68,8 @@ private:
  mutable std::mutex mutex_;EngineLimits limits_;EvaluatorRegistry evaluators_;std::shared_ptr<const ModelRevision> current_;std::optional<Error> initializationError_;HistoryLimits historyLimits_;
  std::vector<std::shared_ptr<const ModelRevision>> undo_;std::vector<std::shared_ptr<const ModelRevision>> redo_;std::optional<std::string> lastGesture_;
 };
+Result<Project> deleteWallCascade(const Project&,const ModelId& wallId);
+Result<Project> deleteLevelCascade(const Project&,const ModelId& levelId);
 Result<Project> solveWallJoin(const Project&,const ModelId& movedWall,bool movedStart,Point2 newJoint);
 Result<DependencyGraph> admitEdges(const DependencyGraph&,const std::vector<DependencyEdge>&,const EngineLimits&);
 Result<EvaluationReport> recompute(const DependencyGraph&,const std::vector<NodeId>& seeds,const Project&,const DerivedMap&,const EvaluatorRegistry&,const EngineLimits&,const CancellationToken* cancellation=nullptr);

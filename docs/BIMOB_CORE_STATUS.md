@@ -92,3 +92,8 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 ### Project collection structural sharing
 - `Project` entity collections are now backed by `CowVector<T>` shared storage. Copying a project/revision shares each collection; the first write detaches only the modified collection. Read access does not detach. A contract test verifies wall collection detachment and opening collection independence.
 - This is collection-level COW, not yet per-entity persistent maps: modifying an entity within a collection clones that collection's vector. Unmodified sibling collections remain shared.
+
+
+### Atomic Host -> Hosted deletion
+- Added mutation helpers `deleteWallCascade` and `deleteLevelCascade`. Wall deletion removes its hosted openings, hosted catalog instances and wall joins. Level deletion cascades through its walls and their hosted dependents, and removes level-bound catalog instances.
+- CommandBus transaction tests confirm Undo restores the complete host/dependent set.

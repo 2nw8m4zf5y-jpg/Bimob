@@ -73,6 +73,22 @@ Result<Commit>CommandBus::commitCandidate(Project p,std::shared_ptr<const Depend
 Result<std::shared_ptr<const ModelRevision>>CommandBus::undo(){std::lock_guard lock(mutex_);if(undo_.empty())return Result<std::shared_ptr<const ModelRevision>>::failure({ErrorCode::HistoryEmpty,"Undo history empty",{}, {},0,0});redo_.push_back(current_);current_=undo_.back();undo_.pop_back();lastGesture_.reset();return Result<std::shared_ptr<const ModelRevision>>::success(current_);}
 Result<std::shared_ptr<const ModelRevision>>CommandBus::redo(){std::lock_guard lock(mutex_);if(redo_.empty())return Result<std::shared_ptr<const ModelRevision>>::failure({ErrorCode::HistoryEmpty,"Redo history empty",{}, {},0,0});undo_.push_back(current_);while(undo_.size()>historyLimits_.max_steps)undo_.erase(undo_.begin());current_=redo_.back();redo_.pop_back();lastGesture_.reset();return Result<std::shared_ptr<const ModelRevision>>::success(current_);}
 std::size_t CommandBus::undoDepth()const{std::lock_guard lock(mutex_);return undo_.size();}std::size_t CommandBus::redoDepth()const{std::lock_guard lock(mutex_);return redo_.size();}
+Result<Project> deleteWallCascade(const Project&source,const ModelId&wallId){
+ Project candidate=source;auto wall=std::find_if(candidate.walls.begin(),candidate.walls.end(),[&](const Wall&w){return w.id==wallId;});if(wall==candidate.walls.end())return Result<Project>::failure({ErrorCode::InvalidArgument,"Wall to delete not found",wallId.value,{},0,0});
+ candidate.walls.erase(std::remove_if(candidate.walls.begin(),candidate.walls.end(),[&](const Wall&w){return w.id==wallId;}),candidate.walls.end());
+ candidate.openings.erase(std::remove_if(candidate.openings.begin(),candidate.openings.end(),[&](const Opening&o){return o.hostWallId==wallId;}),candidate.openings.end());
+ candidate.catalogInstances.erase(std::remove_if(candidate.catalogInstances.begin(),candidate.catalogInstances.end(),[&](const CatalogInstance&i){return i.hostWallId==wallId;}),candidate.catalogInstances.end());
+ candidate.joins.erase(std::remove_if(candidate.joins.begin(),candidate.joins.end(),[&](const WallJoin&j){return j.wallA==wallId||j.wallB==wallId;}),candidate.joins.end());
+ return Result<Project>::success(std::move(candidate));
+}
+Result<Project> deleteLevelCascade(const Project&source,const ModelId&levelId){
+ Project candidate=source;auto level=std::find_if(candidate.levels.begin(),candidate.levels.end(),[&](const Level&l){return l.id==levelId;});if(level==candidate.levels.end())return Result<Project>::failure({ErrorCode::InvalidArgument,"Level to delete not found",levelId.value,{},0,0});
+ std::vector<ModelId> hostedWalls;for(const auto&w:candidate.walls)if(w.levelId==levelId)hostedWalls.push_back(w.id);
+ for(const auto&id:hostedWalls){auto deleted=deleteWallCascade(candidate,id);if(!deleted.ok())return deleted;candidate=std::move(*deleted.value());}
+ candidate.catalogInstances.erase(std::remove_if(candidate.catalogInstances.begin(),candidate.catalogInstances.end(),[&](const CatalogInstance&i){return i.levelId==levelId;}),candidate.catalogInstances.end());
+ candidate.levels.erase(std::remove_if(candidate.levels.begin(),candidate.levels.end(),[&](const Level&l){return l.id==levelId;}),candidate.levels.end());
+ return Result<Project>::success(std::move(candidate));
+}
 Result<Project> solveWallJoin(const Project&source,const ModelId&movedWall,bool movedStart,Point2 newJoint){
  if(!newJoint.finite())return Result<Project>::failure({ErrorCode::InvalidArgument,"WallJoin point must be finite",movedWall.value,{},0,0});
  Project candidate=source;auto moved=std::find_if(candidate.walls.begin(),candidate.walls.end(),[&](const Wall&w){return w.id==movedWall;});
