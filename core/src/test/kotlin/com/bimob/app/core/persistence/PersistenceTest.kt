@@ -118,4 +118,41 @@ class PersistenceTest {
         dir.deleteRecursively()
     }
 
+    @Test fun journalAppendIsIdempotentForTransactionRetry() {
+        val dir=File(System.getProperty("java.io.tmpdir"),"bimob-idempotent-"+System.nanoTime())
+        val storage=JvmAtomicStorage(dir)
+        val journal=CrashRecoveryJournal(storage,"recovery/journal.bin")
+        val base=fixture()
+        val saved=ProjectRepository(storage,journal=journal).save("base.bimob",base)
+        val change=base.copy(name="Transaction result")
+        journal.append(base.id.value,saved.digest,change,transactionId="txn-fixed")
+        journal.append(base.id.value,saved.digest,change.copy(name="Retry payload ignored"),transactionId="txn-fixed")
+        val recovered=journal.recoverDetailed(saved.digest,base)
+        assertEquals(change,recovered?.project)
+        assertEquals(1L,recovered?.appliedRecords)
+        dir.deleteRecursively()
+    }
+
+    @Test fun atomicStorageFailureLeavesPreviousProjectReadable() {
+        val dir=File(System.getProperty("java.io.tmpdir"),"bimob-atomic-fail-"+System.nanoTime())
+        val real=JvmAtomicStorage(dir)
+        val repo=ProjectRepository(real)
+        val original=fixture()
+        repo.save("project.bimob",original)
+        val failing=object:AtomicStorage {
+            override val capabilities=real.capabilities
+            override fun read(path:String)=real.read(path)
+            override fun appendDurably(path:String,bytes:ByteArray)=real.appendDurably(path,bytes)
+            override fun exists(path:String)=real.exists(path)
+            override fun delete(path:String)=real.delete(path)
+            override fun writeAtomically(path:String,bytes:ByteArray){throw IllegalStateException("Injected failure before replace")}
+        }
+        try {
+            ProjectRepository(failing).save("project.bimob",original.copy(name="Not saved"))
+            fail("Injected atomic write failure should propagate.")
+        } catch(_:IllegalStateException) {}
+        assertEquals(original,repo.load("project.bimob"))
+        dir.deleteRecursively()
+    }
+
 }
