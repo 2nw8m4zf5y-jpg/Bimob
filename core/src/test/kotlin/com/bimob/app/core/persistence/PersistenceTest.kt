@@ -84,4 +84,28 @@ class PersistenceTest {
         assertNull(journal.recover(sha(BimobArchiveWriter().write(next)),next))
         dir.deleteRecursively()
     }
+    @Test fun canonicalJsonMatchesGoldenBytesAndSha256() {
+        val minimal=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
+        val expected="""{"schemaVersion":1,"projectId":"p","name":"x","site":{"id":"s","name":"site"},"buildings":[],"levels":[],"materials":[],"types":[],"elements":[]}"""
+        val bytes=CanonicalProjectJson.encode(minimal)
+        assertEquals(expected,String(bytes,java.nio.charset.StandardCharsets.UTF_8))
+        assertEquals("70829131cb7633faacb617b7662e1b1337d20177adf2e952e3fd1551f2c04ebc",sha(bytes))
+    }
+
+    @Test fun truncatedJournalTailPreservesLastCommittedRecoveryRecord() {
+        val dir=File(System.getProperty("java.io.tmpdir"),"bimob-tail-"+System.nanoTime())
+        val storage=JvmAtomicStorage(dir)
+        val journal=CrashRecoveryJournal(storage,"journal/recovery.bin")
+        val base=fixture()
+        val repo=ProjectRepository(storage,journal=journal)
+        val saved=repo.save("project.bimob",base)
+        val changed=base.copy(name="Last committed")
+        journal.append(base.id.value,saved.digest,changed)
+        storage.appendDurably("journal/recovery.bin",byteArrayOf(0x01,0x02,0x03))
+        val recovered=journal.recoverDetailed(saved.digest,base)
+        assertEquals(changed,recovered?.project)
+        assertTrue(recovered?.stoppedAtCorruptTail==true)
+        dir.deleteRecursively()
+    }
+
 }
