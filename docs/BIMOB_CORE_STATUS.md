@@ -134,3 +134,8 @@ Partial G2 progress only. Implemented and tested in CI: collection-level COW, bo
 - The typed factories are mutation values used with `CommandBus::execute`; command-specific transaction wrappers/gesture IDs are still caller-provided through the existing CommandBus API, and comprehensive per-command coalescing coverage is outstanding.
 - Join recompute uses the native dependency graph conventions described above; it needs CI validation and cross-language parity confirmation.
 - Latest complete CI green result for this sprint is not available yet. Stage G2 remains **NOT ACCEPTED**.
+
+
+### Latest native test coverage extension
+
+- Typed Move and Resize gesture coalescing is now covered for Wall, Opening and CatalogInstance (commit `d8c74f2`). This remains **unverified locally/remotely** until CMake/CTest succeeds; no PASS claim is made.
