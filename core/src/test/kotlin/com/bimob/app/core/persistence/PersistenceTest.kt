@@ -127,6 +127,50 @@ class PersistenceTest {
         dir.deleteRecursively()
     }
 
+    @Test fun canonicalGoldenFixtureCoversMultilingualTextParametersAndLayeredWalls() {
+        val material=Material(ModelId("mat-g"),"Кирпич","Стена",1600.0,0.5,12.0,"m3")
+        val type=ElementType(ModelId("type-g"),"Стеновой тип",ElementCategory.WALL,listOf(
+            Parameter(ModelId("bool-g"),ParameterValue.Bool(true)),
+            Parameter(ModelId("int-g"),ParameterValue.IntNumber(7)),
+            Parameter(ModelId("real-g"),ParameterValue.Real(0.5)),
+            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка\nвторая")),
+            Parameter(ModelId("ref-g"),ParameterValue.Reference(material.id)),
+            Parameter(ModelId("enum-g"),ParameterValue.EnumValue("STRUCTURE"))
+        ))
+        val firstWall=WallElement(
+            id=ModelId("wall-a"),typeId=type.id,levelId=ModelId("level-g"),
+            axis=WallAxis(Point2(0.5,0.0),Point2(2.5,0.0)),heightMeters=3.0,thicknessMeters=0.25,
+            baseElevationMeters=0.0,topElevationMeters=3.0,locationLine=WallLocationLine.CORE_CENTER,
+            layers=listOf(WallLayer(material.id,0.125,WallLayerFunction.STRUCTURE,true),WallLayer(null,0.125,WallLayerFunction.INSULATION,false)),
+            parameters=listOf(Parameter(ModelId("instance-real"),ParameterValue.Real(2.5)))
+        )
+        val secondWall=WallElement(
+            id=ModelId("wall-b"),typeId=type.id,levelId=ModelId("level-g"),
+            axis=WallAxis(Point2(2.5,0.0),Point2(2.5,1.5)),heightMeters=3.0,thicknessMeters=0.25,
+            baseElevationMeters=0.0,topElevationMeters=3.0,locationLine=WallLocationLine.CENTER,
+            layers=listOf(WallLayer(material.id,0.25,WallLayerFunction.STRUCTURE,true)),
+            parameters=listOf(Parameter(ModelId("instance-text"),ParameterValue.Text("UTF-8: ё, 漢字, 🏔️")))
+        )
+        val rich=Project(
+            id=ModelId("golden-rich"),name="BIMOB \"Кавказ\"\n🌄",schemaVersion=1,
+            site=Site(ModelId("site-g"),"Дом 🏡"),buildings=listOf(Building(ModelId("building-g"),"Корпус")),
+            levels=listOf(Level(ModelId("level-g"),"Этаж 1",0.5,3.0)),
+            elements=listOf(firstWall,secondWall),materials=listOf(material),types=listOf(type)
+        )
+        val expected=javaClass.getResource("/golden/canonical-rich.json")!!.readBytes()
+        val encoded=CanonicalProjectJson.encode(rich)
+        assertArrayEquals(expected,encoded)
+        assertEquals("25583cd0e19395e4ae6b59bfe08d93970a44cca12447f28ccac37f95574d9c42",sha(encoded))
+        assertEquals(rich,CanonicalProjectJson.decode(expected))
+    }
+
+    @Test fun emptyProjectGoldenFixtureIsByteExact() {
+        val empty=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
+        val expected=javaClass.getResource("/golden/canonical-empty.json")!!.readBytes()
+        assertArrayEquals(expected,CanonicalProjectJson.encode(empty))
+        assertEquals("70829131cb7633faacb617b7662e1b1337d20177adf2e952e3fd1551f2c04ebc",sha(expected))
+    }
+
     @Test fun canonicalJsonMatchesGoldenBytesAndSha256() {
         val minimal=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
         val expected="""{"schemaVersion":1,"projectId":"p","name":"x","site":{"id":"s","name":"site"},"buildings":[],"levels":[],"materials":[],"types":[],"elements":[]}"""
