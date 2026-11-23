@@ -26,7 +26,7 @@ class BimobArchiveWriter {
         require(errors.isEmpty()){"Project validation failed: "+errors.joinToString { it.code }}
         val model=CanonicalProjectJson.encode(project)
         val declared=listOf(ManifestEntry("model/model.json",model.size.toLong(),sha(model)))
-        val integrity=Json.bytes(JO(linkedMapOf("sha256" to JA(declared.map{JO(linkedMapOf("path" to JS(it.path),"digest" to JS(it.sha256))) })))
+        val integrity=Json.bytes(JO(linkedMapOf("sha256" to JA(declared.map{JO(linkedMapOf("path" to JS(it.path),"digest" to JS(it.sha256))) }))))
         val manifest=manifestJson(BimobManifest(1,project.schemaVersion,1,"BIMOB-Kotlin/0.1",project.id.value,emptyList(),declared,listOf("chunks/")))
         val entries=linkedMapOf("manifest.json" to manifest,"model/model.json" to model,"integrity/sha256.json" to integrity,"chunks/" to ByteArray(0))
         val output=ByteArrayOutputStream()
