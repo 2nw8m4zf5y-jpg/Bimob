@@ -23,7 +23,12 @@ sealed interface EvaluationResult {
     data class Cancelled(val completedOrder: List<DependencyNodeKey>) : EvaluationResult
 }
 
-fun interface RecomputeCancellation {\n    fun isCancelled(): Boolean\n    companion object { val NEVER = RecomputeCancellation { false } }\n}\n\nfun interface DependencyEvaluator {
+fun interface RecomputeCancellation {
+    fun isCancelled(): Boolean
+    companion object { val NEVER = RecomputeCancellation { false } }
+}
+
+fun interface DependencyEvaluator {
     fun evaluate(project: Project, currentValues: Map<DependencyNodeKey, DerivedValue>): DerivedValue
 }
 
