@@ -73,4 +73,29 @@ Result<Project> deleteLevelCascade(const Project&,const ModelId& levelId);
 Result<Project> solveWallJoin(const Project&,const ModelId& movedWall,bool movedStart,Point2 newJoint);
 Result<DependencyGraph> admitEdges(const DependencyGraph&,const std::vector<DependencyEdge>&,const EngineLimits&);
 Result<EvaluationReport> recompute(const DependencyGraph&,const std::vector<NodeId>& seeds,const Project&,const DerivedMap&,const EvaluatorRegistry&,const EngineLimits&,const CancellationToken* cancellation=nullptr);
+
+/** Typed native BIM mutation factories. Every mutation is staged against an immutable source
+ * Project and validated before CommandBus publishes a revision. */
+namespace commands {
+Mutation createLevel(Level value);
+Mutation moveLevel(ModelId id, Meters elevation);
+Mutation resizeLevel(ModelId id, Meters height);
+Mutation deleteLevel(ModelId id);
+Mutation createWall(Wall value);
+Mutation moveWall(ModelId id, Point2 delta);
+Mutation moveWallEndpoint(ModelId id, bool movedStart, Point2 joint);
+Mutation resizeWall(ModelId id, Meters length);
+Mutation deleteWall(ModelId id);
+Mutation createOpening(Opening value);
+Mutation moveOpening(ModelId id, Meters offsetAlongWall, Meters sillHeight);
+Mutation resizeOpening(ModelId id, Meters width, Meters height);
+Mutation deleteOpening(ModelId id);
+Mutation createCatalogInstance(CatalogInstance value);
+Mutation moveCatalogInstance(ModelId id, Point2 position);
+Mutation resizeCatalogInstance(ModelId id, Meters width, Meters depth, Meters height);
+Mutation deleteCatalogInstance(ModelId id);
+/** Stages child mutations in sequence; CommandBus commits the returned candidate once. */
+Mutation batch(std::vector<Mutation> mutations);
+} // namespace commands
+
 } // namespace bimob
