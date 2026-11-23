@@ -144,7 +144,7 @@ class PersistenceTest {
             override fun read(path:String)=real.read(path)
             override fun appendDurably(path:String,bytes:ByteArray)=real.appendDurably(path,bytes)
             override fun exists(path:String)=real.exists(path)
-            override fun delete(path:String)=real.delete(path)
+            override fun delete(path:String){real.delete(path)}
             override fun writeAtomically(path:String,bytes:ByteArray){throw IllegalStateException("Injected failure before replace")}
         }
         try {
