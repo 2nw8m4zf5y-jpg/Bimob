@@ -2,6 +2,7 @@ package com.bimob.app.core.dependency
 
 import com.bimob.app.core.model.Project
 import com.bimob.app.core.model.CancellationCheck
+import com.bimob.app.core.model.CancellationCheck
 
 /** Small portable value vocabulary for derived state; avoids arbitrary JVM object graphs. */
 sealed interface DerivedValue {
@@ -21,6 +22,7 @@ data class EvaluationFailure(val node: DependencyNodeKey, val message: String)
 sealed interface EvaluationResult {
     data class Success(val values: Map<DependencyNodeKey, DerivedValue>, val order: List<DependencyNodeKey>) : EvaluationResult
     data class Failure(val failure: EvaluationFailure, val completedOrder: List<DependencyNodeKey>) : EvaluationResult
+    data class Cancelled(val completedOrder: List<DependencyNodeKey>) : EvaluationResult
     data class Cancelled(val completedOrder: List<DependencyNodeKey>) : EvaluationResult
 }
 
@@ -69,15 +71,18 @@ object RecomputeEngine {
         plan: RecomputePlan,
         project: Project,
         initialValues: Map<DependencyNodeKey, DerivedValue>,
-        evaluators: Map<DependencyNodeKey, DependencyEvaluator>
+        evaluators: Map<DependencyNodeKey, DependencyEvaluator>,
+        cancellation: CancellationCheck = CancellationCheck.NEVER
     ): EvaluationResult {
         val staged = initialValues.toMutableMap()
         val completed = mutableListOf<DependencyNodeKey>()
         for (node in plan.order) {
+            if (cancellation.isCancelled()) return EvaluationResult.Cancelled(completed.toList())
             val evaluator = evaluators[node] ?: continue
             try {
                 staged[node] = evaluator.evaluate(project, staged.toMap())
                 completed += node
+                if (cancellation.isCancelled()) return EvaluationResult.Cancelled(completed.toList())
             } catch (e: Exception) {
                 return EvaluationResult.Failure(
                     EvaluationFailure(node, e.message ?: e::class.java.simpleName),
