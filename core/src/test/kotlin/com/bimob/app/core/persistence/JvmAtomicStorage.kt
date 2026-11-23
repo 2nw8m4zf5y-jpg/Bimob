@@ -16,7 +16,7 @@ class JvmAtomicStorage(private val root:File):AtomicStorage {
     }
     override fun read(path:String)=resolve(path).readBytes()
     override fun exists(path:String)=resolve(path).exists()
-    override fun delete(path:String)=resolve(path).delete()
+    override fun delete(path:String){resolve(path).delete()}
     override fun appendDurably(path:String,bytes:ByteArray){
         val f=resolve(path);f.parentFile?.mkdirs()
         RandomAccessFile(f,"rw").use{it.seek(it.length());it.write(bytes);it.fd.sync()}
@@ -25,9 +25,9 @@ class JvmAtomicStorage(private val root:File):AtomicStorage {
         val target=resolve(path);target.parentFile?.mkdirs()
         val temp=File(target.parentFile,target.name+".tmp-"+System.nanoTime())
         try{FileOutputStream(temp).use{it.write(bytes);it.flush();it.fd.sync()};require(temp.readBytes().contentEquals(bytes)){"Staged-file verification failed."}}
-        catch(e:Exception){temp.delete();throw PersistenceException("Temporary write/fsync/verify failed.",e)}
+        catch(e:Exception){temp.delete();throw IllegalStateException("Temporary write/fsync/verify failed.",e)}
         try{Files.move(temp.toPath(),target.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING)}
-        catch(e:Exception){temp.delete();throw PersistenceException("Atomic replacement failed; old destination must remain.",e)}
+        catch(e:Exception){temp.delete();throw IllegalStateException("Atomic replacement failed; old destination must remain.",e)}
         try{FileInputStream(target.parentFile).use{it.fd.sync()}}catch(_:Exception){/* JVM/platform may not expose directory fsync */}
     }
 }
