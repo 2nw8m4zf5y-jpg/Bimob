@@ -83,6 +83,49 @@ class CommandBusTest {
         assertTrue(bus.redo() is CommandResult.Committed)
         assertEquals("B", bus.snapshot().project.name)
     }
+    @Test fun gestureUpdatesCoalesceAndUndoRedoRestoreExactWallState() {
+        val initial = Project(name = "Gesture", elements = listOf(WallElement(
+            id = ModelId("wall-1"), axis = WallAxis(Point2(0.0, 0.0), Point2(2.0, 0.0)),
+            heightMeters = 2.7, thicknessMeters = 0.2
+        )))
+        val bus = CommandBus(initial)
+        val before = bus.snapshot().project
+        repeat(3) {
+            assertTrue(bus.execute(MoveWallCommand(ModelId("wall-1"), 1.0, 0.0), gestureId = "drag-A") is CommandResult.Committed)
+        }
+        assertEquals(1, bus.undoDepth())
+        val final = bus.snapshot().project
+        assertEquals(3.0, (final.elements.single() as WallElement).axis.start.xMeters, 0.0)
+        assertTrue(bus.undo() is CommandResult.Committed)
+        assertEquals(before, bus.snapshot().project)
+        assertTrue(bus.redo() is CommandResult.Committed)
+        assertEquals(final, bus.snapshot().project)
+    }
+
+    @Test fun separateGesturesDoNotCoalesceAndRejectedUpdateDoesNotDamageHistory() {
+        val initial = Project(name = "Gesture", elements = listOf(WallElement(
+            id = ModelId("wall-1"), axis = WallAxis(Point2(0.0, 0.0), Point2(2.0, 0.0)),
+            heightMeters = 2.7, thicknessMeters = 0.2
+        )))
+        val bus = CommandBus(initial)
+        assertTrue(bus.execute(MoveWallCommand(ModelId("wall-1"), 1.0, 0.0), gestureId = "drag-A") is CommandResult.Committed)
+        assertTrue(bus.execute(MoveWallCommand(ModelId("wall-1"), 1.0, 0.0), gestureId = "drag-A") is CommandResult.Committed)
+        assertTrue(bus.execute(MoveWallCommand(ModelId("wall-1"), 1.0, 0.0), gestureId = "drag-B") is CommandResult.Committed)
+        assertEquals(2, bus.undoDepth())
+        val beforeInvalid = bus.snapshot()
+        val undoDepth = bus.undoDepth()
+        val redoDepth = bus.redoDepth()
+        val invalid = bus.execute(SetWallThicknessCommand(ModelId("wall-1"), Double.NaN), gestureId = "drag-B")
+        assertEquals(CommandFailureCode.COMMAND_FAILED, (invalid as CommandResult.Rejected).code)
+        assertEquals(beforeInvalid, bus.snapshot())
+        assertEquals(undoDepth, bus.undoDepth())
+        assertEquals(redoDepth, bus.redoDepth())
+        assertTrue(bus.undo() is CommandResult.Committed)
+        assertEquals(2.0, (bus.snapshot().project.elements.single() as WallElement).axis.start.xMeters, 0.0)
+        assertTrue(bus.undo() is CommandResult.Committed)
+        assertEquals(0.0, (bus.snapshot().project.elements.single() as WallElement).axis.start.xMeters, 0.0)
+    }
+
     @Test fun invalidInitialModelIsRejected() {
         val invalid = Project(name="bad", schemaVersion=0)
         assertThrows(IllegalArgumentException::class.java) { CommandBus(invalid) }

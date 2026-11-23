@@ -185,6 +185,7 @@ class CommandBus(
     private val undoStack = ArrayDeque<HistoryEntry>()
     private val redoStack = ArrayDeque<HistoryEntry>()
     private var nextHistoryOrder = 0L
+    private var lastGestureId: String? = null
     private val listeners = mutableSetOf<(ModelEvent) -> Unit>()
 
     init {
@@ -210,7 +211,8 @@ class CommandBus(
     fun execute(
         mutation: ModelMutation,
         expectedRevision: Long? = null,
-        cancellation: CancellationCheck = CancellationCheck.NEVER
+        cancellation: CancellationCheck = CancellationCheck.NEVER,
+        gestureId: String? = null
     ): CommandResult {
         val committed: ModelRevision
         synchronized(monitor) {
@@ -276,14 +278,17 @@ class CommandBus(
             if (!hasEventCapacity())
                 return CommandResult.Rejected(CommandFailureCode.EVENT_QUEUE_FULL, "Pending event queue is full.")
 
-            // A new branch invalidates redo before budget accounting, freeing its retained snapshots.
+            // Coalesce only consecutive successful commits carrying the same non-empty gesture ID.
+            // Rejected/no-op mutations do not alter the gesture boundary or history.
             redoStack.clear()
-            if (historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
+            val coalesce = gestureId != null && gestureId == lastGestureId
+            if (!coalesce && historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
                 undoStack.addLast(historyEntry(before))
                 trimHistory()
             }
             current = ModelRevision(nextRevision, candidate, context.dependencyGraph, freezeDerivedValues(candidateValues))
             committed = current
+            lastGestureId = gestureId
             enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
         }
         drainEvents()
@@ -318,6 +323,7 @@ class CommandBus(
             }
             current = ModelRevision(nextRevision, target.state.project, target.state.dependencyGraph, freezeDerivedValues(target.state.derivedValues))
             restored = current
+            lastGestureId = null
             enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
         drainEvents()
