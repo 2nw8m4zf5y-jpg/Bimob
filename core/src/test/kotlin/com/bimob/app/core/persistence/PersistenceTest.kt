@@ -127,6 +127,16 @@ class PersistenceTest {
         dir.deleteRecursively()
     }
 
+    @Test fun canonicalDoubleUsesShortestRoundTripAndNormalizesNegativeZero() {
+        val project=Project(
+            id=ModelId("float-p"),name="float",schemaVersion=1,site=Site(ModelId("float-s"),"site"),
+            levels=listOf(Level(ModelId("float-l"),"level",0.2,-0.0))
+        )
+        val json=String(CanonicalProjectJson.encode(project),java.nio.charset.StandardCharsets.UTF_8)
+        assertTrue(json.contains("\"elevationMeters\":0.2,\"heightMeters\":0"))
+        assertFalse(json.contains("-0"))
+    }
+
     @Test fun canonicalGoldenFixtureCoversMultilingualTextParametersAndLayeredWalls() {
         val material=Material(ModelId("mat-g"),"Кирпич","Стена",1600.0,0.5,12.0,"m3")
         val type=ElementType(ModelId("type-g"),"Стеновой тип",ElementCategory.WALL,listOf(
