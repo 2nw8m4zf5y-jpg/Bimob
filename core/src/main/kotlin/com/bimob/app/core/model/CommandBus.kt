@@ -205,12 +205,12 @@ class CommandBus(
                 candidate = freezeProject(mutation.stage(before.project, context))
                 context.checkpoint()
                 val plan = RecomputeEngine.plan(context.dependencyGraph, context.dirtyNodes)
-                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators)) {
+                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators, cancellation)) {
                     is EvaluationResult.Success -> {
                         context.publishEvaluated(evaluated.values)
                         candidateValues = evaluated.values
                     }
-                    is EvaluationResult.Failure -> return CommandResult.Rejected(
+                    is EvaluationResult.Cancelled -> return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled during recompute.")\n                    is EvaluationResult.Failure -> return CommandResult.Rejected(
                         CommandFailureCode.EVALUATION_FAILED,
                         "Evaluator failed at ${evaluated.failure.node.stableKey()}: ${evaluated.failure.message}"
                     )
