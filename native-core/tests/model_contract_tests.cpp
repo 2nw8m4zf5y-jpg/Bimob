@@ -51,7 +51,7 @@ void typedGestureCoalescingAcrossEntityKinds(){
  assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{2},Meters{2}}),{}, "catalog-drag").ok());
  assert(bus.undoDepth()==3);
  assert(bus.undo().ok()&&bus.snapshot()->project->catalogInstances[0]==catalogBeforeMove);
- assert(bus.redo().ok()&&bus.snapshot()->project->catalogInstances[0].position==Point2{Meters{2},Meters{2}});
+ assert((bus.redo().ok()&&bus.snapshot()->project->catalogInstances[0].position==Point2{Meters{2},Meters{2}}));
 
  // Wall resize coalesces; Undo restores original length and Redo the final length.
  const double wallLengthBefore=bus.snapshot()->project->walls[0].axis.length().value;
