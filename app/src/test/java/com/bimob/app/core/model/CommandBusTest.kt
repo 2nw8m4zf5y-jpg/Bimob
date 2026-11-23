@@ -181,7 +181,8 @@ class CommandBusTest {
             assertEquals(2L, bus.snapshot().number)
             assertEquals("Second", bus.snapshot().project.name)
             release.countDown()
-            assertTrue(first.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)\n            assertTrue(second.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)
+            assertTrue(first.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)
+            assertTrue(second.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)
             assertEquals(listOf(1L, 2L), observed.toList())
         } finally {
             release.countDown()
