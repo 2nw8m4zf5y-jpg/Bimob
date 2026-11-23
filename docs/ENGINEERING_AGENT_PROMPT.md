@@ -47,7 +47,7 @@ API геометрии независим от конкретной библио
 
 ## 9. Dependency Engine
 
-Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)**. **Stage E is ACCEPTED / CLOSED** (owner decision, 2026-11-23); E1/E2/E3 and CI evidence are recorded below. Next work is UI ownership migration through ModelSession; do not begin native C++20 port until this app-layer boundary is stabilized.
+Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)** and **ADR 003: [ModelSession and UI Ownership](adr/003-model-session-ui-ownership.md)**. **Stage E is ACCEPTED / CLOSED** (owner decision, 2026-11-23). Stage F implementation is complete and code CI is green at `73ba2b9`; final documentation-head CI is the remaining acceptance gate. Do not begin native C++20 port until the app-layer boundary is formally closed.
 
 - Directed edges mean source → dependent. Graph must be a DAG; reject self/multi-node cycles on the candidate graph **before commit**, with deterministic cycle-path diagnostics.
 - Changed semantic property keys seed transaction-local dirty propagation. Deduplicate the dirty closure and schedule it with deterministic topological ordering and stable tie-breaks. Recompute only affected nodes.
@@ -58,7 +58,11 @@ Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership]
 - E2: revision-scoped Project+graph+derived state, TransactionContext staging, dirty closure, deterministic topological recompute, rollback and synchronized Undo/Redo — ACCEPTED / CLOSED by owner; CI green on add8a18.
 - E3: immutable configuration-level EvaluatorRegistry plus transaction overrides; graph/dirty/evaluation/fan-out budgets; atomic rollback and stable diagnostics; adjacency grouping and FIFO Kahn scheduling (dirty traversal/topological scheduling O(V+E)); direct dependency input maps; 10k stress test — ACCEPTED / CLOSED; CI green on b024d8d.
 - Tests include cycles (single and batch), rollback, dirty closure, stable topological order, no partial derived cache/event publication, failure/cancellation, budgets, Undo/Redo and randomized DAG equivalence.
-- Stage E overall — ACCEPTED / CLOSED. Deferred YELLOW: cache fingerprints, full-recompute oracle, fuzz/property stress and detailed heap profiling. Next: MainActivity ownership migration to ModelSession, then C++20 port.
+- Stage E overall — ACCEPTED / CLOSED. Deferred YELLOW: cache fingerprints, full-recompute oracle, fuzz/property stress and detailed heap profiling.
+- Stage F1: ModelSession serializes commands/Undo/Redo/gesture operations; StateFlow publishes immutable UI DTOs, never ModelRevision/Project. Scalar wall commands and preview APIs; gesture cancel rollback and one-command end; save/export serialized with the same session lock. `:core:test` includes session/concurrency/gesture/budget tests.
+- Stage F2: ModelRevisionCodec and ProjectRepository persist exact immutable revision snapshots; private AtomicStorage; content-based dirty tracking; deterministic legacy migrator; migration enters the core via initialization command.
+- Stage F3: MainActivity/Compose consumes only SessionSnapshot + WallCanvasSnapshot and scalar ModelSession APIs. No mutable wall list or direct model/CommandBus access in UI. SAF only external archive import/export.
+- Stage F code CI green at `73ba2b9`, run [#45188662818](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45188662818), including `:core:test`, `testDebugUnitTest`, `assembleDebug`, native contract tests and APK artifact upload. F4 documentation updated; rerun CI on final docs HEAD before closing Stage F.
 
 ## 10. Kotlin prototype → C++20 и Android/NDK
 
@@ -137,7 +141,7 @@ O. UI/tool expansion.
 Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–E. Native C++20 migration and test parity must be completed before Geometry Kernel stage H.
 
 ### MainActivity model-ownership debt (audited 2026-11-23)
-Post-F3 audit: the mutable wall list and direct Canvas mutation are removed. MainActivity uses ModelSession; wall mutations are commands, gesture previews are ephemeral, Compose observes immutable snapshots, and revision files are stored privately. SharedPreferences holds project-index/legacy data only. SAF is confined to archive import/export.
+Post-F3 audit: mutable wall list and direct Canvas mutation are removed. Compose receives only immutable SessionSnapshot/WallCanvasSnapshot DTOs and calls scalar ModelSession APIs; no Kotlin ModelRevision/Project/CommandBus internals cross into Compose. Gesture previews are ephemeral; end commits one semantic command. Save/export operations are serialized by ModelSession. SharedPreferences holds project-index/legacy data only. SAF is confined to archive import/export.
 ## 20. GitHub workflow
 
 Work only in `feature/model-core-v1`. Never directly change `main`; do not merge PR without explicit user approval. Use GitHub API/tools for real repository changes. Each logical change: inspect diff, validate paths and content, commit, verify SHA, run CI and confirm outcome. Do not claim a file/commit/test changed unless verified. Avoid fake commits, unsubstantiated success claims or unnecessary edits.
@@ -176,11 +180,11 @@ Build BIMOB as a long-lived extensible engineering platform for architecture, in
 New capabilities must not destabilize old ones. The core should evolve without repeatedly rebuilding its foundation. Begin by auditing the real repository state and the most critical unfinished architecture gates.
 ## Stage F progress and acceptance gate
 
-F1/F2/F3 code is implemented on `feature/model-core-v1`; do not call Stage F formally closed until F4 docs and CI pass on final HEAD.
+F1/F2/F3 code is implemented on `feature/model-core-v1`; F4 docs are updated. Code CI is green at `73ba2b9`; do not call Stage F formally closed until CI passes on final documentation HEAD.
 
-- F1: ModelSession lock/serialized commands, immutable StateFlow snapshots, revision flags, gesture coalescing/cancel, semantic command commit, Undo/Redo and diagnostic propagation.
+- F1: ModelSession lock/serialized commands, immutable StateFlow UI DTOs (no domain object leakage), revision flags, scalar gesture preview/coalescing/cancel, semantic command commit, Undo/Redo and diagnostic propagation. Core tests include concurrent command serialization.
 - F2: private AtomicStorage + revision codec round-trip (Project, dependency graph nodes/edges, derived values, revision number); deterministic legacy JSON migration; initialization through a validated command.
-- F3: MainActivity migrated to Compose; no local mutable wall geometry; Canvas previews are Session snapshots; create/move/delete/thickness are ModelMutations; SAF only for external archive exchange.
+- F3: MainActivity migrated to Compose; no local mutable wall geometry; Canvas consumes WallCanvasSnapshot DTOs; create/move/delete/thickness use scalar ModelSession APIs; save/export serialize with edits; SAF only for external archive exchange.
 - Verified F3 CI at `0340fd1`: run #45184281677 green. Subsequent tests and saved-state equality refinements must also pass final CI.
 - F4: update MASTER_PROMPT, ENGINEERING_AGENT_PROMPT and ADR 003; final acceptance report.
 - YELLOW: device-level touch cancellation, storage directory fsync and crash recovery tests are not yet proven.

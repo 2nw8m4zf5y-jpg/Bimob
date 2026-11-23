@@ -1,6 +1,6 @@
 # ADR 003 — ModelSession and UI Ownership
 
-**Status:** Implemented; final Stage F acceptance pending CI on current HEAD  
+**Status:** Implemented; final documentation-head CI pending  
 **Date:** 2026-11-23  
 **Branch:** `feature/model-core-v1`
 
@@ -15,10 +15,10 @@ Use the boundary:
 `Compose UI / Canvas → ModelSession → CommandBus → ModelRevision → ProjectRepository`
 
 - ModelSession is the serialized application façade. It owns the CommandBus and publishes immutable SessionSnapshot values through StateFlow.
-- SessionSnapshot carries the current ModelRevision, canUndo/canRedo, hasUnsavedChanges, diagnostics and optional transient gesture preview.
-- All committed model changes are ModelMutations. Typed wall commands are AddWallCommand, MoveWallCommand, DeleteWallCommand and SetWallThicknessCommand.
-- A gesture begins against one base revision. Preview transforms are ephemeral and do not add history entries. Drag end submits one semantic command; cancel discards the preview. Undo/Redo cancel an active preview before operating on CommandBus history.
-- Dirty state compares saved revision content (Project, dependency graph, derived values), not merely revision number; this permits Undo back to saved content to become clean.
+- SessionSnapshot is a strict UI DTO: revision number, project ID/name, immutable WallCanvasSnapshot list, element count, canUndo/canRedo, hasUnsavedChanges, diagnostics and gestureActive. It does **not** expose ModelRevision, Project, DependencyGraph, derived-value maps or command internals to Compose.
+- Compose uses scalar façade methods (`addWall`, `moveWall`, `deleteWall`, `setWallThickness`) and scalar gesture-preview methods (`previewDrawWall`, `previewMoveWall`). The ModelSession translates these into typed core commands: AddWallCommand, MoveWallCommand, DeleteWallCommand and SetWallThicknessCommand.
+- A gesture begins against one base revision. Scalar preview updates publish immutable Canvas DTOs but do not add history entries. Drag end submits exactly one semantic command with the captured expected revision; cancel discards the preview. Undo/Redo cancel an active preview before operating on CommandBus history.
+- Dirty state compares saved revision content (Project, dependency graph, derived values), not merely revision number; this permits Undo back to saved content to become clean. Save and export execute under the ModelSession serialization lock; save records the exact revision successfully persisted.
 - ModelRevisionCodec deterministically stores revision number, canonical Project, typed dependency nodes/edges and derived values. ProjectRepository writes and read-back verifies an exact revision through AtomicStorage.
 - Android PrivateFileAtomicStorage owns internal files. SAF Uri/DocumentFile code remains only at external archive import/export boundaries.
 - Legacy SharedPreferences sketch JSON is migrated with deterministic project/site/wall IDs, validation, then submitted through a ModelSession initialization mutation. SharedPreferences is no longer the authoritative model store.
@@ -34,10 +34,10 @@ Use the boundary:
 
 ## Verification
 
-- F1 tests: gesture coalescing, cancel rollback, Undo/Redo, Engine limit rejection.
-- F2 tests: deterministic revision codec and private repository round-trip; legacy migrator deterministic IDs and validation.
-- F3 tests: typed wall mutation/history and Compose Canvas compile.
-- F1–F3 and expanded regression CI green at commit `1299c8e`, run [#45184729141](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45184729141). Final docs-head CI is pending.
+- F1 tests in `:core:test`: gesture coalescing (generic and scalar Canvas APIs), cancel rollback, Undo/Redo, Engine limit rejection, immutable preview collection freezing and concurrent command serialization.
+- F2 tests in `:core:test`: deterministic revision codec and private repository round-trip; session save/dirty-state tracking; legacy migrator deterministic IDs and validation.
+- F3 tests: typed wall mutation/history through public façade and Compose Canvas compile.
+- Code CI green at commit `73ba2b9`, run [#45188662818](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45188662818): `:core:test`, `testDebugUnitTest`, `assembleDebug`, native contract configure/build/ctest; debug APK artifact uploaded. Final documentation-head CI is pending.
 - Stage F is not formally closed until F4 documentation and final CI on the final branch head.
 
 ## Deferred / Yellow
