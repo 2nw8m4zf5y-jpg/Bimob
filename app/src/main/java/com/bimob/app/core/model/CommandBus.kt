@@ -29,8 +29,9 @@ internal class TransactionCancelledException : RuntimeException("Transaction can
 /** Runs child mutations against a private candidate; only the final result can be committed. */
 class BatchCommand(
     override val label: String,
-    private val commands: List<ModelMutation>
+    commands: List<ModelMutation>
 ) : ModelMutation {
+    private val commands = java.util.Collections.unmodifiableList(ArrayList(commands))
     override fun apply(before: Project): Project = stage(before, TransactionContext(CancellationCheck.NEVER))
 
     override fun stage(before: Project, context: TransactionContext): Project {
