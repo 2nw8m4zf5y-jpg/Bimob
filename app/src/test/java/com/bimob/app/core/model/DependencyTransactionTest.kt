@@ -133,6 +133,61 @@ class DependencyTransactionTest {
         assertEquals(0,bus.undoDepth())
     }
 
+    @Test fun removingDependencyInvalidatesStaleDerivedDependentValue() {
+        val bus=CommandBus(project())
+        val a=key("source"); val b=key("dependent")
+        val setup=object:ModelMutation {
+            override val label="Seed graph and values"
+            override fun apply(before:Project)=before.copy(name="Seed")
+            override fun stage(before:Project,context:TransactionContext):Project {
+                context.admitDependency(edge(a,b)); context.markDirty(a)
+                context.registerEvaluator(a){p,_->DerivedValue.TextValue(p.name)}
+                context.registerEvaluator(b){_,v->v.getValue(a)}
+                return before.copy(name="Seed")
+            }
+        }
+        assertTrue(bus.execute(setup) is CommandResult.Committed)
+        assertTrue(bus.snapshot().derivedValues.containsKey(b))
+        val remove=object:ModelMutation {
+            override val label="Remove edge"
+            override fun apply(before:Project)=before.copy(name="Changed")
+            override fun stage(before:Project,context:TransactionContext):Project {
+                context.removeDependency(edge(a,b))
+                return before.copy(name="Changed")
+            }
+        }
+        assertTrue(bus.execute(remove) is CommandResult.Committed)
+        assertFalse(bus.snapshot().derivedValues.containsKey(b))
+        assertEquals(0,bus.snapshot().dependencyGraph.edgeCount)
+    }
+
+    @Test fun historyBudgetCountsGraphAndDerivedSnapshotPayload() {
+        val bus=CommandBus(project(),historyMemoryBudgetBytes=1_000_000)
+        val a=key("history-source"); val b=key("history-dependent")
+        val setup=object:ModelMutation {
+            override val label="Store graph"
+            override fun apply(before:Project)=before
+            override fun stage(before:Project,context:TransactionContext):Project {
+                context.admitDependency(edge(a,b))
+                return before
+            }
+        }
+        assertTrue(bus.execute(setup) is CommandResult.Committed)
+        val baseline=MemoryEstimator.estimateProjectBytes(project())
+        val commit=object:ModelMutation {
+            override val label="Create graph history snapshot"
+            override fun apply(before:Project)=before.copy(name="Revision 2")
+            override fun stage(before:Project,context:TransactionContext):Project {
+                context.markDirty(a)
+                context.registerEvaluator(a){_,_->DerivedValue.TextValue("source".repeat(20))}
+                context.registerEvaluator(b){_,v->DerivedValue.TextValue(v.getValue(a).toString().repeat(20))}
+                return before.copy(name="Revision 2")
+            }
+        }
+        assertTrue(bus.execute(commit) is CommandResult.Committed)
+        assertTrue(bus.historyMemoryUsageBytes()>baseline)
+    }
+
     @Test fun cancellationDuringRecomputeDiscardsModelGraphAndDerivedCandidate() {
         val bus = CommandBus(project())
         val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
