@@ -87,6 +87,7 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
             val m=parseManifest(Json.parse(manifest).obj())
             if(m.containerVersion!=1)throw ArchiveFormatException("Unsupported container version "+m.containerVersion+".")
             if(m.minimumReaderVersion>1)throw ArchiveFormatException("Reader version too old.")
+            if(m.schemaVersion>migrations.currentVersion)throw UnsupportedSchemaException(m.schemaVersion,migrations.currentVersion)
             if(m.reservedDirectories.none{it=="chunks/"})throw ArchiveFormatException("Manifest does not declare chunks/ reservation.")
             val index=entries["integrity/sha256.json"]?:throw IntegrityException("Integrity index missing.")
             val hashes=Json.parse(index).obj().req("sha256").array().a.associate{val x=it.obj();x.req("path").text() to x.req("digest").text()}
@@ -101,7 +102,7 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
             return migrations.migrate(project)
         }catch(e:PersistenceException){throw e}catch(e:Exception){throw ArchiveFormatException("Invalid or damaged BIMOB archive.",e)}
     }
-    private fun validatePath(p:String){if(p.startsWith("/")||p.contains("\\\\")||p.split('/').any{it==".."||it=="."}||p.contains(":"))throw ArchiveFormatException("Unsafe ZIP path.")}
+    private fun validatePath(p:String){if(p.startsWith("/")||p.contains("\\")||p.split('/').any{it==".."||it=="."}||p.contains(":"))throw ArchiveFormatException("Unsafe ZIP path.")}
     private fun parseManifest(o:JO):BimobManifest {
         fun int(k:String)=o.req(k).long().toInt()
         val entries=o.req("entries").array().a.map{val x=it.obj();ManifestEntry(x.req("path").text(),x.req("size").long(),x.req("sha256").text())}
@@ -118,6 +119,7 @@ interface AtomicStorage {
 }
 /** JVM adapter; Android SAF must implement AtomicStorage with provider-specific guarantees. */
 class JvmAtomicStorage(private val root:File):AtomicStorage {
+    init { root.mkdirs() }
     private fun resolve(path:String):File {require(!path.startsWith("/")&&!path.contains(".."));val f=File(root,path);require(f.canonicalPath.startsWith(root.canonicalPath+File.separator));return f}
     override fun read(path:String)=resolve(path).readBytes()
     override fun appendDurably(path:String,bytes:ByteArray){
