@@ -11,11 +11,18 @@ interface ModelMutation {
 
 data class ModelRevision(val number: Long, val project: Project)
 
-enum class CommandFailureCode { STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, HISTORY_EMPTY, REVISION_OVERFLOW, EVENT_QUEUE_FULL }
+enum class CommandFailureCode {
+    STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED,
+    HISTORY_EMPTY, REVISION_OVERFLOW, EVENT_QUEUE_FULL
+}
 
 sealed interface CommandResult {
     data class Committed(val revision: ModelRevision, val issues: List<ValidationIssue>) : CommandResult
-    data class Rejected(val code: CommandFailureCode, val message: String, val issues: List<ValidationIssue> = emptyList()) : CommandResult
+    data class Rejected(
+        val code: CommandFailureCode,
+        val message: String,
+        val issues: List<ValidationIssue> = emptyList()
+    ) : CommandResult
 }
 
 fun interface CancellationCheck {
@@ -30,22 +37,26 @@ sealed interface ModelEvent {
 enum class HistoryAction { UNDO, REDO }
 
 /**
- * Writers serialize state changes under a monitor. Listener deliveries are queued
- * in commit order and dispatched outside the state lock, so callbacks cannot
- * reorder revision events or block snapshot readers during model publication.
+ * Writers serialize state changes under a monitor. Events are queued in commit order
+ * and dispatched outside the model lock. The queue limit excludes the callback in flight.
  */
-class CommandBus(\n    initialProject: Project,\n    private val historyLimit: Int = 100,\n    private val pendingEventLimit: Int = 1024\n) {
+class CommandBus(
+    initialProject: Project,
+    private val historyLimit: Int = 100,
+    private val pendingEventLimit: Int = 1024
+) {
     private val monitor = Any()
     private val dispatchMonitor = Any()
     private var dispatching = false
-    private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()\n    // Bounds queued deliveries (not the callback currently being delivered).
+    private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
     private var current = ModelRevision(0L, freezeProject(initialProject))
     private val undoStack = ArrayDeque<Project>()
     private val redoStack = ArrayDeque<Project>()
     private val listeners = mutableSetOf<(ModelEvent) -> Unit>()
 
     init {
-        require(historyLimit >= 0) { "historyLimit must be non-negative" }\n        require(pendingEventLimit > 0) { "pendingEventLimit must be positive" }
+        require(historyLimit >= 0) { "historyLimit must be non-negative" }
+        require(pendingEventLimit > 0) { "pendingEventLimit must be positive" }
         require(ModelValidator.validate(current.project).none { it.severity == ValidationSeverity.ERROR }) {
             "Initial project must satisfy model invariants."
         }
@@ -58,30 +69,45 @@ class CommandBus(\n    initialProject: Project,\n    private val historyLimit: I
         return AutoCloseable { synchronized(monitor) { listeners -= listener } }
     }
 
-    fun execute(mutation: ModelMutation, expectedRevision: Long? = null,
-               cancellation: CancellationCheck = CancellationCheck.NEVER): CommandResult {
+    fun execute(
+        mutation: ModelMutation,
+        expectedRevision: Long? = null,
+        cancellation: CancellationCheck = CancellationCheck.NEVER
+    ): CommandResult {
         val committed: ModelRevision
         synchronized(monitor) {
-            if (expectedRevision != null && expectedRevision != current.number)
-                return CommandResult.Rejected(CommandFailureCode.STALE_REVISION,
-                    "Expected revision $expectedRevision, current revision is ${current.number}.")
+            if (expectedRevision != null && expectedRevision != current.number) {
+                return CommandResult.Rejected(
+                    CommandFailureCode.STALE_REVISION,
+                    "Expected revision $expectedRevision, current revision is ${current.number}."
+                )
+            }
             if (cancellation.isCancelled())
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before staging.")
 
             val before = current
-            val candidate = try { freezeProject(mutation.apply(before.project)) }
-            catch (t: Exception) {
-                return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, t.message ?: t::class.java.simpleName)
+            val candidate = try {
+                freezeProject(mutation.apply(before.project))
+            } catch (e: Exception) {
+                return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, e.message ?: e::class.java.simpleName)
             }
             if (cancellation.isCancelled())
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before validation.")
+
             val issues = ModelValidator.validate(candidate)
-            if (issues.any { it.severity == ValidationSeverity.ERROR })
-                return CommandResult.Rejected(CommandFailureCode.VALIDATION_FAILED,
-                    "Candidate model failed validation.", issues)
+            if (issues.any { it.severity == ValidationSeverity.ERROR }) {
+                return CommandResult.Rejected(
+                    CommandFailureCode.VALIDATION_FAILED,
+                    "Candidate model failed validation.",
+                    issues
+                )
+            }
             if (candidate == before.project) return CommandResult.Committed(before, issues)
+
             val nextRevision = nextRevisionNumber(before.number)
                 ?: return CommandResult.Rejected(CommandFailureCode.REVISION_OVERFLOW, "Revision counter exhausted.")
+            if (!hasEventCapacity())
+                return CommandResult.Rejected(CommandFailureCode.EVENT_QUEUE_FULL, "Pending event queue is full.")
 
             if (historyLimit > 0) {
                 undoStack.addLast(before.project)
@@ -102,14 +128,21 @@ class CommandBus(\n    initialProject: Project,\n    private val historyLimit: I
     private fun restore(action: HistoryAction, expectedRevision: Long?): CommandResult {
         val restored: ModelRevision
         synchronized(monitor) {
-            if (expectedRevision != null && expectedRevision != current.number)
-                return CommandResult.Rejected(CommandFailureCode.STALE_REVISION,
-                    "Expected revision $expectedRevision, current revision is ${current.number}.")
+            if (expectedRevision != null && expectedRevision != current.number) {
+                return CommandResult.Rejected(
+                    CommandFailureCode.STALE_REVISION,
+                    "Expected revision $expectedRevision, current revision is ${current.number}."
+                )
+            }
             val source = if (action == HistoryAction.UNDO) undoStack else redoStack
             val destination = if (action == HistoryAction.UNDO) redoStack else undoStack
-            if (source.isEmpty()) return CommandResult.Rejected(CommandFailureCode.HISTORY_EMPTY, "${action.name} history is empty.")
+            if (source.isEmpty())
+                return CommandResult.Rejected(CommandFailureCode.HISTORY_EMPTY, "${action.name} history is empty.")
             val nextRevision = nextRevisionNumber(current.number)
                 ?: return CommandResult.Rejected(CommandFailureCode.REVISION_OVERFLOW, "Revision counter exhausted.")
+            if (!hasEventCapacity())
+                return CommandResult.Rejected(CommandFailureCode.EVENT_QUEUE_FULL, "Pending event queue is full.")
+
             val target = source.removeLast()
             destination.addLast(current.project)
             while (destination.size > historyLimit) destination.removeFirst()
@@ -121,6 +154,10 @@ class CommandBus(\n    initialProject: Project,\n    private val historyLimit: I
         return CommandResult.Committed(restored, ModelValidator.validate(restored.project))
     }
 
+    /** Called only while monitor is held, before state/history publication. */
+    private fun hasEventCapacity(): Boolean = pendingEvents.size < pendingEventLimit
+
+    /** Called only while monitor is held. */
     private fun enqueueEvent(event: ModelEvent) {
         pendingEvents.addLast(event to listeners.toList())
     }
@@ -135,7 +172,9 @@ class CommandBus(\n    initialProject: Project,\n    private val historyLimit: I
                     val delivery = synchronized(monitor) {
                         if (pendingEvents.isEmpty()) null else pendingEvents.removeFirst()
                     } ?: return
-                    delivery.second.forEach { listener -> try { listener(delivery.first) } catch (_: Exception) { /* isolate ordinary listener failures */ } }
+                    delivery.second.forEach { listener ->
+                        try { listener(delivery.first) } catch (_: Exception) { /* isolate ordinary listener failures */ }
+                    }
                 }
             } finally {
                 dispatching = false
@@ -157,7 +196,10 @@ private fun freezeProject(project: Project): Project = project.copy(
     levels = immutableList(project.levels),
     elements = immutableList(project.elements.map { element ->
         when (element) {
-            is WallElement -> element.copy(layers = immutableList(element.layers), parameters = immutableList(element.parameters))
+            is WallElement -> element.copy(
+                layers = immutableList(element.layers),
+                parameters = immutableList(element.parameters)
+            )
             else -> element
         }
     }),
