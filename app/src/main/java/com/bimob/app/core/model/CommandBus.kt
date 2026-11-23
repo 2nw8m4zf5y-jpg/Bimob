@@ -11,7 +11,7 @@ interface ModelMutation {
 
 data class ModelRevision(val number: Long, val project: Project)
 
-enum class CommandFailureCode { STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, HISTORY_EMPTY, REVISION_OVERFLOW }
+enum class CommandFailureCode { STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, HISTORY_EMPTY, REVISION_OVERFLOW, EVENT_QUEUE_FULL }
 
 sealed interface CommandResult {
     data class Committed(val revision: ModelRevision, val issues: List<ValidationIssue>) : CommandResult
@@ -34,18 +34,18 @@ enum class HistoryAction { UNDO, REDO }
  * in commit order and dispatched outside the state lock, so callbacks cannot
  * reorder revision events or block snapshot readers during model publication.
  */
-class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
+class CommandBus(\n    initialProject: Project,\n    private val historyLimit: Int = 100,\n    private val pendingEventLimit: Int = 1024\n) {
     private val monitor = Any()
     private val dispatchMonitor = Any()
     private var dispatching = false
-    private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
+    private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()\n    // Bounds queued deliveries (not the callback currently being delivered).
     private var current = ModelRevision(0L, freezeProject(initialProject))
     private val undoStack = ArrayDeque<Project>()
     private val redoStack = ArrayDeque<Project>()
     private val listeners = mutableSetOf<(ModelEvent) -> Unit>()
 
     init {
-        require(historyLimit >= 0) { "historyLimit must be non-negative" }
+        require(historyLimit >= 0) { "historyLimit must be non-negative" }\n        require(pendingEventLimit > 0) { "pendingEventLimit must be positive" }
         require(ModelValidator.validate(current.project).none { it.severity == ValidationSeverity.ERROR }) {
             "Initial project must satisfy model invariants."
         }
