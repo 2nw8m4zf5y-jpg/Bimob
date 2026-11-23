@@ -284,7 +284,7 @@ class CommandBus(
 }
 
 /** Revision IDs are monotonic and never wrap around. */
-internal fun nextRevisionNumber(current: Long): Long? =
+fun nextRevisionNumber(current: Long): Long? =
     if (current == Long.MAX_VALUE) null else current + 1
 
 /** Defensive copies of collection containers prevent callers from mutating published snapshots. */
