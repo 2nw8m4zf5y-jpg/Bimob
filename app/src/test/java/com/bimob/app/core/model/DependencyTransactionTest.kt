@@ -304,7 +304,7 @@ class DependencyTransactionTest {
         assertEquals(n, plan.order.size)
         assertEquals(n, plan.order.toSet().size)
         var evaluationCount = 0
-        val evaluators = nodes.associateWith { DependencyEvaluator { _, _ -> evaluationCount++; DerivedValue.NumberValue(evaluationCount.toDouble()) } }
+        val evaluators: Map<DependencyNodeKey, DependencyEvaluator> = nodes.associate { it as DependencyNodeKey to DependencyEvaluator { _, _ -> evaluationCount++; DerivedValue.NumberValue(evaluationCount.toDouble()) } }
         val result = RecomputeEngine.execute(plan, project(), emptyMap(), evaluators, limits = limits)
         assertTrue(result is EvaluationResult.Success)
         assertEquals(n, evaluationCount)
@@ -322,7 +322,7 @@ class DependencyTransactionTest {
         assertEquals(EngineBudget.FAN_OUT, fanOut?.budget)
         assertEquals(a, fanOut?.node)
         val plan = RecomputeEngine.plan(graph, setOf(a), EngineLimits(maxFanOutPerNode = 2))
-        val evaluators = mapOf(a to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(1.0) }, b to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(2.0) }, c to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(3.0) })
+        val evaluators: Map<DependencyNodeKey, DependencyEvaluator> = mapOf(a to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(1.0) }, b to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(2.0) }, c to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(3.0) })
         val evalLimit = try {
             RecomputeEngine.execute(plan, project(), emptyMap(), evaluators, limits = EngineLimits(maxEvaluationsPerTransaction = 1))
             fail("Expected evaluation budget failure")
