@@ -4,12 +4,6 @@ import com.bimob.app.core.model.Project
 import com.bimob.app.core.model.ModelValidator
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.RandomAccessFile
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -126,28 +120,6 @@ interface AtomicStorage {
     fun exists(path:String):Boolean
     fun delete(path:String)
 }
-/** JVM adapter; Android SAF must implement AtomicStorage with provider-specific guarantees. */
-class JvmAtomicStorage(private val root:File):AtomicStorage {
-    init { root.mkdirs() }
-    private fun resolve(path:String):File {require(!path.startsWith("/")&&!path.contains(".."));val f=File(root,path);require(f.canonicalPath.startsWith(root.canonicalPath+File.separator));return f}
-    override fun read(path:String)=resolve(path).readBytes()
-    override fun appendDurably(path:String,bytes:ByteArray){
-        val f=resolve(path);f.parentFile?.mkdirs()
-        RandomAccessFile(f,"rw").use{it.seek(it.length());it.write(bytes);it.fd.sync()}
-    }
-    override fun exists(path:String)=resolve(path).exists()
-    override fun delete(path:String)=resolve(path).delete()
-    override fun writeAtomically(path:String,bytes:ByteArray){
-        val target=resolve(path);target.parentFile?.mkdirs()
-        val temp=File(target.parentFile,target.name+".tmp-"+System.nanoTime())
-        try{FileOutputStream(temp).use{it.write(bytes);it.flush();it.fd.sync()}}
-        catch(e:Exception){temp.delete();throw PersistenceException("Temporary write or fsync failed.",e)}
-        try{Files.move(temp.toPath(),target.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING)}
-        catch(e:Exception){temp.delete();throw PersistenceException("Atomic replacement unsupported or failed; destination retained.",e)}
-        try{FileInputStream(target.parentFile).use{it.fd.sync()}}catch(_:Exception){/* best-effort directory sync */}
-    }
-}
-
 data class SaveResult(val digest:String,val journalRotationWarning:String?=null)
 class ProjectRepository(private val storage:AtomicStorage,private val writer:BimobArchiveWriter=BimobArchiveWriter(),private val reader:BimobArchiveReader=BimobArchiveReader(),private val journal:CrashRecoveryJournal?=null) {
     fun save(path:String,project:Project):SaveResult {
