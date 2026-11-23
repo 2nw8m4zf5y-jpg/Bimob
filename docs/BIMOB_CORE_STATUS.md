@@ -106,3 +106,14 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 
 - Added 10,000-wall collection COW stress: copied project shares storage until a single wall mutation; mutation detaches only the walls collection and preserves source snapshot.
 - Added negative WallJoin test: shortened connected wall causes its hosted opening to become out-of-bounds; solver rejects candidate and source remains unchanged.
+
+## Current verification snapshot (2026-11-23)
+
+- **Run #238 / commit `8c9679049f48`: FULL CI SUCCESS** (native build, CTest, Kotlin/Android tests, APK assembly/upload). This verified the COW collection wrapper and hosted-delete cascade implementation.
+- **Run #240 / commit `68cc7544e713`: native Configure, Build, and CTest SUCCESS**. Kotlin/Android phase was still running when checked.
+- Run #239 failed because cycle helper declarations were missing from that intermediate commit; fixed in #240.
+- **Run #242 / current tested commit `46b8a8547be6`: IN PROGRESS**. Includes 10,000-wall COW stress and wall-join opening rollback assertions; no full acceptance claim until this run completes.
+- Current work branch remains `feature/model-core-v1`; `main` is untouched; PR #1 remains open.
+
+### Acceptance status
+Partial G2 progress only. Implemented and tested in CI: collection-level COW, bounded Undo depth, cancellation checkpoints, anchored WallJoin helper, host cascades, deterministic cycle-path diagnostics, exact six-budget error contracts, and graph stress. Still outstanding: Kotlin-generated golden parity fixtures, typed Create/Move/Resize/Delete commands and BatchCommand, WallJoin integration into dependency-backed transactions, comprehensive cancellation under concurrent token flips, and richer 10k BIM entities parity/stress. G2 is **NOT ACCEPTED**.
