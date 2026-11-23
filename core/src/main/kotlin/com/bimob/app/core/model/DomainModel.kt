@@ -18,7 +18,8 @@ data class Project(
     /** Legacy UI/domain projection retained for source compatibility. */
     val elements: List<BimElement> = emptyList(),
     val materials: List<Material> = emptyList(),
-    val types: List<ElementType> = emptyList()
+    val types: List<ElementType> = emptyList(),
+    val joins: List<WallJoin> = emptyList()
 ) {
     val walls: List<Wall> get() = elements.filterIsInstance<WallElement>().map {
         Wall(it.id, it.axis, it.heightMeters, it.thicknessMeters, it.levelId ?: ModelId(""))
@@ -82,6 +83,8 @@ data class CatalogInstanceElement(
     override val id get() = instance.id
     override val category get() = ElementCategory.FURNITURE
 }
+
+data class WallJoin(val id: ModelId, val wallA: ModelId, val endA: Boolean, val wallB: ModelId, val endB: Boolean, val point: Point2)
 
 data class WallAxis(val start: Point2, val end: Point2) {
     val lengthMeters: Double get() {

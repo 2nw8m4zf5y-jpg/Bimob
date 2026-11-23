@@ -59,3 +59,9 @@ data class MoveWallEndpointMutation(val wallId:ModelId,val movedStart:Boolean,va
   return before.copy(elements=before.elements.map{if(it.id==wallId)wall.copy(axis=axis)else it})
  }
 }
+
+/** Removes a topology connection without changing either wall's geometric endpoints. */
+data class DeleteWallJoinMutation(val joinId:ModelId):ModelMutation {
+ override val label="Delete wall join"
+ override fun apply(before:Project):Project {require(before.joins.any{it.id==joinId}){"Wall join does not exist: ${joinId.value}"};return before.copy(joins=before.joins.filterNot{it.id==joinId})}
+}

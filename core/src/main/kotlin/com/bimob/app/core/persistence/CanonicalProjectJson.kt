@@ -96,6 +96,7 @@ object CanonicalProjectJson {
         "levels" to JA(p.levels.sortedBy{it.id.value}.map{jo("id" to js(it.id.value),"name" to js(it.name),"elevationMeters" to Json.d(it.elevationMeters),"heightMeters" to (it.heightMeters?.let(Json::d)?:JNull))}),
         "materials" to JA(p.materials.sortedBy{it.id.value}.map{jo("id" to js(it.id.value),"name" to js(it.name),"category" to js(it.category),"densityKgPerCubicMeter" to (it.densityKgPerCubicMeter?.let(Json::d)?:JNull),"thermalConductivityWPerMeterKelvin" to (it.thermalConductivityWPerMeterKelvin?.let(Json::d)?:JNull),"costPerUnit" to (it.costPerUnit?.let(Json::d)?:JNull),"costUnit" to nullable(it.costUnit))}),
         "types" to JA(p.types.sortedBy{it.id.value}.map{jo("id" to js(it.id.value),"name" to js(it.name),"category" to js(it.category.name),"parameters" to parameters(it.parameters))}),
+        "joins" to JA(p.joins.sortedBy{it.id.value}.map{jo("id" to js(it.id.value),"wallA" to js(it.wallA.value),"endA" to JB(it.endA),"wallB" to js(it.wallB.value),"endB" to JB(it.endB),"point" to point(it.point))}),
         "elements" to JA(p.elements.sortedBy{it.id.value}.map{e->when(e){
             is WallElement->jo("kind" to js("wall"),"id" to js(e.id.value),"typeId" to id(e.typeId),"levelId" to id(e.levelId),
                 "axis" to jo("start" to point(e.axis.start),"end" to point(e.axis.end)),
@@ -122,6 +123,7 @@ object CanonicalProjectJson {
             "catalogInstance"->{CatalogInstanceElement(CatalogInstance(modelId(x.req("id")),x.req("assetId").text(),readPoint(x.req("position")),x.req("rotationRadians").double(),modelId(x.req("levelId")),modelId(x.req("hostWallId")),x.req("targetWidthMeters").double(),x.req("targetDepthMeters").double(),x.req("targetHeightMeters").double(),ScalingMode.valueOf(x.req("scalingMode").text()),CatalogInstanceBounds(readBounds(x.req("widthBounds")),readBounds(x.req("depthBounds")),readBounds(x.req("heightBounds"))),x.req("category").text(),x.req("scheduleTag").text()),type,level,params)}
             else->error("Unsupported element kind: $kind")
         }}
-        return Project(modelId(o.req("projectId")),o.req("name").text(),o.req("schemaVersion").long().toInt(),Site(modelId(s.req("id")),s.req("name").text()),buildings,levels,elements,materials,types)
+        val joins=o.opt("joins").let { if(it==JNull) emptyList() else it.array().a.map{j->val x=j.obj();WallJoin(modelId(x.req("id")),modelId(x.req("wallA")),x.req("endA").bool(),modelId(x.req("wallB")),x.req("endB").bool(),readPoint(x.req("point")))} }
+        return Project(modelId(o.req("projectId")),o.req("name").text(),o.req("schemaVersion").long().toInt(),Site(modelId(s.req("id")),s.req("name").text()),buildings,levels,elements,materials,types,joins)
     }
 }

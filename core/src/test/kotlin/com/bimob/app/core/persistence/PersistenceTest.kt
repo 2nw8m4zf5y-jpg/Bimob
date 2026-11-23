@@ -32,7 +32,8 @@ class PersistenceTest {
         assertEquals(p,BimobArchiveReader().read(archive))
     }
 
-    @Test fun damagedArchiveFailsIntegrityWithoutThrowingUncontrolledException() {
+        @Test fun canonicalJoinTopologyRoundTripsAndSortsDeterministically(){val p=fixture().copy(joins=listOf(WallJoin(ModelId("j2"),ModelId("wall-1"),true,ModelId("wall-1"),false,Point2(4.75,2.5)),WallJoin(ModelId("j1"),ModelId("wall-1"),false,ModelId("wall-1"),true,Point2(.125,2.5))));val bytes=CanonicalProjectJson.encode(p);assertEquals(p,CanonicalProjectJson.decode(bytes));val ids=Json.parse(bytes).obj().req("joins").array().a.map{it.obj().req("id").text()};assertEquals(listOf("j1","j2"),ids);assertArrayEquals(bytes,CanonicalProjectJson.encode(CanonicalProjectJson.decode(bytes)))}
+ @Test fun damagedArchiveFailsIntegrityWithoutThrowingUncontrolledException() {
         val bytes=BimobArchiveWriter().write(fixture())
         val damagedOut=java.io.ByteArrayOutputStream()
         java.util.zip.ZipInputStream(bytes.inputStream()).use { zin ->

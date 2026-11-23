@@ -35,6 +35,7 @@ object ModelValidator {
             addAll(project.elements.map { it.id })
             addAll(project.materials.map { it.id })
             addAll(project.types.map { it.id })
+            addAll(project.joins.map { it.id })
         }
         if (allIds.any { it.value.isBlank() }) error("id.blank", "Model IDs must not be blank.")
         allIds.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.forEach {
@@ -57,6 +58,14 @@ object ModelValidator {
         val typeById = project.types.associateBy { it.id }
         val materialIds = project.materials.map { it.id }.toSet()
         val elementIds = project.elements.map { it.id }.toSet()
+
+        val wallIds = project.elements.filterIsInstance<WallElement>().map { it.id }.toSet()
+        project.joins.forEach { join ->
+            if (join.wallA !in wallIds) error("wall.join.wall_a.missing", "Join references wall A that does not exist.", join.id)
+            if (join.wallB !in wallIds) error("wall.join.wall_b.missing", "Join references wall B that does not exist.", join.id)
+            if (join.wallA == join.wallB) error("wall.join.self", "A wall join must connect distinct walls.", join.id)
+            if (!join.point.xMeters.isFinite() || !join.point.yMeters.isFinite()) error("wall.join.point.invalid", "Join point must be finite.", join.id)
+        }
 
         project.elements.forEach { element ->
             if (element.levelId != null && element.levelId !in levelIds) {
