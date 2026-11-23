@@ -60,6 +60,8 @@ No exact Boolean on UI thread. Lightweight previews; background rebuild with pro
 Kotlin + Compose; Kotlin domain initially; C++ behind GeometryEngine as justified by profiling; JNI; Filament; SQLite; OCCT candidate after Android/size/memory/license validation; IfcOpenShell candidate after build and license audit; robust planar geometry/JTS; CMake/NDK.
 
 ## Implementation order
-1 typed domain and IDs; 2 wall model in metres/doubles; 3 ModelStore/commands; 4 adapt existing editor; 5 repository (JSON alpha, SQLite next); 6 tests/CI; 7 3D.
+1 typed domain and IDs; 2 wall model in metres/doubles; 3 CommandBus transactions (supersedes legacy ModelStore/commands); 4 adapt existing editor; 5 repository (JSON alpha, SQLite next); 6 tests/CI; 7 3D.
 
 Definition of done: architecture document and compiling foundational model committed; current app remains runnable. Full BIM claims require feature gates and tests.
+
+> **Architecture update:** The former `ModelStore` / `CommandHistory` prototype in `ModelCommands.kt` is retired. `CommandBus` is the sole canonical mutation path; this document's historical sequence is updated accordingly.
