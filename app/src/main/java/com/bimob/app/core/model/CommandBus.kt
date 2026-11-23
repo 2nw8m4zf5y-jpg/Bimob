@@ -106,6 +106,7 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
             if (source.isEmpty()) return CommandResult.Rejected(CommandFailureCode.HISTORY_EMPTY, "${action.name} history is empty.")
             val target = source.removeLast()
             destination.addLast(current.project)
+            while (destination.size > historyLimit) destination.removeFirst()
             current = ModelRevision(current.number + 1, target)
             event = ModelEvent.RevisionRestored(current, action)
             subscribers = listeners.toList()
