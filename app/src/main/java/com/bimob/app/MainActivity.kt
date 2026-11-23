@@ -190,6 +190,7 @@ class MainActivity : Activity() {
 
     private fun loadProject(name: String) {
         walls.clear()
+        importedProject = null
         val raw = prefs.getString(name, null) ?: return
         try {
             val json = JSONObject(raw)
