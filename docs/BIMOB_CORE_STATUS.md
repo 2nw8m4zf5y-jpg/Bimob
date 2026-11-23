@@ -103,3 +103,6 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 - Cycle admission now computes an explicit closed cycle path using deterministic iterative DFS over sorted node/adjacency order; diagnostic includes path and starting node ID (example `A -> B -> C -> A`).
 - Native tests assert exact cycle message and exact `code/budget/actual/limit/nodeId` fields for all six EngineLimits failures.
 - This improves native diagnostic determinism. **Cross-language golden comparison against Kotlin-produced fixtures is still not completed.**
+
+- Added 10,000-wall collection COW stress: copied project shares storage until a single wall mutation; mutation detaches only the walls collection and preserves source snapshot.
+- Added negative WallJoin test: shortened connected wall causes its hosted opening to become out-of-bounds; solver rejects candidate and source remains unchanged.
