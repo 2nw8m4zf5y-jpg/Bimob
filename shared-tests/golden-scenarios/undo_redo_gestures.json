@@ -47,8 +47,8 @@
           1
         ],
         "rotation": 0,
-        "levelId": null,
-        "hostWallId": null,
+        "levelId": "level-1",
+        "hostWallId": "wall-1",
         "width": 0.5,
         "depth": 0.5,
         "height": 0.8,
