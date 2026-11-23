@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.5
+# BIMOB MASTER PROMPT v1.6
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -250,7 +250,7 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 ## 27. Progress tracking (verified state at 2026-11-23)
 
 - **Phase B — Canonical Model:** prototype exists with typed IDs/entities, wall geometry fields and validation; this is not yet production complete.
-- **Phase C — CommandBus/Transaction Engine: ACCEPTED / CLOSED.** CI for the completed staging implementation was confirmed successful by the project owner; Phase C acceptance is now official. The prototype Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
+- **Phase C — CommandBus/Transaction Engine: ACCEPTED / CLOSED.** CI for the completed staging implementation was confirmed successful by the project owner; Phase C acceptance is now official. Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
 - **Snapshot note:** model collections are defensively copied and wrapped as unmodifiable lists; current nested model collections are copied too. This guards collection mutation and source-list aliasing, but review new mutable model fields whenever the domain expands.
 - **Revision safety:** commit and history restore reject counter overflow instead of wrapping. A pure boundary test covers `Long.MAX_VALUE`.
 - **Listener error policy:** ordinary `Exception`s from command code/listeners are isolated; fatal JVM errors are not swallowed.
@@ -281,3 +281,13 @@ Phase D may proceed because Phase C is accepted. Phase D implementation is activ
 - Manifest declares `chunks/` reserved for future binary geometry/data; chunks remain unimplemented until explicit design.
 - After successful atomic primary save, journal compaction is safe and bounded. Rotation writes/fsyncs and verifies the replacement recovery state before switching; never destroy the only valid journal early.
 - Persistence core has no Android SDK imports; filesystem/document-provider integration stays in adapters.
+
+## 30. Phase D implementation state (2026-11-23)
+- The Android-SDK-free Gradle JVM module `core` is created and included in the app build. Existing model, validator, memory estimator and CommandBus source moved to `core/src/main/kotlin` with the same package names, so app-side tests/imports remain compatible.
+- Persistence code currently includes canonical JSON codec, `.bimob` ZIP archive writer/reader, manifest and SHA-256 index validation, CRC-checked ZIP reading, schema migration registry, `AtomicStorage` contract, `ProjectRepository`, and append-only `CrashRecoveryJournal`.
+- The v1 codec presently supports the concrete `WallElement` model; other element categories are not yet represented as concrete serializable model classes. Adding types requires explicit codec support and fixtures.
+- Test-only `JvmAtomicStorage` exercises temp-write, fsync, byte verification and atomic replace. A production Android/SAF adapter is not implemented yet; provider-specific guarantees must be surfaced, never assumed.
+- Tests added: canonical deterministic golden JSON + SHA-256, round-trip, damaged archive rejection, crash recovery after simulated restart, torn-journal-tail recovery, journal rotation after save, and explicit future-schema rejection.
+- Workflow `.github/workflows/build-apk.yml` now runs `:core:test`, app unit tests and APK build. CI for the Phase D commits is **pending verification**; connector access cannot retrieve push-triggered run details. Do not claim tests pass until the run is inspected.
+- Recent implementation commits (branch `feature/model-core-v1`): `c8f24a2` model relocation; `605c219` canonical codec; `66e2eac` archive/repository; `0bfdc34` recovery journal; `1e63564` persistence tests; `e9806b4` CI core-test integration; subsequent correctness fixes are recorded in branch history.
+- Phase D remains **in progress**. Next gate: inspect CI output, fix compile/test failures, complete failure-injection tests for atomic replacement and journal compaction, harden format/security tests, then implement Android storage adapter.
