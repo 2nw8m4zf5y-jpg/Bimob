@@ -347,3 +347,8 @@ G2 initial implementation adds a platform-free C++20 CommandBus/revision/depende
 G2 is **INITIAL PORT / NOT ACCEPTED**. Local ASan+UBSan CTest passed; stress processed 10,050 nodes, 10,049 edges and exactly 10,050 evaluator calls in approximately 0.61 seconds. This is not yet cross-language golden parity or a remote CI result. Remaining gaps include exact cycle-path parity, cancellation, event/history resource budgets, expanded BIM model coverage, persistence parity and deeper Kotlin fixture extraction.
 
 Main and PR #1 remain untouched; changes stay on `feature/model-core-v1`.
+
+
+## 31. Native Core Status Report (2026-11-23)
+
+See [BIMOB Core Status](BIMOB_CORE_STATUS.md) for commit-level CI evidence, G1/G2 implementation details, local ASan+UBSan results and explicit Red Flags. G2 is an initial port and is not accepted until remote CI and Kotlin golden parity gates pass.
