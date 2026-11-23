@@ -35,12 +35,17 @@ enum class HistoryAction { UNDO, REDO }
  */
 class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
     private val monitor = Any()
-    private var current = ModelRevision(0L, initialProject)
+    private var current = ModelRevision(0L, freezeProject(initialProject))
     private val undoStack = ArrayDeque<Project>()
     private val redoStack = ArrayDeque<Project>()
     private val listeners = mutableSetOf<(ModelEvent) -> Unit>()
 
-    init { require(historyLimit >= 0) { "historyLimit must be non-negative" } }
+    init {
+        require(historyLimit >= 0) { "historyLimit must be non-negative" }
+        require(ModelValidator.validate(current.project).none { it.severity == ValidationSeverity.ERROR }) {
+            "Initial project must satisfy model invariants."
+        }
+    }
 
     fun snapshot(): ModelRevision = synchronized(monitor) { current }
 
@@ -61,7 +66,7 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before staging.")
 
             val before = current
-            val candidate = try { mutation.apply(before.project) }
+            val candidate = try { freezeProject(mutation.apply(before.project)) }
             catch (t: Throwable) {
                 return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, t.message ?: t::class.java.simpleName)
             }
@@ -113,3 +118,18 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
         subscribers.forEach { listener -> runCatching { listener(event) } }
     }
 }
+
+
+/** Defensive copies of collection containers prevent callers from mutating published snapshots. */
+private fun freezeProject(project: Project): Project = project.copy(
+    buildings = project.buildings.toList(),
+    levels = project.levels.toList(),
+    elements = project.elements.map { element ->
+        when (element) {
+            is WallElement -> element.copy(layers = element.layers.toList(), parameters = element.parameters.toList())
+            else -> element
+        }
+    },
+    materials = project.materials.toList(),
+    types = project.types.map { it.copy(parameters = it.parameters.toList()) }
+)
