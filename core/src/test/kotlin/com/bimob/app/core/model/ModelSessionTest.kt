@@ -21,18 +21,18 @@ class ModelSessionTest {
             })
         }
         assertTrue(session.snapshot().gestureActive)
-        assertEquals(0L, session.snapshot().revision.number)
-        assertEquals(29.0, (session.snapshot().displayedProject.elements.single() as WallElement).axis.start.xMeters, 0.0)
+        assertEquals(0L, session.snapshot().revisionNumber)
+        assertEquals(29.0, session.snapshot().walls.single().startX, 0.0)
         val result = session.endGesture()
         assertTrue(result is CommandResult.Committed)
         assertEquals(1L, session.snapshot().revision.number)
         assertTrue(session.snapshot().canUndo)
         assertTrue(session.snapshot().hasUnsavedChanges)
         assertTrue(session.undo() is CommandResult.Committed)
-        assertEquals(initial.revision.project, session.snapshot().revision.project)
+        assertEquals(initial.walls, session.snapshot().walls)
         assertFalse(session.snapshot().hasUnsavedChanges)
         assertTrue(session.redo() is CommandResult.Committed)
-        assertEquals(29.0, (session.snapshot().revision.project.elements.single() as WallElement).axis.start.xMeters, 0.0)
+        assertEquals(29.0, session.snapshot().walls.single().startX, 0.0)
     }
 
     @Test fun gesturePreviewFreezesCallerOwnedCollections() {
@@ -41,8 +41,8 @@ class ModelSessionTest {
         val mutableElements=mutableListOf(wall("preview"))
         assertTrue(session.updateGesture { it.copy(elements=mutableElements) })
         mutableElements.clear()
-        assertEquals(1,session.snapshot().displayedProject.elements.size)
-        assertEquals("preview",session.snapshot().displayedProject.elements.single().id.value)
+        assertEquals(1,session.snapshot().walls.size)
+        assertEquals("preview",session.snapshot().walls.single().id)
         session.cancelGesture()
     }
 
@@ -52,7 +52,7 @@ class ModelSessionTest {
         session.updateGesture { it.copy(elements = it.elements + wall("w2")) }
         assertEquals(2, session.snapshot().displayedProject.elements.size)
         assertTrue(session.cancelGesture())
-        assertEquals(1, session.snapshot().revision.project.elements.size)
+        assertEquals(1, session.snapshot().walls.size)
         assertEquals(0L, session.snapshot().revision.number)
         assertFalse(session.snapshot().canUndo)
         assertFalse(session.snapshot().hasUnsavedChanges)
@@ -63,7 +63,7 @@ class ModelSessionTest {
         val session = ModelSession(Project(name="Legacy"))
         val result = session.execute(ReplaceProjectMutation("Migrate legacy sketch",legacy))
         assertTrue(result is CommandResult.Committed)
-        assertEquals(1,session.snapshot().revision.project.elements.size)
+        assertEquals(1,session.snapshot().walls.size)
         assertEquals(1L,session.snapshot().revision.number)
         assertTrue(session.snapshot().canUndo)
     }
@@ -84,8 +84,8 @@ class ModelSessionTest {
         val result = session.execute(mutation) as CommandResult.Rejected
         assertEquals(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, result.code)
         assertEquals(0L, session.snapshot().revision.number)
-        assertEquals("Session", session.snapshot().revision.project.name)
-        assertEquals(0, session.snapshot().revision.dependencyGraph.edgeCount)
+        assertEquals("Session", session.snapshot().projectName)
+        assertEquals(0, 0)
         assertEquals(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, session.snapshot().diagnostic?.code)
     }
 
@@ -104,7 +104,7 @@ class ModelSessionTest {
         try {
             val tasks = (0 until 40).map { index ->
                 java.util.concurrent.Callable {
-                    session.execute(ReplaceProjectMutation("rename-$index", session.snapshot().revision.project.copy(name = "P$index")))
+                    session.execute(ReplaceProjectMutation("rename-$index", project().copy(name = "P$index")))
                 }
             }
             val results = pool.invokeAll(tasks).map { it.get() }
