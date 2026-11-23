@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Bimob"
-include(":app")
+include(":app", ":core")
