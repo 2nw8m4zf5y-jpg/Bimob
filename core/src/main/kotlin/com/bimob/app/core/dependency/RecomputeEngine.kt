@@ -34,18 +34,31 @@ fun interface DependencyEvaluator {
 
 data class RecomputePlan(val dirtyNodes: List<DependencyNodeKey>, val order: List<DependencyNodeKey>)
 
+enum class EngineBudget { DIRTY_NODES, EVALUATIONS, FAN_OUT, GRAPH_NODES, GRAPH_EDGES }
+data class EngineLimits(
+    val maxDirtyNodesPerTransaction: Int = 100_000,
+    val maxEvaluationsPerTransaction: Int = 1_000_000,
+    val maxFanOutPerNode: Int = 10_000,
+    val maxGraphNodes: Int = 250_000,
+    val maxGraphEdges: Int = 1_000_000
+) {
+    init { require(maxDirtyNodesPerTransaction > 0 && maxEvaluationsPerTransaction > 0 && maxFanOutPerNode >= 0 && maxGraphNodes > 0 && maxGraphEdges >= 0) }
+}
+class EngineBudgetExceeded(val budget: EngineBudget, val node: DependencyNodeKey?, val actual: Int, val maximum: Int) :
+    RuntimeException("Engine budget $budget exceeded at ${node?.stableKey() ?: "graph"}: $actual > $maximum.")
+
 /** Deterministic dirty-closure planning and topological execution. Each reachable node appears once. */
 object RecomputeEngine {
-    fun plan(graph: DependencyGraph, seeds: Set<DependencyNodeKey>): RecomputePlan {
-        if (seeds.isEmpty()) return RecomputePlan(emptyList(), emptyList())
+    fun plan(graph: DependencyGraph, seeds: Set<DependencyNodeKey>, limits: EngineLimits = EngineLimits()): RecomputePlan {
+        if (graph.nodeCount > limits.maxGraphNodes) throw EngineBudgetExceeded(EngineBudget.GRAPH_NODES, null, graph.nodeCount, limits.maxGraphNodes)\n        if (graph.edgeCount > limits.maxGraphEdges) throw EngineBudgetExceeded(EngineBudget.GRAPH_EDGES, null, graph.edgeCount, limits.maxGraphEdges)\n        if (seeds.isEmpty()) return RecomputePlan(emptyList(), emptyList())
         val dirty = linkedSetOf<DependencyNodeKey>()
         val queue = ArrayDeque<DependencyNodeKey>()
-        seeds.sortedBy { it.stableKey() }.forEach { if (dirty.add(it)) queue.addLast(it) }
+        seeds.sortedBy { it.stableKey() }.forEach { if (dirty.add(it)) { if (dirty.size > limits.maxDirtyNodesPerTransaction) throw EngineBudgetExceeded(EngineBudget.DIRTY_NODES, it, dirty.size, limits.maxDirtyNodesPerTransaction); queue.addLast(it) } }
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
             graph.outgoingEdges(node).map { it.dependent }.distinct()
                 .sortedBy { it.stableKey() }.forEach { dependent ->
-                    if (dirty.add(dependent)) queue.addLast(dependent)
+                    if (dirty.add(dependent)) { if (dirty.size > limits.maxDirtyNodesPerTransaction) throw EngineBudgetExceeded(EngineBudget.DIRTY_NODES, dependent, dirty.size, limits.maxDirtyNodesPerTransaction); queue.addLast(dependent) }
                 }
         }
 
