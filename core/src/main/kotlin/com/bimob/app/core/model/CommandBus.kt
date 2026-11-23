@@ -54,6 +54,7 @@ class TransactionContext internal constructor(
     }
     fun admitDependency(edge: DependencyEdge) {
         checkpoint()
+        preflightGraphLimits(listOf(edge))
         when (val result = stagedGraph.admitEdge(edge)) {
             is EdgeAdmission.Accepted -> { stagedGraph = result.graph; checkGraphLimits(); dirtySeeds += edge.dependent }
             is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
@@ -61,6 +62,7 @@ class TransactionContext internal constructor(
     }
     fun admitDependencies(edges: Collection<DependencyEdge>) {
         checkpoint()
+        preflightGraphLimits(edges)
         when (val result = stagedGraph.admitEdges(edges)) {
             is EdgeAdmission.Accepted -> { stagedGraph = result.graph; checkGraphLimits(); edges.forEach { dirtySeeds += it.dependent } }
             is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
@@ -71,6 +73,14 @@ class TransactionContext internal constructor(
     fun markDirty(node: DependencyNodeKey) { checkpoint(); dirtySeeds += node }
     fun registerEvaluator(node: DependencyNodeKey, evaluator: DependencyEvaluator) {
         checkpoint(); evaluatorOverrides[node] = evaluator
+    }
+    private fun preflightGraphLimits(edges: Collection<DependencyEdge>) {
+        val newNodes = edges.flatMap { listOf(it.source, it.dependent) }.distinct().count { !stagedGraph.containsNode(it) }
+        val newEdges = edges.distinct().count { !stagedGraph.containsEdge(it) }
+        val nodes = stagedGraph.nodeCount + newNodes
+        val edgeCount = stagedGraph.edgeCount + newEdges
+        if (nodes > limits.maxGraphNodes) throw EngineBudgetExceeded(com.bimob.app.core.dependency.EngineBudget.GRAPH_NODES, null, nodes, limits.maxGraphNodes)
+        if (edgeCount > limits.maxGraphEdges) throw EngineBudgetExceeded(com.bimob.app.core.dependency.EngineBudget.GRAPH_EDGES, null, edgeCount, limits.maxGraphEdges)
     }
     private fun checkGraphLimits() {
         if (stagedGraph.nodeCount > limits.maxGraphNodes) throw EngineBudgetExceeded(com.bimob.app.core.dependency.EngineBudget.GRAPH_NODES, null, stagedGraph.nodeCount, limits.maxGraphNodes)

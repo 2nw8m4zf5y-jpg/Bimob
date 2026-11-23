@@ -91,6 +91,7 @@ class DependencyGraph private constructor(
     val edgeCount: Int get() = edgeSet.size
 
     fun containsNode(key: DependencyNodeKey) = key in nodeSet
+    fun containsEdge(edge: DependencyEdge) = edge in edgeSet
     fun outgoingEdges(key: DependencyNodeKey): List<DependencyEdge> = outgoing[key].orEmpty()
     fun incomingEdges(key: DependencyNodeKey): List<DependencyEdge> = incoming[key].orEmpty()
 
