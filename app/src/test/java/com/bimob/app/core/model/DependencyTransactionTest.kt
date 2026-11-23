@@ -70,13 +70,22 @@ class DependencyTransactionTest {
         val bus = CommandBus(project())
         val a=key("A"); val b=key("B"); val c=key("C"); val d=key("D")
         val unrelatedA=key("X"); val unrelatedB=key("Y")
+        // Establish graph structure in its own revision; no nodes are marked dirty for recompute.
+        val graphSetup=object:ModelMutation {
+            override val label="Set dependency graph"
+            override fun apply(before:Project)=before
+            override fun stage(before:Project,context:TransactionContext):Project {
+                context.admitDependencies(listOf(edge(a,b),edge(a,c),edge(b,d),edge(c,d),edge(unrelatedA,unrelatedB)))
+                return before
+            }
+        }
+        assertTrue(bus.execute(graphSetup) is CommandResult.Committed)
         val calls=mutableListOf<DependencyNodeKey>()
         val counts=mutableMapOf<DependencyNodeKey,Int>()
         val mutation=object:ModelMutation {
             override val label="Recompute diamond"
             override fun apply(before:Project)=before.copy(name="New input")
             override fun stage(before:Project,context:TransactionContext):Project {
-                context.admitDependencies(listOf(edge(a,b),edge(a,c),edge(b,d),edge(c,d),edge(unrelatedA,unrelatedB)))
                 context.markDirty(a)
                 fun evaluator(node:DependencyNodeKey, block:(Project,Map<DependencyNodeKey,DerivedValue>)->DerivedValue)=DependencyEvaluator { p,v ->
                     calls += node; counts[node]=(counts[node]?:0)+1; block(p,v)
