@@ -13,7 +13,7 @@ private const val MAX_JOURNAL_RECORD=16*1024*1024
 
 /** Durable append-only full-snapshot journal; record framing makes incomplete tails detectable. */
 class CrashRecoveryJournal(private val storage:AtomicStorage,private val path:String) {
-    data class Recovery(val project:Project,val appliedRecords:Int,val stoppedAtCorruptTail:Boolean)
+    data class Recovery(val project:Project,val appliedRecords:Long,val stoppedAtCorruptTail:Boolean)
     private fun frame(payload:ByteArray):ByteArray {
         require(payload.size<=MAX_JOURNAL_RECORD)
         val digest=hexToBytes(sha(payload))
