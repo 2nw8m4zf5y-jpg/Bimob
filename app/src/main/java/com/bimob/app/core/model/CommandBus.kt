@@ -11,7 +11,7 @@ interface ModelMutation {
 
 data class ModelRevision(val number: Long, val project: Project)
 
-enum class CommandFailureCode { STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, HISTORY_EMPTY }
+enum class CommandFailureCode { STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, HISTORY_EMPTY, REVISION_OVERFLOW }
 
 sealed interface CommandResult {
     data class Committed(val revision: ModelRevision, val issues: List<ValidationIssue>) : CommandResult
@@ -80,13 +80,15 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
                 return CommandResult.Rejected(CommandFailureCode.VALIDATION_FAILED,
                     "Candidate model failed validation.", issues)
             if (candidate == before.project) return CommandResult.Committed(before, issues)
+            val nextRevision = nextRevisionNumber(before.number)
+                ?: return CommandResult.Rejected(CommandFailureCode.REVISION_OVERFLOW, "Revision counter exhausted.")
 
             if (historyLimit > 0) {
                 undoStack.addLast(before.project)
                 while (undoStack.size > historyLimit) undoStack.removeFirst()
             }
             redoStack.clear()
-            current = ModelRevision(before.number + 1, candidate)
+            current = ModelRevision(nextRevision, candidate)
             committed = current
             enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
         }
@@ -106,10 +108,12 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
             val source = if (action == HistoryAction.UNDO) undoStack else redoStack
             val destination = if (action == HistoryAction.UNDO) redoStack else undoStack
             if (source.isEmpty()) return CommandResult.Rejected(CommandFailureCode.HISTORY_EMPTY, "${action.name} history is empty.")
+            val nextRevision = nextRevisionNumber(current.number)
+                ?: return CommandResult.Rejected(CommandFailureCode.REVISION_OVERFLOW, "Revision counter exhausted.")
             val target = source.removeLast()
             destination.addLast(current.project)
             while (destination.size > historyLimit) destination.removeFirst()
-            current = ModelRevision(current.number + 1, target)
+            current = ModelRevision(nextRevision, target)
             restored = current
             enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
@@ -139,6 +143,10 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
         }
     }
 }
+
+/** Revision IDs are monotonic and never wrap around. */
+internal fun nextRevisionNumber(current: Long): Long? =
+    if (current == Long.MAX_VALUE) null else current + 1
 
 /** Defensive copies of collection containers prevent callers from mutating published snapshots. */
 private fun freezeProject(project: Project): Project = project.copy(
