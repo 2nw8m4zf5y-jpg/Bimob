@@ -18,7 +18,7 @@ struct WallJoin final { ModelId id; ModelId wallA; bool endA{}; ModelId wallB; b
 enum class OpeningKind : std::uint8_t { Door, Window, Generic };
 struct Opening final { ModelId id; ModelId hostWallId; OpeningKind kind{OpeningKind::Generic}; Meters offsetAlongWall; Meters width; Meters height; Meters sillHeight; friend bool operator==(const Opening&, const Opening&) = default; };
 enum class ScalingMode : std::uint8_t { FreeStretch, Uniform, Presets };
-struct DimensionBounds final { Meters min; Meters max; };
+struct DimensionBounds final { Meters min; Meters max; friend bool operator==(const DimensionBounds&, const DimensionBounds&) = default; };
 struct CatalogInstance final { ModelId id; std::string assetId; Point2 position; double rotationRadians{}; ModelId levelId; ModelId hostWallId; Meters targetWidth; Meters targetDepth; Meters targetHeight; ScalingMode scalingMode{ScalingMode::FreeStretch}; DimensionBounds widthBounds; DimensionBounds depthBounds; DimensionBounds heightBounds; std::string category; std::string scheduleTag; friend bool operator==(const CatalogInstance&, const CatalogInstance&) = default; };
 template<class T> class CowVector final {
  using Storage=std::vector<T>;
