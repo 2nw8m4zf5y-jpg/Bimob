@@ -84,13 +84,21 @@ void typedGestureCoalescingAcrossEntityKinds(){
  assert(bus.undo().ok());
  assert(bus.snapshot()->project->walls[0].axis.start.x.value==beforeSeparate.axis.start.x.value);
 
- // Rejected operation in the middle/end of a gesture must not alter state/history.
+ // A rejected command between valid updates must not corrupt the gesture/history.
+ const auto openingBeforeInvalidGesture=bus.snapshot()->project->openings[0];
+ const auto undoBeforeInvalidGesture=bus.undoDepth();
+ const auto redoBeforeInvalidGesture=bus.redoDepth();
+ assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{.75},Meters{1}),{}, "opening-invalid-gesture").ok());
  const auto beforeInvalid=bus.snapshot();
  const auto undoBeforeInvalid=bus.undoDepth();
  const auto redoBeforeInvalid=bus.redoDepth();
  auto rejected=bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{99},Meters{1}),{}, "opening-invalid-gesture");
  assert(!rejected.ok());
  assert(bus.snapshot()==beforeInvalid&&bus.undoDepth()==undoBeforeInvalid&&bus.redoDepth()==redoBeforeInvalid);
+ assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{.8},Meters{1}),{}, "opening-invalid-gesture").ok());
+ assert(bus.undoDepth()==undoBeforeInvalidGesture+1);
+ assert(bus.undo().ok()&&bus.snapshot()->project->openings[0]==openingBeforeInvalidGesture);
+ assert(bus.redo().ok()&&bus.snapshot()->project->openings[0].width.value==.8);
  (void)initial;
 }
 void typedCommandsAndBatchAtomicity(){
