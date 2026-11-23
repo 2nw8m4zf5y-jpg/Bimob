@@ -1,6 +1,7 @@
 #include "bimob/canonical_json.hpp"
 #include "bimob/engine.hpp"
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
