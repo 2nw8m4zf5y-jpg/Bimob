@@ -86,7 +86,7 @@ class CommandBusTest {
         assertEquals(1L, result.revision.number)
         assertEquals(1, result.revision.project.buildings.size)
         assertEquals(1, result.revision.project.levels.size)
-        assertEquals(0, bus.snapshot().number - 1)
+        assertEquals(1L, bus.snapshot().number)
     }
 
     @Test fun concurrentWritersPublishEventsInRevisionOrder() {
