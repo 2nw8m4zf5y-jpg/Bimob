@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -155,16 +156,32 @@ private fun BimobRoot(
                 TextButton(onClick = onHome) { Text("Проекты") }
             }
             var tool by remember { mutableStateOf(CanvasTool.WALL) }
+            var selectedWallId by remember { mutableStateOf<ModelId?>(null) }
+            var thicknessText by remember(selectedWallId) {
+                mutableStateOf(snapshot.revision.project.elements.filterIsInstance<WallElement>().firstOrNull { it.id == selectedWallId }?.thicknessMeters?.toString() ?: "0.2")
+            }
             Row {
                 FilterChip(selected = tool == CanvasTool.WALL, onClick = { tool = CanvasTool.WALL }, label = { Text("Стена") })
                 Spacer(Modifier.width(4.dp))
-                FilterChip(selected = tool == CanvasTool.SELECT, onClick = { tool = CanvasTool.SELECT }, label = { Text("Выбрать") })
+                FilterChip(selected = tool == CanvasTool.SELECT, onClick = { tool = CanvasTool.SELECT }, label = { Text("Выбор") })
                 Spacer(Modifier.width(4.dp))
-                Button(onClick = { if (snapshot.canUndo) session.undo() }, enabled = snapshot.canUndo) { Text("↶") }
+                Button(onClick = { session.undo() }, enabled = snapshot.canUndo) { Text("↶") }
                 Spacer(Modifier.width(4.dp))
-                Button(onClick = { if (snapshot.canRedo) session.redo() }, enabled = snapshot.canRedo) { Text("↷") }
+                Button(onClick = { session.redo() }, enabled = snapshot.canRedo) { Text("↷") }
+                Spacer(Modifier.width(4.dp))
+                Button(onClick = { selectedWallId?.let { session.execute(DeleteWallCommand(it)); selectedWallId = null } }, enabled = selectedWallId != null) { Text("Удалить") }
             }
-            PlanCanvas(session, snapshot, tool, Modifier.weight(1f).fillMaxWidth())
+            PlanCanvas(session, snapshot, tool, selectedWallId, { selectedWallId = it }, Modifier.weight(1f).fillMaxWidth())
+            if (selectedWallId != null) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    OutlinedTextField(thicknessText, { thicknessText = it }, label = { Text("Толщина, м") }, modifier = Modifier.weight(1f), singleLine = true)
+                    Button(onClick = {
+                        val id = selectedWallId
+                        val thickness = thicknessText.toDoubleOrNull()
+                        if (id != null && thickness != null && thickness > 0.0) session.execute(SetWallThicknessCommand(id, thickness))
+                    }) { Text("Применить") }
+                }
+            }
             Text("Узлы: метр • шаг привязки: 0,1 м • Стен: ${snapshot.displayedProject.elements.count { it.category == ElementCategory.WALL }}", fontSize = 12.sp, color = Color.Gray)
             snapshot.diagnostic?.let { error ->
                 Text("${error.code}: ${error.message}", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.padding(4.dp))
@@ -187,14 +204,14 @@ private fun BimobRoot(
 private enum class CanvasTool { WALL, SELECT }
 
 @Composable
-private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: CanvasTool, modifier: Modifier = Modifier) {
+private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: CanvasTool, selectedWallId: ModelId?, onSelectWall: (ModelId?) -> Unit, modifier: Modifier = Modifier) {
     val scale = 80f
     Canvas(
-        modifier = modifier.background(Color.White).pointerInput(session, tool) {
+        modifier = modifier.background(Color.White).pointerInput(session, tool) { detectTapGestures { point -> onSelectWall(nearestWall(snapshot.displayedProject, snapWorld(point, size, scale), 0.25)) } }.pointerInput(session, tool) {
             var base: Project? = null
             var startWorld: Point2? = null
             var previewId: ModelId? = null
-            var selectedWall: ModelId? = null
+            var dragWallId: ModelId? = null
             var lastWorld: Point2? = null
             detectDragGestures(
                 onDragStart = { screen ->
@@ -206,8 +223,9 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
                         previewId = ModelId.newId()
                         session.beginGesture("Draw wall")
                     } else {
-                        selectedWall = nearestWall(base!!, world, 0.25)
-                        if (selectedWall != null) session.beginGesture("Move wall")
+                        dragWallId = nearestWall(base!!, world, 0.25)
+                        onSelectWall(dragWallId)
+                        if (dragWallId != null) session.beginGesture("Move wall")
                     }
                 },
                 onDrag = { change, _ ->
@@ -221,7 +239,7 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
                         val newWall = wallFrom(id, first, current)
                         session.updateGesture { project -> project.copy(elements = project.elements.filterNot { it.id == id } + newWall) }
                     } else {
-                        val id = selectedWall ?: return@detectDragGestures
+                        val id = dragWallId ?: return@detectDragGestures
                         val dx = current.xMeters - first.xMeters
                         val dy = current.yMeters - first.yMeters
                         session.updateGesture { project ->
@@ -245,7 +263,7 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
                 },
                 onDragCancel = {
                     session.cancelGesture()
-                    base = null; startWorld = null; previewId = null; selectedWall = null; lastWorld = null
+                    base = null; startWorld = null; previewId = null; dragWallId = null; lastWorld = null
                 }
             )
         }
@@ -261,7 +279,7 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
         snapshot.displayedProject.elements.filterIsInstance<WallElement>().forEach { wall ->
             val start = worldScreen(wall.axis.start, size, scale)
             val end = worldScreen(wall.axis.end, size, scale)
-            drawLine(Color(0xFF26394E),start,end,5f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+            drawLine(if (wall.id == selectedWallId) Color(0xFF1976D2) else Color(0xFF26394E),start,end,5f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
             drawCircle(Color(0xFF26394E),3f,start); drawCircle(Color(0xFF26394E),3f,end)
         }
     }
