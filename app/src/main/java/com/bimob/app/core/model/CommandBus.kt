@@ -70,7 +70,7 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
 
             val before = current
             val candidate = try { freezeProject(mutation.apply(before.project)) }
-            catch (t: Throwable) {
+            catch (t: Exception) {
                 return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, t.message ?: t::class.java.simpleName)
             }
             if (cancellation.isCancelled())
@@ -135,7 +135,7 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
                     val delivery = synchronized(monitor) {
                         if (pendingEvents.isEmpty()) null else pendingEvents.removeFirst()
                     } ?: return
-                    delivery.second.forEach { listener -> runCatching { listener(delivery.first) } }
+                    delivery.second.forEach { listener -> try { listener(delivery.first) } catch (_: Exception) { /* isolate ordinary listener failures */ } }
                 }
             } finally {
                 dispatching = false
@@ -149,15 +149,18 @@ internal fun nextRevisionNumber(current: Long): Long? =
     if (current == Long.MAX_VALUE) null else current + 1
 
 /** Defensive copies of collection containers prevent callers from mutating published snapshots. */
+private fun <T> immutableList(values: Collection<T>): List<T> =
+    java.util.Collections.unmodifiableList(ArrayList(values))
+
 private fun freezeProject(project: Project): Project = project.copy(
-    buildings = project.buildings.toList(),
-    levels = project.levels.toList(),
-    elements = project.elements.map { element ->
+    buildings = immutableList(project.buildings),
+    levels = immutableList(project.levels),
+    elements = immutableList(project.elements.map { element ->
         when (element) {
-            is WallElement -> element.copy(layers = element.layers.toList(), parameters = element.parameters.toList())
+            is WallElement -> element.copy(layers = immutableList(element.layers), parameters = immutableList(element.parameters))
             else -> element
         }
-    },
-    materials = project.materials.toList(),
-    types = project.types.map { it.copy(parameters = it.parameters.toList()) }
+    }),
+    materials = immutableList(project.materials),
+    types = immutableList(project.types.map { it.copy(parameters = immutableList(it.parameters)) })
 )
