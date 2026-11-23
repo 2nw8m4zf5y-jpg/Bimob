@@ -144,6 +144,47 @@ class CommandBusTest {
         assertEquals(1, count)
     }
 
+    @Test fun pendingEventQueueRejectsBeforePublishingAndNeverDropsEvents() {
+        val bus = CommandBus(project(), pendingEventLimit = 1)
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val observed = java.util.Collections.synchronizedList(mutableListOf<Long>())
+        bus.subscribe { event ->
+            val revision = when (event) {
+                is ModelEvent.RevisionCommitted -> event.revision.number
+                is ModelEvent.RevisionRestored -> event.revision.number
+            }
+            observed += revision
+            if (revision == 1L) {
+                entered.countDown()
+                release.await()
+            }
+        }
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            val first = executor.submit<CommandResult> { bus.execute(rename()) }
+            assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            val second = bus.execute(object : ModelMutation {
+                override val label = "Second"
+                override fun apply(before: Project) = before.copy(name = "Second")
+            })
+            assertTrue(second is CommandResult.Committed)
+            val rejected = bus.execute(object : ModelMutation {
+                override val label = "Third"
+                override fun apply(before: Project) = before.copy(name = "Third")
+            }) as CommandResult.Rejected
+            assertEquals(CommandFailureCode.EVENT_QUEUE_FULL, rejected.code)
+            assertEquals(2L, bus.snapshot().number)
+            assertEquals("Second", bus.snapshot().project.name)
+            release.countDown()
+            assertTrue(first.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)
+            assertEquals(listOf(1L, 2L), observed.toList())
+        } finally {
+            release.countDown()
+            executor.shutdownNow()
+        }
+    }
+
     @Test fun reentrantListenerCannotInterleaveRevisionEvents() {
         val bus = CommandBus(project())
         val observed = mutableListOf<String>()
