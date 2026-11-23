@@ -277,7 +277,7 @@ L. Extension system and AI workflows.
 Phase D may proceed because Phase C is accepted. Phase D implementation is active; do not mark it complete until all gates, CI and review are verified. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
 
 ## 29. Phase D approved implementation clarifications
-- Canonical JSON is deterministic: fixed schema/key order, UTF-8 without BOM, stable escaping, no insignificant whitespace, locale-independent finite numeric format, negative zero normalized, and exact-byte SHA-256. Kotlin and C++20 must match golden byte/hash fixtures.
+- Canonical JSON is deterministic: fixed schema/key order, UTF-8 without BOM, stable escaping, no insignificant whitespace, locale-independent finite numeric format using shortest-round-trip decimal (`BigDecimal.valueOf` in Kotlin), negative zero normalized to `0`, and exact-byte SHA-256. Kotlin and C++20 must match golden byte/hash fixtures.
 - Manifest declares `chunks/` reserved for future binary geometry/data; chunks remain unimplemented until explicit design.
 - After successful atomic primary save, journal compaction is safe and bounded. Rotation writes/fsyncs and verifies the replacement recovery state before switching; never destroy the only valid journal early.
 - Persistence core has no Android SDK imports; filesystem/document-provider integration stays in adapters.
