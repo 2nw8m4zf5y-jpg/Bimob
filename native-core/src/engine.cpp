@@ -22,6 +22,15 @@ IndexedGraph indexGraph(const DependencyGraph&graph,const std::vector<NodeId>&ex
  // Canonically sorted edges produce stable adjacency; hash table is lookup-only.
  return x;
 }
+std::vector<NodeId> deterministicCycle(const IndexedGraph&x){
+ const std::size_t n=x.keys.size();std::vector<unsigned char>color(n,0);std::vector<std::size_t>parent(n,n);
+ for(std::size_t root=0;root<n;++root){if(color[root])continue;color[root]=1;std::vector<std::pair<std::size_t,std::size_t>>stack{{root,0}};
+  while(!stack.empty()){auto&frame=stack.back();const auto node=frame.first;if(frame.second>=x.outgoing[node].size()){color[node]=2;stack.pop_back();continue;}const auto child=x.outgoing[node][frame.second++];if(color[child]==0){parent[child]=node;color[child]=1;stack.emplace_back(child,0);continue;}if(color[child]==1){std::vector<std::size_t>path{node};auto cursor=node;while(cursor!=child){cursor=parent[cursor];if(cursor==n)break;path.push_back(cursor);}if(cursor==child){std::reverse(path.begin(),path.end());path.push_back(child);std::vector<NodeId>result;for(auto index:path)result.push_back(x.keys[index]);return result;}}
+  }
+ }
+ return {};
+}
+std::string cycleText(const std::vector<NodeId>&path){std::string text;for(const auto&node:path){if(!text.empty())text+=" -> ";text+=node;}return text;}
 }
 bool DependencyGraph::hasNode(const NodeId&n)const{return std::binary_search(nodes.begin(),nodes.end(),n);}
 bool DependencyGraph::hasEdge(const DependencyEdge&e)const{return std::binary_search(edges.begin(),edges.end(),e,[](const auto&a,const auto&b){return std::tie(a.source,a.dependent)<std::tie(b.source,b.dependent);});}
