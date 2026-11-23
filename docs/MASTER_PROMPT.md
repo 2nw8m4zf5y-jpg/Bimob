@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.3
+# BIMOB MASTER PROMPT v1.4
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -210,7 +210,8 @@ Current prototype under `app/src/main/java/com/bimob/app/core/model/` is a contr
 - Phase B Canonical Model and Phase C Command/Transaction Engine are prototyped in **pure Kotlin** and must have comprehensive tests.
 - **Strict rule: package `core` is pure Kotlin; no `android.*` imports.** Keep platform code outside core. Verify via source checks/Gradle modules as practical.
 - Tests in Kotlin are executable behavioral specification for C++20 port. Add matching native tests during port and maintain parity.
-- After Phase C/D contract stabilization, port foundation/model/command/transaction and persistence contracts into `native-core/` (C++20), preserving semantics. Do not make Kotlin and C++ competing sources of truth; define transition and parity gates.
+- The Kotlin `core/model` prototype is the reference implementation for contract stabilization across stages A–D and must remain strictly pure Kotlin (no `android.*` imports).
+- Before Geometry Kernel stage G, port foundation/model/command/transaction and stabilized persistence contracts into `native-core/` (C++20), preserving semantics and migrating **all** test scenarios with native parity gates. Do not make Kotlin and C++ competing sources of truth; document transition and parity gates.
 - JNI is a thin adapter over versioned C ABI; no domain logic there.
 - Port phases: contracts → native foundation/model → commands/transactions → persistence → parity tests → JNI integration → Kotlin prototype retired or retained only as test reference, according to documented ADR.
 - No premature UI expansion while core gates fail.
