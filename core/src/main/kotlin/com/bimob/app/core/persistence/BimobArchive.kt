@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
@@ -111,6 +112,7 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
 interface AtomicStorage {
     fun read(path:String):ByteArray
     fun writeAtomically(path:String,bytes:ByteArray)
+    fun appendDurably(path:String,bytes:ByteArray)
     fun exists(path:String):Boolean
     fun delete(path:String)
 }
@@ -118,6 +120,10 @@ interface AtomicStorage {
 class JvmAtomicStorage(private val root:File):AtomicStorage {
     private fun resolve(path:String):File {require(!path.startsWith("/")&&!path.contains(".."));val f=File(root,path);require(f.canonicalPath.startsWith(root.canonicalPath+File.separator));return f}
     override fun read(path:String)=resolve(path).readBytes()
+    override fun appendDurably(path:String,bytes:ByteArray){
+        val f=resolve(path);f.parentFile?.mkdirs()
+        RandomAccessFile(f,"rw").use{it.seek(it.length());it.write(bytes);it.fd.sync()}
+    }
     override fun exists(path:String)=resolve(path).exists()
     override fun delete(path:String)=resolve(path).delete()
     override fun writeAtomically(path:String,bytes:ByteArray){
