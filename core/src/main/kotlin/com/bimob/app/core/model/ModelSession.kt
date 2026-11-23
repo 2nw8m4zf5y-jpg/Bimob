@@ -98,7 +98,7 @@ class ModelSession(
             publish()
             return false
         }
-        gesturePreview = next
+        gesturePreview = freezeProject(next)
         diagnostic = null
         publish()
         true
