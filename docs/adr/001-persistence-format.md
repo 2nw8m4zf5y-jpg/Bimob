@@ -63,9 +63,9 @@ Canonical serialization, schema migrations, integrity checks, and validation con
 Phase D implementation is underway in the Android-SDK-free Gradle module `:core`:
 - Model, validator, memory estimator and CommandBus were moved into the JVM module without changing package names, preserving app/test imports.
 - Canonical JSON codec, ZIP writer/reader, SHA-256 integrity index, manifest/schema checks, migration registry, atomic repository contract and crash-recovery journal skeleton are implemented.
-- Test coverage added for deterministic canonical bytes/hash, model/archive round-trip, corrupted payload rejection, simulated restart recovery, truncated journal tail, idempotent transaction retry, atomic-save failure preserving the old project, journal compaction and future-schema rejection.
-- `AtomicStorage` now exposes durability capabilities. `JvmAtomicStorage` is a test adapter only; Android/SAF storage adapter is not yet implemented.
-- **CI verified green:** Run #115 for commit `eedf39b413a00bd68bed3686e3b9043159cd8199` ran `:core:test`, `:app:testDebugUnitTest`, `assembleDebug`, and artifact upload successfully.
+- Test coverage includes deterministic empty/rich canonical fixture bytes and hashes (UTF-8 special characters, parameter variants, multiple walls and layers), model/archive round-trip, corrupted payload rejection, simulated restart recovery, truncated journal tail, idempotent transaction retry, atomic-save failure preserving the old project, and compaction interruption before live-journal switch preserving the previous recovery snapshot.
+- `AtomicStorage` now exposes durability capabilities. `JvmAtomicStorage` is test-only. Android `SafDocumentAdapter` lives in `:app` and implements document-picker open/export, local staging and read-back SHA verification; it intentionally does not implement `AtomicStorage` because SAF providers do not guarantee atomic replace or fsync.
+- **CI verified green (owner-confirmed):** commit `d1bffddfc526cdb7112ac34cd9a6077a15e28cc4` ran `:core:test`, `:app:testDebugUnitTest`, and `assembleDebug` successfully. The later compaction/golden/SAF changes require a new CI run.
 
 ## Consequences
 Benefits: Android-independent, cross-language potential, atomic replacement, explicit version/migration, integrity checks, separate canonical data/cache/assets, independent recovery.
