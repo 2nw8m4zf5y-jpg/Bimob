@@ -23,5 +23,5 @@ ctest --test-dir build/native-core --output-on-failure
 - Mutations stage privately; validation or evaluation failure leaves the current revision and history untouched.
 - Undo/Redo snapshots share immutable state; repeated commit with the same gesture ID coalesces into one undo entry.
 
-## Scope caveat
+## Native parity runner (G2-P2 Step 1)\n\nCTest runs the native runner for the first two shared golden scenarios. Canonical project snapshots are emitted to `build/parity-out/native/<scenario>.json` (from the repository root), using the Kotlin snapshot schema. The serializer sorts object keys and ID-backed collections, preserves wall-layer order, rounds finite values to six decimal places, and rejects non-finite values.\n\nThe runner currently supports `crud_batch` and `cascade_delete`; Step 2 adds the remaining scenarios and CI output validation.\n\n## Scope caveat
 G2 is an initial native contract port, not yet full Kotlin parity. Exact cross-language golden fixtures, cancellation/event delivery, history memory/event budgets, richer BIM model types and persistence are follow-on work. Do not integrate JNI or route Android production behavior through native-core yet.

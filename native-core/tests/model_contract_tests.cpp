@@ -1,9 +1,12 @@
 #include "bimob/engine.hpp"
+#include "bimob/canonical_json.hpp"
 #include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
 using namespace bimob;
 Project fixture(){return Project{ModelId{"p"},"Project",{Wall{ModelId{"w1"},WallAxis{Point2{Meters{0},Meters{0}},Point2{Meters{2},Meters{0}}},Meters{2.7},Meters{.2},ModelId{}}}, {}, {}, {}, {}};}
 Mutation addWall(){return [](const Project&p){auto c=p;c.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{0},Meters{1}},Point2{Meters{1},Meters{1}}},Meters{2.7},Meters{.2},ModelId{}});return Result<Project>::success(std::move(c));};}
@@ -154,4 +157,5 @@ void wallJoinCommandBusDependencyIntegration(){
  assert(!rejected.ok()&&bus.snapshot()==before);
 }
 
-int main(){typedGestureCoalescingAcrossEntityKinds();typedCommandsAndBatchAtomicity();wallJoinCommandBusDependencyIntegration();cowStress10k();wallJoinRejectsHostedOpening();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}
+void canonicalJsonContracts(){Project p{ModelId{"p"},"P"};p.walls.push_back(Wall{ModelId{"z-wall"},WallAxis{Point2{Meters{-0.0},Meters{1.2345675}},Point2{Meters{2},Meters{0}}},Meters{2.7},Meters{.200000},ModelId{}});p.walls.push_back(Wall{ModelId{"a-wall"},WallAxis{Point2{Meters{0},Meters{0}},Point2{Meters{1},Meters{0}}},Meters{2.7},Meters{.1234567},ModelId{}});const auto json=canonicalProjectJson(p);assert(json.find("\\\"a-wall\\\"")<json.find("\\\"z-wall\\\""));assert(json.find("1.234568")!=std::string::npos);assert(json.find("0.123457")!=std::string::npos);assert(json.find("-0")==std::string::npos);assert(json.find(" ")==std::string::npos&&json.find("\\n")==std::string::npos);bool threw=false;try{auto invalid=p;invalid.walls[0].height.value=std::numeric_limits<double>::infinity();(void)canonicalProjectJson(invalid);}catch(const std::invalid_argument&){threw=true;}assert(threw);}
+int main(){canonicalJsonContracts();typedGestureCoalescingAcrossEntityKinds();typedCommandsAndBatchAtomicity();wallJoinCommandBusDependencyIntegration();cowStress10k();wallJoinRejectsHostedOpening();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}
