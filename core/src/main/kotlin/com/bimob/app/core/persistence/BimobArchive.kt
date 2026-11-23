@@ -73,7 +73,7 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
                         out.write(buf,0,n)
                     }
                     if(e.size>=0&&e.size!=count)throw IntegrityException("ZIP entry length mismatch: "+name)
-                    if(e.compressedSize>0&&count/e.compressedSize.coerceAtLeast(1)>limits.maxRatio)throw ArchiveFormatException("Compression ratio limit exceeded.")
+                    if(e.compressedSize>0&&count.toDouble()/e.compressedSize.toDouble()>limits.maxRatio.toDouble())throw ArchiveFormatException("Compression ratio limit exceeded.")
                     entries[name]=out.toByteArray();zip.closeEntry()
                 }
             }
@@ -113,6 +113,7 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
     }
 }
 
+/** Implementations must write a same-volume temp, flush/fsync, verify staged bytes, then atomically replace. */
 interface AtomicStorage {
     fun read(path:String):ByteArray
     fun writeAtomically(path:String,bytes:ByteArray)
@@ -132,5 +133,5 @@ class ProjectRepository(private val storage:AtomicStorage,private val writer:Bim
         return SaveResult(digest,warning)
     }
     fun load(path:String)=reader.read(storage.read(path))
-    fun recover(path:String,project:Project):Project?=journal?.recover(sha(storage.read(path)),project)
+    fun recover(path:String,project:Project):Project? { val bytes=storage.read(path);val saved=reader.read(bytes);require(saved==project){"Recovery base project does not match saved file."};return journal?.recover(sha(bytes),saved) }
 }
