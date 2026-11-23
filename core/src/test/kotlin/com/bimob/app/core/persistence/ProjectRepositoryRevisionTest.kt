@@ -33,6 +33,20 @@ class ProjectRepositoryRevisionTest {
         try { LegacySketchMigrator.migrateJson(json); fail("expected validation rejection") }
         catch (e: IllegalArgumentException) { assertTrue(e.message!!.contains("zero length")) }
     }
+    @Test fun projectWallsAreDerivedFromLegacyElementsAcrossCopies() {
+        val empty = Project(name = "Wall projection")
+        val wall = WallElement(
+            id = ModelId("wall-projection"),
+            axis = WallAxis(Point2(0.0, 0.0), Point2(3.0, 0.0)),
+            heightMeters = 2.7,
+            thicknessMeters = 0.2
+        )
+        val withWall = empty.copy(elements = listOf(wall))
+        assertEquals(1, withWall.walls.size)
+        assertEquals(wall.id, withWall.walls.single().id)
+        assertEquals(0, withWall.copy(elements = emptyList()).walls.size)
+    }
+
     @Test fun sessionSavePersistsOneRevisionAndTracksSavedContent() {
         val root = File(System.getProperty("java.io.tmpdir"), "bimob-session-save-" + System.nanoTime())
         val repository = ProjectRepository(JvmAtomicStorage(root))

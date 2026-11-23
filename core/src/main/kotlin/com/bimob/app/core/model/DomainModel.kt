@@ -19,13 +19,16 @@ data class Project(
     val elements: List<BimElement> = emptyList(),
     val materials: List<Material> = emptyList(),
     val types: List<ElementType> = emptyList(),
-    /** Native-Core typed model collections. Legacy WallElements are mapped on construction. */
-    val walls: List<Wall> = elements.filterIsInstance<WallElement>().map {
-        Wall(it.id, it.axis, it.heightMeters, it.thicknessMeters, it.levelId ?: ModelId(""))
-    },
+    /** Typed non-legacy entities are stored; wall projection is always derived from elements. */
     val openings: List<Opening> = emptyList(),
     val catalogInstances: List<CatalogInstance> = emptyList()
-)
+) {
+    /** Single source of truth: legacy elements; never stale after Project.copy(elements = ...). */
+    val walls: List<Wall>
+        get() = elements.filterIsInstance<WallElement>().map {
+            Wall(it.id, it.axis, it.heightMeters, it.thicknessMeters, it.levelId ?: ModelId(""))
+        }
+}
 data class Site(val id: ModelId = ModelId.newId(), val name: String = "Site")
 data class Building(val id: ModelId = ModelId.newId(), val name: String = "Building")
 data class Level(val id: ModelId = ModelId.newId(), val name: String, val elevationMeters: Double, val heightMeters: Double? = null)
