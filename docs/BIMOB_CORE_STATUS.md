@@ -117,3 +117,20 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 
 ### Acceptance status
 Partial G2 progress only. Implemented and tested in CI: collection-level COW, bounded Undo depth, cancellation checkpoints, anchored WallJoin helper, host cascades, deterministic cycle-path diagnostics, exact six-budget error contracts, and graph stress. Still outstanding: Kotlin-generated golden parity fixtures, typed Create/Move/Resize/Delete commands and BatchCommand, WallJoin integration into dependency-backed transactions, comprehensive cancellation under concurrent token flips, and richer 10k BIM entities parity/stress. G2 is **NOT ACCEPTED**.
+
+
+## Final G2 sprint increment (2026-11-23)
+
+- Added typed mutation factories in native-core for Create/Move/Resize/Delete of Level, Wall, Opening and CatalogInstance. Wall moves/end-point moves/resizes use the anchored WallJoin solver; wall and level deletion use the cascade helpers.
+- Added atomic `commands::batch`: child mutations stage in sequence against a private Project candidate; the CommandBus validates and publishes once, so the batch is one revision/Undo entry and any failed child rejects the entire candidate.
+- CommandBus `execute` now derives dirty node seeds from changed/added/deleted walls, levels, openings, catalog instances and joins, then recomputes before publishing. Join graph nodes are synchronized as a DAG (`wall:*:geometry -> join:*:geometry -> hosted opening/catalog dependent nodes`) and stale join-derived edges are removed when joins change.
+- Added native tests for typed command lifecycle, batch rollback/revision/Undo behavior and WallJoin dependency recompute/rollback.
+- Implementation commits: `abe1714` (typed API), `b5addc6` (typed mutations), `ae2cfb2` / `2022b89` / `0af4a2b` / `e99bebe` / `c29d2ce` (join graph/dirty propagation and fixes), `9788cd0` / `07aaea1` (contract tests).
+- **Verification limitation:** This environment cannot clone GitHub (network DNS unavailable), and the GitHub Actions connector is not returning workflow runs/statuses for push commits. The latest native changes have therefore **not yet been verified by CMake/CTest or full CI** in this session. Do not accept G2 based on these commits until CI compiles/tests them.
+
+### Still open / not accepted
+
+- Kotlin-produced shared Golden fixtures and C++↔Kotlin exact comparison (derived values/order, cycle diagnostics and all six EngineLimits) are not complete.
+- The typed factories are mutation values used with `CommandBus::execute`; command-specific transaction wrappers/gesture IDs are still caller-provided through the existing CommandBus API, and comprehensive per-command coalescing coverage is outstanding.
+- Join recompute uses the native dependency graph conventions described above; it needs CI validation and cross-language parity confirmation.
+- Latest complete CI green result for this sprint is not available yet. Stage G2 remains **NOT ACCEPTED**.
