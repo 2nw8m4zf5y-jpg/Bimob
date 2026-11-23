@@ -6,7 +6,7 @@ import com.bimob.app.core.dependency.DependencyNodeKey
 import com.bimob.app.core.dependency.DependencyEvaluator
 import com.bimob.app.core.dependency.DerivedValue
 import com.bimob.app.core.dependency.EdgeAdmission
-import com.bimob.app.core.dependency.RecomputeEngine
+import com.bimob.app.core.dependency.RecomputeEngine\nimport com.bimob.app.core.dependency.RecomputeCancellation
 import com.bimob.app.core.dependency.EvaluationResult
 
 /**
@@ -205,7 +205,7 @@ class CommandBus(
                 candidate = freezeProject(mutation.stage(before.project, context))
                 context.checkpoint()
                 val plan = RecomputeEngine.plan(context.dependencyGraph, context.dirtyNodes)
-                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators, cancellation)) {
+                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators, RecomputeCancellation { cancellation.isCancelled() })) {
                     is EvaluationResult.Success -> {
                         context.publishEvaluated(evaluated.values)
                         candidateValues = evaluated.values
