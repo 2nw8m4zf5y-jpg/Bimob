@@ -105,11 +105,11 @@ class ModelSession(
     }
 
     /** Commits the whole gesture as one command/history revision. */
-    fun endGesture(): CommandResult = synchronized(lock) {
+    fun endGesture(command: ModelMutation? = null): CommandResult = synchronized(lock) {
         val base = gestureBase ?: return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, "No active gesture.")
         val preview = gesturePreview ?: base.project
         clearGesture()
-        val mutation = ReplaceProjectMutation(gestureLabel, preview)
+        val mutation = command ?: ReplaceProjectMutation(gestureLabel, preview)
         val result = commandBus.execute(mutation, expectedRevision = base.number)
         acceptResult(result)
         publish()

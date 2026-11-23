@@ -234,7 +234,13 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
                 onDragEnd = {
                     val a = startWorld; val b = lastWorld
                     val valid = a != null && b != null && (a.xMeters != b.xMeters || a.yMeters != b.yMeters)
-                    if (session.snapshot().gestureActive && valid) session.endGesture() else session.cancelGesture()
+                    if (session.snapshot().gestureActive && valid) {
+                        val id = previewId
+                        val wallId = dragWallId
+                        if (tool == CanvasTool.WALL && id != null && a != null && b != null) session.endGesture(AddWallCommand(wallFrom(id, a, b)))
+                        else if (tool == CanvasTool.SELECT && wallId != null && a != null && b != null) session.endGesture(MoveWallCommand(wallId, b.xMeters-a.xMeters, b.yMeters-a.yMeters))
+                        else session.cancelGesture()
+                    } else session.cancelGesture()
                     base = null; startWorld = null; previewId = null; dragWallId = null; lastWorld = null
                 },
                 onDragCancel = {
