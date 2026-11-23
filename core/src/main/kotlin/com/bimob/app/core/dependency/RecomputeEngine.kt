@@ -62,7 +62,7 @@ object RecomputeEngine {
             val fanOut = graph.outgoingEdges(node).map { it.dependent }.distinct().size
             if (fanOut > limits.maxFanOutPerNode) throw EngineBudgetExceeded(EngineBudget.FAN_OUT, node, fanOut, limits.maxFanOutPerNode)
             graph.outgoingEdges(node).map { it.dependent }.distinct()
-                .sortedBy { it.stableKey() }.forEach { dependent ->
+                .forEach { dependent ->
                     if (dirty.add(dependent)) { if (dirty.size > limits.maxDirtyNodesPerTransaction) throw EngineBudgetExceeded(EngineBudget.DIRTY_NODES, dependent, dirty.size, limits.maxDirtyNodesPerTransaction); queue.addLast(dependent) }
                 }
         }
@@ -71,13 +71,13 @@ object RecomputeEngine {
             graph.incomingEdges(node).map { it.source }.distinct().count { it in dirty }
         }.toMutableMap()
         val ready = ArrayDeque<DependencyNodeKey>()
-        indegree.filterValues { it == 0 }.keys.sortedBy { it.stableKey() }.forEach(ready::addLast)
+        indegree.filterValues { it == 0 }.keys.forEach(ready::addLast)
         val order = mutableListOf<DependencyNodeKey>()
         while (ready.isNotEmpty()) {
             val node = ready.removeFirst()
             order += node
             graph.outgoingEdges(node).map { it.dependent }.distinct().filter { it in dirty }
-                .sortedBy { it.stableKey() }.forEach { child ->
+                .forEach { child ->
                     val next = indegree.getValue(child) - 1
                     indegree[child] = next
                     if (next == 0) ready.addLast(child)
@@ -85,7 +85,7 @@ object RecomputeEngine {
         }
         check(order.size == dirty.size) { "Dirty subgraph contains a cycle; graph admission invariant was violated." }
         val inputSources = dirty.associateWith { node -> graph.incomingEdges(node).map { it.source }.distinct() }
-        return RecomputePlan(dirty.sortedBy { it.stableKey() }, order, inputSources)
+        return RecomputePlan(dirty.toList(), order, inputSources)
     }
 
     fun execute(
