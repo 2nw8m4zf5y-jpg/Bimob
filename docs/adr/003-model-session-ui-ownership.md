@@ -37,7 +37,7 @@ Use the boundary:
 - F1 tests: gesture coalescing, cancel rollback, Undo/Redo, Engine limit rejection.
 - F2 tests: deterministic revision codec and private repository round-trip; legacy migrator deterministic IDs and validation.
 - F3 tests: typed wall mutation/history and Compose Canvas compile.
-- CI green at commit `0340fd1`, run [#45184281677](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45184281677). Later F3 tests and saved-content dirty comparison are pending a final green run.
+- F1–F3 and expanded regression CI green at commit `1299c8e`, run [#45184729141](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45184729141). Final docs-head CI is pending.
 - Stage F is not formally closed until F4 documentation and final CI on the final branch head.
 
 ## Deferred / Yellow
