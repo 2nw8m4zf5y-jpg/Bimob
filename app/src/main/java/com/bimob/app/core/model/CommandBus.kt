@@ -122,11 +122,12 @@ class CommandBus(
             if (!hasEventCapacity())
                 return CommandResult.Rejected(CommandFailureCode.EVENT_QUEUE_FULL, "Pending event queue is full.")
 
+            // A new branch invalidates redo before budget accounting, freeing its retained snapshots.
+            redoStack.clear()
             if (historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
                 undoStack.addLast(historyEntry(before.project))
                 trimHistory()
             }
-            redoStack.clear()
             current = ModelRevision(nextRevision, candidate)
             committed = current
             enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
