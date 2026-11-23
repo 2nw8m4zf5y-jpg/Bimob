@@ -64,7 +64,7 @@ Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership]
 
 Текущая реализация `app/src/main/java/com/bimob/app/core/model/` — **референсный прототип для обкатки контрактов этапов A–D**, а не production kernel. Она должна оставаться строго pure Kotlin: никаких импортов `android.*` в core. Kotlin contracts и все тестовые сценарии служат behavioral specification для native port.
 
-**Перед началом этапа G Geometry Kernel** прототип core переносится в `native-core/` на C++20, с переносом всех тестовых сценариев и проверкой behavioral parity. Kotlin и C++ не должны становиться конкурирующими source-of-truth. Переход включает native foundation/model, commands/transactions, необходимые persistence contracts, native tests, parity gates и затем тонкую JNI-интеграцию. Решение о судьбе Kotlin reference оформляется ADR.
+**Перед началом этапа H Geometry Kernel** прототип core переносится в `native-core/` на C++20, с переносом всех тестовых сценариев и проверкой behavioral parity. Kotlin и C++ не должны становиться конкурирующими source-of-truth. Переход включает native foundation/model, commands/transactions, необходимые persistence contracts, native tests, parity gates и затем тонкую JNI-интеграцию. Решение о судьбе Kotlin reference оформляется ADR.
 
 JNI/C ABI: versioned flat contracts, opaque handles/byte buffers, explicit ownership/lifetime, error/status, documented thread safety; STL/object graphs и exceptions не пересекают ABI, C++ exceptions не проходят через JNI. Android platform code изолирован.
 
@@ -134,7 +134,7 @@ M. Rendering/mobile performance.
 N. Extensions and AI workflows.
 O. UI/tool expansion.
 
-Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–E. Native C++20 migration and test parity must be completed before Geometry Kernel stage G.
+Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–E. Native C++20 migration and test parity must be completed before Geometry Kernel stage H.
 
 ### MainActivity model-ownership debt (audited 2026-11-23)
 MainActivity still keeps a mutable local wall list; canvas gestures directly mutate it. Local sketches use SharedPreferences/JSON. SAF import/export maps between UI walls and canonical Project, but editing is not yet through CommandBus or ProjectRepository. Now that Dependency Engine is accepted, migrate to an app ModelSession backed by CommandBus + ProjectRepository; commands for create/edit/delete; canvas renders immutable snapshots; revision-aware save; migrate legacy data; delete duplicate mutable wall source. This UI migration is tracked after Stage E, not silently mixed into graph implementation.

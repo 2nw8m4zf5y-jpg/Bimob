@@ -124,12 +124,11 @@ MainActivity is not yet connected to CommandBus or ProjectRepository. It owns a 
 
 ## 10. Decision and staged delivery
 
-This ADR is owner-approved and authorizes staged implementation. Stage E implementation is split into atomic deliverables:
-- E1 graph data model and typed dependency keys/edges, deterministic graph admission/cycle checks and tests.
-- E2 transaction-local graph staging and rollback integration.
-- E3 dirty propagation, deterministic scheduler, budget limits and evaluator contract.
-- E4 derived state/fingerprint and undo/redo revision integration.
-- E5 test oracle/fuzzing, performance/memory profiling and acceptance review.
+This ADR is owner-approved and authorizes staged implementation. Stage E implementation was delivered in atomic sub-stages:
+- E1 graph data model and typed dependency keys/edges, deterministic graph admission/cycle checks and tests — closed.
+- E2 transaction-local graph staging and rollback integration, revision snapshots and Undo/Redo — closed.
+- E3 evaluator registry, hard budgets, deterministic diagnostics, scheduler/input efficiency and 10k stress test — closed.
+- Deferred hardening track (not a blocker for Stage E): cache fingerprints, full-recompute oracle, fuzz/property tests, detailed performance and heap profiling.
 - Stage E is accepted; begin the UI ownership migration listed in section 9.
 
 ## Consequences
