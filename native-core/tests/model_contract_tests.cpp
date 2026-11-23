@@ -87,7 +87,6 @@ void typedGestureCoalescingAcrossEntityKinds(){
  // A rejected command between valid updates must not corrupt the gesture/history.
  const auto openingBeforeInvalidGesture=bus.snapshot()->project->openings[0];
  const auto undoBeforeInvalidGesture=bus.undoDepth();
- const auto redoBeforeInvalidGesture=bus.redoDepth();
  assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{.75},Meters{1}),{}, "opening-invalid-gesture").ok());
  const auto beforeInvalid=bus.snapshot();
  const auto undoBeforeInvalid=bus.undoDepth();
