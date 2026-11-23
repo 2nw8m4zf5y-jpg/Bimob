@@ -94,7 +94,7 @@ class DependencyTransactionTest {
                 context.registerEvaluator(b,evaluator(b){_,v->v.getValue(a)})
                 context.registerEvaluator(c,evaluator(c){_,v->v.getValue(a)})
                 context.registerEvaluator(d,evaluator(d){_,v->
-                    assertTrue(v.containsKey(b)); assertTrue(v.containsKey(c))
+                    assertTrue(v.containsKey(b)); assertTrue(v.containsKey(c)); assertEquals(2, v.size)
                     DerivedValue.TextValue("B+C")
                 })
                 context.registerEvaluator(unrelatedA,evaluator(unrelatedA){_,_->DerivedValue.TextValue("X")})
