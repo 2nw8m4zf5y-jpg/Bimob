@@ -32,7 +32,7 @@ class PersistenceTest {
         assertEquals(p,BimobArchiveReader().read(archive))
     }
 
-        @Test fun canonicalJoinTopologyRoundTripsAndSortsDeterministically(){val p=fixture().copy(joins=listOf(WallJoin(ModelId("j2"),ModelId("wall-1"),true,ModelId("wall-1"),false,Point2(4.75,2.5)),WallJoin(ModelId("j1"),ModelId("wall-1"),false,ModelId("wall-1"),true,Point2(.125,2.5))));val bytes=CanonicalProjectJson.encode(p);assertEquals(p,CanonicalProjectJson.decode(bytes));val ids=Json.parse(bytes).obj().req("joins").array().a.map{it.obj().req("id").text()};assertEquals(listOf("j1","j2"),ids);assertArrayEquals(bytes,CanonicalProjectJson.encode(CanonicalProjectJson.decode(bytes)))}
+        @Test fun canonicalJoinTopologyRoundTripsAndSortsDeterministically(){val p=fixture().copy(elements=fixture().elements+WallElement(id=ModelId("wall-2"),axis=WallAxis(Point2(5.0,0.0),Point2(7.0,0.0)),heightMeters=3.0,thicknessMeters=.2),joins=listOf(WallJoin(ModelId("j2"),ModelId("wall-1"),true,ModelId("wall-2"),false,Point2(4.75,2.5)),WallJoin(ModelId("j1"),ModelId("wall-2"),false,ModelId("wall-1"),true,Point2(5.0,0.0))));val bytes=CanonicalProjectJson.encode(p);assertEquals(p,CanonicalProjectJson.decode(bytes));val ids=Json.parse(bytes).obj().req("joins").array().a.map{it.obj().req("id").text()};assertEquals(listOf("j1","j2"),ids);assertArrayEquals(bytes,CanonicalProjectJson.encode(CanonicalProjectJson.decode(bytes)))}
  @Test fun damagedArchiveFailsIntegrityWithoutThrowingUncontrolledException() {
         val bytes=BimobArchiveWriter().write(fixture())
         val damagedOut=java.io.ByteArrayOutputStream()
