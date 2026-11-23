@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.2
+# BIMOB MASTER PROMPT v1.3
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -40,6 +40,8 @@
 
 Зависимости направлены внутрь; запрещены циклы:
 Foundation → Domain → Command/Transaction → Dependency → Geometry API → backend/derived systems; платформенный слой и features подключаются к API ядра, не мутируя модель напрямую.
+
+**Platform/BillingProvider boundary:** Platform contains abstractions `BillingProvider` and store-specific adapters. Google Play Billing, RuStore Pay SDK and AppGallery IAP connect only through platform adapters. Core never imports store SDKs, SKU IDs, purchase tokens or payment APIs. `BillingProvider` returns typed purchase states/results and normalizes errors, cancellation, pending/verification/consume lifecycle. Entitlement policy is separate from UI and does not trust client display state.
 
 Модули: foundation (IDs, units, math, tolerance, errors, cancellation); domain (семантика/параметры); command/transaction; dependency graph; geometry API и backend; projection; spatial; families/constraints; quantities; persistence; IFC; rendering; jobs; extension API; Android platform; feature/UI.
 
@@ -140,6 +142,15 @@ Design for publication to Google Play and alternative stores (RuStore, AppGaller
 - Avoid store-specific services in core. Store billing, distribution, updates, signing, analytics and platform capabilities are adapters behind interfaces; comply separately with each store's policies.
 - Release gates include signed artifacts, reproducible build metadata, crash/permission review, privacy disclosures, data safety, content-rating and store listing requirements, and install/upgrade testing on representative Android versions/devices. No release claim until artifacts and checks are verified.
 
+### 18.2 Serverless distribution and offline-first autonomy
+
+- BIMOB has **no mandatory proprietary backend** for core operation. Project creation/open/edit, 2D/3D modeling, drawing generation, schedules/quantities, basic export, validation and model state are local on-device.
+- `.bimob` project storage, autosave, recovery, cache and command/history state are local-first. Internet absence must not disable core tools, project access or editing. Core workflows require explicit offline tests.
+- No mandatory account/login, telemetry consent, remote license check, or network activation for the free core. No remote dependency may lock users out of their own files.
+- App updates, store delivery and payment infrastructure are delegated to official stores. BIMOB does not require an operated update server, payment processor, backend or cloud storage.
+- Optional cloud/AI/remote collaboration are separate opt-in extensions. They may require infrastructure but cannot make the core dependent on it. Disclose privacy, data transfer, costs, availability and offline limitations.
+- Store-specific update/billing SDKs remain in adapters; current store availability and policy must be rechecked before release.
+
 ## 19. Rendering
 
 Rendering is a consumer of immutable revision snapshots, never a model writer. Render API/backend abstraction, scene cache revision, LOD, culling, picking, camera-relative transforms, GPU float boundary. Handle device loss and low memory. Render fidelity can degrade under budget, canonical data cannot.
@@ -148,9 +159,18 @@ Rendering is a consumer of immutable revision snapshots, never a model writer. R
 
 Bounded worker pools; cancelable jobs; no unbounded thread creation; immutable input snapshots; progress/errors; memory budget; backpressure; incremental operations; LOD and streaming. Avoid blocking UI thread. Low-memory degradation should evict/reduce derived caches, not semantic model.
 
-## 21. Extensions/plugins
+## 21. Extensions/plugins and voluntary project support
 
 Versioned API, capability-based permissions, registry, stable contracts, lifecycle and compatibility policy. Plugins mutate only via validated commands. No arbitrary code execution by formulas or model data. ABI/API compatibility tests and isolation boundaries.
+
+- A **voluntary developer-support option** is separate from core functionality and project data. Support does not unlock features, add entitlements, affect file access or change project fidelity. No pressure UI, deceptive framing, recurring billing by default or donor perks.
+- Payment integrations are behind the platform `BillingProvider`; store SDKs never enter BIMOB Core. The free core remains useful and user files are never payment-locked.
+- Review each support flow against the store's current policy, region availability, consumer/payment law, tax/accounting requirements, refund rules and SDK terms before enabling. Do not assume donations are consumable IAP. Google Play policy treats qualifying 100%-to-creator contributions with no digital benefits as peer-to-peer and says Play Billing must not be used. Do not use external payment links in store-distributed builds unless the store/program explicitly allows them.
+- Use consumable IAP only for a product the store permits to be classified as consumable and where the SDK requires/defines consumption. Implement purchase acknowledgement/verification, idempotent handling, reconciliation, error/cancel/pending states and `consumePurchase()` only as the SDK specifies for that consumable lifecycle. Never misrepresent a donation as a consumable product or digital reward.
+- After successful voluntary support, show a modest, accessible thank-you confirmation. No backend is required for core/support integration; use store-hosted transaction services and local UI state where policy permits.
+- Preserve `Capabilities / Entitlements` in Extension System for possible future optional cloud/AI services. Entitlements must be explicit, typed, revocable where appropriate and never gate the free core or user-owned files. Paid features require a separate owner decision and policy review.
+
+
 
 ## 22. AI assistant layer
 
@@ -197,7 +217,7 @@ Current prototype under `app/src/main/java/com/bimob/app/core/model/` is a contr
 
 ## 26. Repository state (verified 2026-11-23)
 
-Master prompt updated to **v1.2** with license policy and Google Play/RuStore/AppGallery compatibility requirements. This is architecture guidance; verify current official store policies and dependency license texts before release.
+Master prompt updated to **v1.3** with license policy, store compatibility, offline-first/serverless autonomy, BillingProvider abstraction and policy-reviewed voluntary support. This is architecture guidance; verify current official store policies and dependency license texts before release.
 
 Repo: `2nw8m4zf5y-jpg/Bimob`; working branch `feature/model-core-v1`; draft PR #1 targets main (do not merge without approval). Branch exists and is writable.
 
@@ -229,7 +249,7 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete.** FIFO event delivery is now queued at commit time and dispatched outside the model monitor; concurrent commit events should retain revision order. Tests added for atomic multi-entity changes, concurrent writers/event ordering, and listener disposal. Next: verify CI, investigate event queue behavior/backpressure and reentrancy, deep snapshot guarantees, revision overflow, history retention, and cancellation semantics.  
+C. **CommandBus + Transaction Engine — in progress, not complete.** FIFO event delivery is now queued at commit time and dispatched outside the model monitor; concurrent commit events should retain revision order. Tests added for atomic multi-entity changes, concurrent writers/event ordering, and listener disposal. Next: revision overflow protection, deep snapshot guarantees, event queue/backpressure policy, bounded history/memory retention, cancellation semantics and green CI.  
 D. Persistence/recovery.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
@@ -240,4 +260,4 @@ J. IFC interop.
 K. Mobile rendering/performance.  
 L. Extension system and AI workflows.
 
-Do not advance to Phase D until Phase C acceptance gates and CI pass.
+Do not advance to Phase D until Phase C acceptance gates and CI pass. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
