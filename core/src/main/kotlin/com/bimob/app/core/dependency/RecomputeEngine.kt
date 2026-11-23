@@ -72,7 +72,7 @@ object RecomputeEngine {
         evaluators: Map<DependencyNodeKey, DependencyEvaluator>,
         cancellation: CancellationCheck = CancellationCheck.NEVER
     ): EvaluationResult {
-        val staged = initialValues.toMutableMap()
+        val staged = initialValues.toMutableMap().apply { plan.dirtyNodes.forEach(::remove) }
         val completed = mutableListOf<DependencyNodeKey>()
         for (node in plan.order) {
             if (cancellation.isCancelled()) return EvaluationResult.Cancelled(completed.toList())
