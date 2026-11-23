@@ -234,6 +234,11 @@ Latest commits in this work session:
 - `10e45b67d1cee9ca8b5d55410ed6d7189145aa22` — FIFO event delivery across concurrent commits.
 - `bf0a415373cf1e7755b0bc144577331b4aef534c` — tests for multi-entity atomicity, concurrent event ordering, and subscription close.
 - `13bdac129fdfa5b190049fa85d742e33978f3572` — tightened atomic revision assertion.
+- `c6cf5ef58d1b40c954b36d7ed7f7a9877a910861` — master prompt v1.3: serverless/offline-first and voluntary support/payment policy.
+- `08f8c249326fea38e2265bb9d6051d79281e0b0d` — reject revision-counter overflow.
+- `6fd0916b7f9e9229c7ddce3f712c6b620d596e14` — test revision overflow boundary.
+- `c411c0242c8775979af95f3f3b1e42aa62799116` — make published snapshot collection wrappers unmodifiable; isolate ordinary listener exceptions without swallowing fatal errors.
+- `045d42b8da4e46285635b7a2a7a2c1e7ecbdfe5b` — snapshot immutability regression test.
 
 Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `ModelCommands.kt`, `ModelValidator.kt` and validator tests. Always re-check current HEAD and files before future work.
 
@@ -241,15 +246,17 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 
 - **Phase B — Canonical Model:** prototype exists with typed IDs/entities, wall geometry fields and validation; this is not yet production complete.
 - **Phase C — CommandBus/Transaction Engine:** first prototype commit landed. Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
-- **Snapshot note:** Kotlin collection defensive copies and initial model validation were added. Deep immutability and concurrent event ordering remain follow-up gaps, documented in ADR 001.
-- **CI:** the Kotlin syntax fix commit `f12c54a415b67ebb8c978a766ef135347511b31b` has a verified successful GitHub Actions run. CI for the newer v1.2 docs and concurrent event changes is currently pending; do not assume green until checked.
-- **Acceptance criteria status:** tests for multi-entity atomic commit, concurrent writer event order, and subscription disposal have been added. Remaining gaps: deep immutability beyond defensive collection copies, event queue/backpressure policy under slow subscribers, history memory/disposal, revision overflow, richer transaction staging/cancellation semantics, and green CI for latest commits.
+- **Snapshot note:** model collections are defensively copied and wrapped as unmodifiable lists; current nested model collections are copied too. This guards collection mutation and source-list aliasing, but review new mutable model fields whenever the domain expands.
+- **Revision safety:** commit and history restore reject counter overflow instead of wrapping. A pure boundary test covers `Long.MAX_VALUE`.
+- **Listener error policy:** ordinary `Exception`s from command code/listeners are isolated; fatal JVM errors are not swallowed.
+- **CI:** Run #36 on `e63ff36...` initially failed only because Maven Central returned HTTP 429 for JUnit; retry attempt 2 completed green. The newest run for snapshot immutability tests is pending; verify its final result before claiming this set of changes passes.
+- **Acceptance criteria status:** tests for multi-entity atomic commit, concurrent writer event order, and subscription disposal have been added. Remaining gaps: event queue/backpressure policy under slow subscribers, history memory/disposal budget, richer transaction staging and cooperative cancellation semantics, and green CI for latest commits.
 
 ## 28. Roadmap and next work
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete.** FIFO event delivery is now queued at commit time and dispatched outside the model monitor; concurrent commit events should retain revision order. Tests added for atomic multi-entity changes, concurrent writers/event ordering, and listener disposal. Next: revision overflow protection, deep snapshot guarantees, event queue/backpressure policy, bounded history/memory retention, cancellation semantics and green CI.  
+C. **CommandBus + Transaction Engine — in progress, not complete.** FIFO event delivery is now queued at commit time and dispatched outside the model monitor; concurrent commit events should retain revision order. Tests added for atomic multi-entity changes, concurrent writers/event ordering, and listener disposal. Next: verify the new immutability/overflow tests in CI, define event queue/backpressure policy, bound history by memory as well as count, and strengthen cooperative cancellation semantics.  
 D. Persistence/recovery.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
