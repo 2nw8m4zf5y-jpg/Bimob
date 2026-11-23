@@ -153,7 +153,7 @@ Design for publication to Google Play and alternative stores (RuStore, AppGaller
 
 ## 19. Rendering
 
-Rendering is a consumer of immutable revision snapshots, never a model writer. Render API/backend abstraction, scene cache revision, LOD, culling, picking, camera-relative transforms, GPU float boundary. Handle device loss and low memory. Render fidelity can degrade under budget, canonical data cannot.
+Rendering is a consumer of immutable revision snapshots, never a model writer. Render API/backend abstraction, scene cache revision, LOD, culling, picking, camera-relative transforms, GPU float boundary. Handle device loss and low memory. Render fidelity can degrade under budget, canonical data cannot. **Offline rendering:** viewport, projections, basic visualization and locally available render features must execute on-device without remote rendering services or network connectivity; optional remote render/AI services are separate opt-in extensions and never block core visualization.
 
 ## 20. Jobs, threading and mobile constraints
 
