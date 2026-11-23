@@ -30,7 +30,7 @@ internal object Json {
         } }
         append('"')
     }
-    fun d(v:Double):JN { require(v.isFinite()); return JN(if(v==0.0)"0" else BigDecimal(v).stripTrailingZeros().toPlainString()) }
+    fun d(v:Double):JN { require(v.isFinite()); return JN(if(v==0.0)"0" else BigDecimal.valueOf(v).stripTrailingZeros().toPlainString()) }
     fun l(v:Long)=JN(v.toString())
     private fun canon(s:String):String { val n=BigDecimal(s); return if(n.compareTo(BigDecimal.ZERO)==0)"0" else n.stripTrailingZeros().toPlainString() }
     fun parse(bytes:ByteArray):J {
