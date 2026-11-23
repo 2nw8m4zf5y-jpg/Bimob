@@ -18,16 +18,13 @@ data class Project(
     /** Legacy UI/domain projection retained for source compatibility. */
     val elements: List<BimElement> = emptyList(),
     val materials: List<Material> = emptyList(),
-    val types: List<ElementType> = emptyList(),
-    /** Typed non-legacy entities are stored; wall projection is always derived from elements. */
-    val openings: List<Opening> = emptyList(),
-    val catalogInstances: List<CatalogInstance> = emptyList()
+    val types: List<ElementType> = emptyList()
 ) {
-    /** Single source of truth: legacy elements; never stale after Project.copy(elements = ...). */
-    val walls: List<Wall>
-        get() = elements.filterIsInstance<WallElement>().map {
-            Wall(it.id, it.axis, it.heightMeters, it.thicknessMeters, it.levelId ?: ModelId(""))
-        }
+    val walls: List<Wall> get() = elements.filterIsInstance<WallElement>().map {
+        Wall(it.id, it.axis, it.heightMeters, it.thicknessMeters, it.levelId ?: ModelId(""))
+    }
+    val openings: List<Opening> get() = elements.filterIsInstance<OpeningElement>().map { it.opening }
+    val catalogInstances: List<CatalogInstance> get() = elements.filterIsInstance<CatalogInstanceElement>().map { it.instance }
 }
 data class Site(val id: ModelId = ModelId.newId(), val name: String = "Site")
 data class Building(val id: ModelId = ModelId.newId(), val name: String = "Building")
@@ -61,6 +58,29 @@ data class WallElement(
     override val category get() = ElementCategory.WALL
     val lengthMeters get() = axis.lengthMeters
     val volumeCubicMeters get() = lengthMeters * heightMeters * thicknessMeters
+}
+
+data class OpeningElement(
+    val opening: Opening,
+    override val typeId: ModelId? = null,
+    override val levelId: ModelId? = null,
+    override val parameters: List<Parameter> = emptyList()
+) : BimElement {
+    override val id get() = opening.id
+    override val category get() = when(opening.kind) {
+        OpeningKind.DOOR -> ElementCategory.DOOR
+        OpeningKind.WINDOW -> ElementCategory.WINDOW
+        OpeningKind.GENERIC -> ElementCategory.OPENING
+    }
+}
+data class CatalogInstanceElement(
+    val instance: CatalogInstance,
+    override val typeId: ModelId? = null,
+    override val levelId: ModelId? = instance.levelId,
+    override val parameters: List<Parameter> = emptyList()
+) : BimElement {
+    override val id get() = instance.id
+    override val category get() = ElementCategory.FURNITURE
 }
 
 data class WallAxis(val start: Point2, val end: Point2) {

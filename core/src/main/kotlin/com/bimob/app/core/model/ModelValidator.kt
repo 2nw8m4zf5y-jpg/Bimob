@@ -75,6 +75,26 @@ object ModelValidator {
                 }
             }
 
+            if (element is OpeningElement) {
+                val o = element.opening
+                val host = project.elements.filterIsInstance<WallElement>().firstOrNull { it.id == o.hostWallId }
+                if (host == null) error("opening.host.missing", "Opening host wall does not exist.", o.id)
+                if (!o.offsetAlongWall.isFinite() || o.offsetAlongWall < 0.0) error("opening.offset.invalid", "Opening offset must be finite and non-negative.", o.id)
+                if (!o.width.isFinite() || o.width <= 0.0) error("opening.width.invalid", "Opening width must be finite and positive.", o.id)
+                if (!o.height.isFinite() || o.height <= 0.0) error("opening.height.invalid", "Opening height must be finite and positive.", o.id)
+                if (!o.sillHeight.isFinite() || o.sillHeight < 0.0) error("opening.sill.invalid", "Opening sill must be finite and non-negative.", o.id)
+                if (host != null && o.offsetAlongWall + o.width > host.lengthMeters + 1e-9) error("opening.bounds.wall", "Opening extends beyond host wall.", o.id)
+                if (host != null && o.sillHeight + o.height > host.heightMeters + 1e-9) error("opening.bounds.height", "Opening extends beyond host wall height.", o.id)
+            }
+            if (element is CatalogInstanceElement) {
+                val c = element.instance
+                if (project.elements.none { it is WallElement && it.id == c.hostWallId }) error("catalog.host.missing", "Catalog host wall does not exist.", c.id)
+                if (!c.position.xMeters.isFinite() || !c.position.yMeters.isFinite() || !c.rotationRadians.isFinite()) error("catalog.transform.invalid", "Catalog transform must be finite.", c.id)
+                listOf(c.targetWidth to c.bounds.width, c.targetDepth to c.bounds.depth, c.targetHeight to c.bounds.height).forEach { (target, b) ->
+                    if (!b.min.isFinite() || !b.max.isFinite() || b.min <= 0.0 || b.max < b.min) error("catalog.bounds.invalid", "Catalog dimension bounds invalid.", c.id)
+                    if (!target.isFinite() || target < b.min || target > b.max) error("catalog.dimension.invalid", "Target dimension outside bounds.", c.id)
+                }
+            }
             if (element is WallElement) {
                 val axis = element.axis
                 val coordinates = listOf(axis.start.xMeters, axis.start.yMeters, axis.end.xMeters, axis.end.yMeters)

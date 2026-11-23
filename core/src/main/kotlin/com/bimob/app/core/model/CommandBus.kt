@@ -404,10 +404,9 @@ internal fun freezeProject(project: Project) = project.copy(
     levels = immutableList(project.levels),
     elements = immutableList(project.elements.map { element ->
         when (element) {
-            is WallElement -> element.copy(
-                layers = immutableList(element.layers),
-                parameters = immutableList(element.parameters)
-            )
+            is WallElement -> element.copy(layers = immutableList(element.layers), parameters = immutableList(element.parameters))
+            is OpeningElement -> element.copy(parameters = immutableList(element.parameters))
+            is CatalogInstanceElement -> element.copy(parameters = immutableList(element.parameters))
             else -> element
         }
     }),
