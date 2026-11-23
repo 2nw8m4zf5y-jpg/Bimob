@@ -235,7 +235,7 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
                     val a = startWorld; val b = lastWorld
                     val valid = a != null && b != null && (a.xMeters != b.xMeters || a.yMeters != b.yMeters)
                     if (session.snapshot().gestureActive && valid) session.endGesture() else session.cancelGesture()
-                    base = null; startWorld = null; previewId = null; selectedWall = null; lastWorld = null
+                    base = null; startWorld = null; previewId = null; dragWallId = null; lastWorld = null
                 },
                 onDragCancel = {
                     session.cancelGesture()
