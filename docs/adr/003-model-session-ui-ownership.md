@@ -1,6 +1,6 @@
 # ADR 003 — ModelSession and UI Ownership
 
-**Status:** Implemented; final documentation-head CI pending  
+**Status:** Implemented; Stage F code CI green; full-branch acceptance blocked by unrelated Stage G2 compile failure  
 **Date:** 2026-11-23  
 **Branch:** `feature/model-core-v1`
 
@@ -37,8 +37,9 @@ Use the boundary:
 - F1 tests in `:core:test`: gesture coalescing (generic and scalar Canvas APIs), cancel rollback, Undo/Redo, Engine limit rejection, immutable preview collection freezing and concurrent command serialization.
 - F2 tests in `:core:test`: deterministic revision codec and private repository round-trip; session save/dirty-state tracking; legacy migrator deterministic IDs and validation.
 - F3 tests: typed wall mutation/history through public façade and Compose Canvas compile.
-- Code CI green at commit `73ba2b9`, run [#45188662818](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45188662818): `:core:test`, `testDebugUnitTest`, `assembleDebug`, native contract configure/build/ctest; debug APK artifact uploaded. Final documentation-head CI is pending.
-- Stage F is not formally closed until F4 documentation and final CI on the final branch head.
+- Stage F code CI green at commit `73ba2b9`, run [#45188662818](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45188662818): `:core:test`, `testDebugUnitTest`, `assembleDebug`, native contract configure/build/ctest; debug APK artifact uploaded.
+- Current documentation-head CI [#45189249052](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45189249052) is RED before Kotlin tasks because Stage G2 `native-core/src/engine.cpp:48` contains a literal backslash (`stray '\\'`). The G2 commits (`5a25b11`, `e1d8466`) were already on the shared feature branch and are outside Stage F scope; they were not changed in this work. Full branch-wide acceptance remains blocked until G2 build is repaired.
+- Stage F implementation is complete, but it is not formally closed against the branch-wide CI gate until the unrelated Stage G2 native compile failure is resolved and the final branch head passes.
 
 ## Deferred / Yellow
 

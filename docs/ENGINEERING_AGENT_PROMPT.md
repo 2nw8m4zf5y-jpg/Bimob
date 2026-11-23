@@ -47,7 +47,7 @@ API геометрии независим от конкретной библио
 
 ## 9. Dependency Engine
 
-Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)** and **ADR 003: [ModelSession and UI Ownership](adr/003-model-session-ui-ownership.md)**. **Stage E is ACCEPTED / CLOSED** (owner decision, 2026-11-23). Stage F implementation is complete and code CI is green at `73ba2b9`; final documentation-head CI is the remaining acceptance gate. Do not begin native C++20 port until the app-layer boundary is formally closed.
+Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)** and **ADR 003: [ModelSession and UI Ownership](adr/003-model-session-ui-ownership.md)**. **Stage E is ACCEPTED / CLOSED** (owner decision, 2026-11-23). Stage F implementation is complete and its code CI is green at `73ba2b9`. Current full-branch CI is blocked by an unrelated Stage G2 native compile error (`native-core/src/engine.cpp:48`, stray backslash) on the shared feature branch; do not modify G2 as part of Stage F. Do not begin native C++20 port until the app-layer boundary is formally closed.
 
 - Directed edges mean source → dependent. Graph must be a DAG; reject self/multi-node cycles on the candidate graph **before commit**, with deterministic cycle-path diagnostics.
 - Changed semantic property keys seed transaction-local dirty propagation. Deduplicate the dirty closure and schedule it with deterministic topological ordering and stable tie-breaks. Recompute only affected nodes.
@@ -62,7 +62,7 @@ Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership]
 - Stage F1: ModelSession serializes commands/Undo/Redo/gesture operations; StateFlow publishes immutable UI DTOs, never ModelRevision/Project. Scalar wall commands and preview APIs; gesture cancel rollback and one-command end; save/export serialized with the same session lock. `:core:test` includes session/concurrency/gesture/budget tests.
 - Stage F2: ModelRevisionCodec and ProjectRepository persist exact immutable revision snapshots; private AtomicStorage; content-based dirty tracking; deterministic legacy migrator; migration enters the core via initialization command.
 - Stage F3: MainActivity/Compose consumes only SessionSnapshot + WallCanvasSnapshot and scalar ModelSession APIs. No mutable wall list or direct model/CommandBus access in UI. SAF only external archive import/export.
-- Stage F code CI green at `73ba2b9`, run [#45188662818](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45188662818), including `:core:test`, `testDebugUnitTest`, `assembleDebug`, native contract tests and APK artifact upload. F4 documentation updated; rerun CI on final docs HEAD before closing Stage F.
+- Stage F code CI green at `73ba2b9`, run [#45188662818](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45188662818), including `:core:test`, `testDebugUnitTest`, `assembleDebug`, native contract tests and APK artifact upload. F4 documentation updated. Docs-head CI #45189249052 is blocked by unrelated Stage G2 native compile failure at `native-core/src/engine.cpp:48` (literal backslash); Kotlin tasks were skipped. Stage F code CI #45188662818 is green. Keep G2 outside this Stage F scope.
 
 ## 10. Kotlin prototype → C++20 и Android/NDK
 
@@ -180,7 +180,7 @@ Build BIMOB as a long-lived extensible engineering platform for architecture, in
 New capabilities must not destabilize old ones. The core should evolve without repeatedly rebuilding its foundation. Begin by auditing the real repository state and the most critical unfinished architecture gates.
 ## Stage F progress and acceptance gate
 
-F1/F2/F3 code is implemented on `feature/model-core-v1`; F4 docs are updated. Code CI is green at `73ba2b9`; do not call Stage F formally closed until CI passes on final documentation HEAD.
+F1/F2/F3 code is implemented on `feature/model-core-v1`; F4 docs are updated. Stage F code CI is green at `73ba2b9`; full-branch docs-head CI #45189249052 fails before Kotlin tests due to the unrelated G2 compile error. Do not call Stage F formally closed until a green full-branch run is obtained.
 
 - F1: ModelSession lock/serialized commands, immutable StateFlow UI DTOs (no domain object leakage), revision flags, scalar gesture preview/coalescing/cancel, semantic command commit, Undo/Redo and diagnostic propagation. Core tests include concurrent command serialization.
 - F2: private AtomicStorage + revision codec round-trip (Project, dependency graph nodes/edges, derived values, revision number); deterministic legacy JSON migration; initialization through a validated command.
