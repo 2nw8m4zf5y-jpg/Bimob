@@ -9,6 +9,9 @@ import com.bimob.app.core.dependency.EdgeAdmission
 import com.bimob.app.core.dependency.RecomputeEngine
 import com.bimob.app.core.dependency.RecomputeCancellation
 import com.bimob.app.core.dependency.EvaluationResult
+import com.bimob.app.core.dependency.EvaluatorRegistry
+import com.bimob.app.core.dependency.EngineLimits
+import com.bimob.app.core.dependency.EngineBudgetExceeded
 
 /**
  * Pure-Kotlin transaction boundary. Commands calculate a candidate immutable Project;
@@ -31,17 +34,20 @@ interface ModelMutation {
 class TransactionContext internal constructor(
     private val cancellation: CancellationCheck,
     initialGraph: DependencyGraph,
-    initialValues: Map<DependencyNodeKey, DerivedValue>
+    initialValues: Map<DependencyNodeKey, DerivedValue>,
+    baseRegistry: EvaluatorRegistry = EvaluatorRegistry.empty(),
+    private val limits: EngineLimits = EngineLimits()
 ) {
     private var stagedGraph = initialGraph
     private val dirtySeeds = linkedSetOf<DependencyNodeKey>()
-    private val evaluators = mutableMapOf<DependencyNodeKey, DependencyEvaluator>()
+    private val evaluatorOverrides = mutableMapOf<DependencyNodeKey, DependencyEvaluator>()
     private var stagedValues = initialValues.toMap()
+    private val baseRegistry = baseRegistry
 
     val dependencyGraph: DependencyGraph get() = stagedGraph
     val derivedValues: Map<DependencyNodeKey, DerivedValue> get() = stagedValues
     internal val dirtyNodes: Set<DependencyNodeKey> get() = dirtySeeds
-    internal val registeredEvaluators: Map<DependencyNodeKey, DependencyEvaluator> get() = evaluators
+    internal val registeredEvaluators: Map<DependencyNodeKey, DependencyEvaluator> get() = baseRegistry.snapshot() + evaluatorOverrides
 
     fun checkpoint() {
         if (cancellation.isCancelled()) throw TransactionCancelledException()
@@ -49,14 +55,14 @@ class TransactionContext internal constructor(
     fun admitDependency(edge: DependencyEdge) {
         checkpoint()
         when (val result = stagedGraph.admitEdge(edge)) {
-            is EdgeAdmission.Accepted -> { stagedGraph = result.graph; dirtySeeds += edge.dependent }
+            is EdgeAdmission.Accepted -> { stagedGraph = result.graph; checkGraphLimits(); dirtySeeds += edge.dependent }
             is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
         }
     }
     fun admitDependencies(edges: Collection<DependencyEdge>) {
         checkpoint()
         when (val result = stagedGraph.admitEdges(edges)) {
-            is EdgeAdmission.Accepted -> { stagedGraph = result.graph; edges.forEach { dirtySeeds += it.dependent } }
+            is EdgeAdmission.Accepted -> { stagedGraph = result.graph; checkGraphLimits(); edges.forEach { dirtySeeds += it.dependent } }
             is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
         }
     }
@@ -64,7 +70,11 @@ class TransactionContext internal constructor(
     fun removeDependencyNode(node: DependencyNodeKey) { checkpoint(); stagedGraph.outgoingEdges(node).forEach { dirtySeeds += it.dependent }; stagedGraph = stagedGraph.withoutNode(node); stagedValues = stagedValues - node }
     fun markDirty(node: DependencyNodeKey) { checkpoint(); dirtySeeds += node }
     fun registerEvaluator(node: DependencyNodeKey, evaluator: DependencyEvaluator) {
-        checkpoint(); evaluators[node] = evaluator
+        checkpoint(); evaluatorOverrides[node] = evaluator
+    }
+    private fun checkGraphLimits() {
+        if (stagedGraph.nodeCount > limits.maxGraphNodes) throw EngineBudgetExceeded(com.bimob.app.core.dependency.EngineBudget.GRAPH_NODES, null, stagedGraph.nodeCount, limits.maxGraphNodes)
+        if (stagedGraph.edgeCount > limits.maxGraphEdges) throw EngineBudgetExceeded(com.bimob.app.core.dependency.EngineBudget.GRAPH_EDGES, null, stagedGraph.edgeCount, limits.maxGraphEdges)
     }
     internal fun publishEvaluated(values: Map<DependencyNodeKey, DerivedValue>) { stagedValues = freezeDerivedValues(values) }
 }
@@ -111,7 +121,7 @@ data class ModelRevision(
 )
 
 enum class CommandFailureCode {
-    STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, DEPENDENCY_REJECTED, EVALUATION_FAILED,
+    STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, DEPENDENCY_REJECTED, EVALUATION_FAILED, ENGINE_LIMIT_EXCEEDED,
     HISTORY_EMPTY, REVISION_OVERFLOW, EVENT_QUEUE_FULL
 }
 
@@ -149,7 +159,9 @@ class CommandBus(
     initialProject: Project,
     private val historyLimit: Int = 100,
     private val pendingEventLimit: Int = 1024,
-    private val historyMemoryBudgetBytes: Long = 64L * 1024L * 1024L
+    private val historyMemoryBudgetBytes: Long = 64L * 1024L * 1024L,
+    evaluatorRegistry: EvaluatorRegistry = EvaluatorRegistry.empty(),
+    private val engineLimits: EngineLimits = EngineLimits()
 ) {
     private val monitor = Any()
     private val dispatchMonitor = Any()
@@ -198,15 +210,15 @@ class CommandBus(
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before staging.")
 
             val before = current
-            val context = TransactionContext(cancellation, before.dependencyGraph, before.derivedValues)
+            val context = TransactionContext(cancellation, before.dependencyGraph, before.derivedValues, evaluatorRegistry, engineLimits)
             val candidate: Project
             val candidateValues: Map<DependencyNodeKey, DerivedValue>
             try {
                 context.checkpoint()
                 candidate = freezeProject(mutation.stage(before.project, context))
                 context.checkpoint()
-                val plan = RecomputeEngine.plan(context.dependencyGraph, context.dirtyNodes)
-                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators, RecomputeCancellation { cancellation.isCancelled() })) {
+                val plan = RecomputeEngine.plan(context.dependencyGraph, context.dirtyNodes, engineLimits)
+                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators, RecomputeCancellation { cancellation.isCancelled() }, engineLimits)) {
                     is EvaluationResult.Success -> {
                         context.publishEvaluated(evaluated.values)
                         candidateValues = evaluated.values
@@ -218,6 +230,8 @@ class CommandBus(
                     )
                 }
                 context.checkpoint()
+            } catch (e: EngineBudgetExceeded) {
+                return CommandResult.Rejected(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, "Budget ${e.budget} exceeded${e.node?.let { " at ${it.stableKey()}" } ?: ""}: ${e.actual} > ${e.maximum}.")
             } catch (_: TransactionCancelledException) {
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled during staging or recompute.")
             } catch (e: DependencyAdmissionException) {
