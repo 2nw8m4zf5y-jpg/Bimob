@@ -27,7 +27,8 @@ class PersistenceTest {
         val first=CanonicalProjectJson.encode(p)
         val second=CanonicalProjectJson.encode(p)
         assertArrayEquals(first,second)
-        assertEquals(p,CanonicalProjectJson.decode(first))
+        val decoded = try { CanonicalProjectJson.decode(first) } catch (e: Exception) { println("CANONICAL DECODE DEBUG: ${e.javaClass.simpleName}: ${e.message}"); throw e }
+        assertEquals(p,decoded)
         val archive=BimobArchiveWriter().write(p)
         assertEquals(p,BimobArchiveReader().read(archive))
     }
