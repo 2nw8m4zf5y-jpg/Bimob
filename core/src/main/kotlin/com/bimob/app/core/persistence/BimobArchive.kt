@@ -114,8 +114,16 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
     }
 }
 
+data class AtomicStorageCapabilities(
+    val atomicReplace:Boolean,
+    val durableFileSync:Boolean,
+    val stagedReadbackVerification:Boolean,
+    val directorySync:Boolean
+)
+
 /** Implementations must write a same-volume temp, flush/fsync, verify staged bytes, then atomically replace. */
 interface AtomicStorage {
+    val capabilities:AtomicStorageCapabilities
     fun read(path:String):ByteArray
     fun writeAtomically(path:String,bytes:ByteArray)
     fun appendDurably(path:String,bytes:ByteArray)
@@ -125,6 +133,8 @@ interface AtomicStorage {
 data class SaveResult(val digest:String,val journalRotationWarning:String?=null)
 class ProjectRepository(private val storage:AtomicStorage,private val writer:BimobArchiveWriter=BimobArchiveWriter(),private val reader:BimobArchiveReader=BimobArchiveReader(),private val journal:CrashRecoveryJournal?=null) {
     fun save(path:String,project:Project):SaveResult {
+        val caps=storage.capabilities
+        require(caps.atomicReplace&&caps.durableFileSync&&caps.stagedReadbackVerification){"Storage does not satisfy atomic-save durability requirements."}
         val bytes=writer.write(project)
         val staged=reader.read(bytes);require(staged==project){"Staged archive round-trip mismatch."}
         storage.writeAtomically(path,bytes)
