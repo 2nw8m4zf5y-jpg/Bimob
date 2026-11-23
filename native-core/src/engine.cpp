@@ -125,6 +125,9 @@ std::vector<NodeId> dirtyForProjectChange(const Project&before,const Project&aft
  auto openingChanged=[&](const ModelId&id){auto a=std::find_if(before.openings.begin(),before.openings.end(),[&](const Opening&o){return o.id==id;});auto b=std::find_if(after.openings.begin(),after.openings.end(),[&](const Opening&o){return o.id==id;});return a==before.openings.end()||b==after.openings.end()||!(*a==*b);};
  for(const auto&o:before.openings)if(openingChanged(o.id))seeds.push_back(openingNode(o.id));
  for(const auto&o:after.openings)if(std::none_of(before.openings.begin(),before.openings.end(),[&](const Opening&x){return x.id==o.id;}))seeds.push_back(openingNode(o.id));
+ auto joinChanged=[&](const ModelId&id){auto a=std::find_if(before.joins.begin(),before.joins.end(),[&](const WallJoin&j){return j.id==id;});auto b=std::find_if(after.joins.begin(),after.joins.end(),[&](const WallJoin&j){return j.id==id;});return a==before.joins.end()||b==after.joins.end()||!(*a==*b);};
+ for(const auto&j:before.joins)if(joinChanged(j.id)){seeds.push_back("join:"+j.id.value+":geometry");seeds.push_back(wallNode(j.wallA));seeds.push_back(wallNode(j.wallB));}
+ for(const auto&j:after.joins)if(std::none_of(before.joins.begin(),before.joins.end(),[&](const WallJoin&x){return x.id==j.id;})){seeds.push_back("join:"+j.id.value+":geometry");seeds.push_back(wallNode(j.wallA));seeds.push_back(wallNode(j.wallB));}
  auto catalogChanged=[&](const ModelId&id){auto a=std::find_if(before.catalogInstances.begin(),before.catalogInstances.end(),[&](const CatalogInstance&i){return i.id==id;});auto b=std::find_if(after.catalogInstances.begin(),after.catalogInstances.end(),[&](const CatalogInstance&i){return i.id==id;});return a==before.catalogInstances.end()||b==after.catalogInstances.end()||!(*a==*b);};
  for(const auto&i:before.catalogInstances)if(catalogChanged(i.id)){seeds.push_back(catalogNode(i.id,"POSITION"));seeds.push_back(catalogNode(i.id,"DIMENSIONS"));seeds.push_back(catalogNode(i.id,"HOST"));}
  for(const auto&i:after.catalogInstances)if(std::none_of(before.catalogInstances.begin(),before.catalogInstances.end(),[&](const CatalogInstance&x){return x.id==i.id;})){seeds.push_back(catalogNode(i.id,"POSITION"));seeds.push_back(catalogNode(i.id,"DIMENSIONS"));seeds.push_back(catalogNode(i.id,"HOST"));}
@@ -132,7 +135,7 @@ std::vector<NodeId> dirtyForProjectChange(const Project&before,const Project&aft
 }
 std::vector<DependencyEdge> wallJoinDependencyEdges(const Project&p){
  std::vector<DependencyEdge> edges;
- for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id});}
+ for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id});for(const auto&i:p.catalogInstances)if(i.hostWallId==j.wallA||i.hostWallId==j.wallB)edges.push_back({joinNode,catalogNode(i.id,"HOST"));}
  return edges;
 }
 Result<DependencyGraph> syncJoinGraph(const DependencyGraph&current,const Project&p,const EngineLimits&limits){
@@ -144,15 +147,6 @@ Result<DependencyGraph> syncJoinGraph(const DependencyGraph&current,const Projec
 
 namespace commands {
 namespace {
-template<class T, class Find, class Insert>
-Mutation createEntity(T value, Find find, Insert insert, const char* label) {
- return [value=std::move(value),find=std::move(find),insert=std::move(insert),label](const Project& source) mutable {
-  Project candidate=source;
-  if(find(candidate,value.id)) return Result<Project>::failure({ErrorCode::InvalidArgument,std::string(label)+" already exists",value.id.value,{},0,0});
-  insert(candidate,value);
-  return Result<Project>::success(std::move(candidate));
- };
-}
 template<class T> Error missing(const ModelId& id,const char* kind){return{ErrorCode::InvalidArgument,std::string(kind)+" not found",id.value,{},0,0};}
 Point2 add(Point2 a,Point2 b){return Point2{Meters{a.x.value+b.x.value},Meters{a.y.value+b.y.value}};}
 }
