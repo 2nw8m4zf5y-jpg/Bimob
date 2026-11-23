@@ -135,7 +135,7 @@ std::vector<NodeId> dirtyForProjectChange(const Project&before,const Project&aft
 }
 std::vector<DependencyEdge> wallJoinDependencyEdges(const Project&p){
  std::vector<DependencyEdge> edges;
- for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id});for(const auto&i:p.catalogInstances)if(i.hostWallId==j.wallA||i.hostWallId==j.wallB)edges.push_back({joinNode,catalogNode(i.id,"HOST"));}
+ for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id});for(const auto&i:p.catalogInstances)if(i.hostWallId==j.wallA||i.hostWallId==j.wallB)edges.push_back({joinNode,catalogNode(i.id,"HOST")});
  return edges;
 }
 Result<DependencyGraph> syncJoinGraph(const DependencyGraph&current,const Project&p,const EngineLimits&limits){
