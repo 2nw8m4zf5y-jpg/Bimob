@@ -27,8 +27,7 @@ class PersistenceTest {
         val first=CanonicalProjectJson.encode(p)
         val second=CanonicalProjectJson.encode(p)
         assertArrayEquals(first,second)
-        val decoded = try { CanonicalProjectJson.decode(first) } catch (e: Exception) { println("CANONICAL DECODE DEBUG: ${e.javaClass.simpleName}: ${e.message}"); throw e }
-        assertEquals(p,decoded)
+        assertEquals(p,CanonicalProjectJson.decode(first))
         val archive=BimobArchiveWriter().write(p)
         assertEquals(p,BimobArchiveReader().read(archive))
     }
@@ -172,7 +171,6 @@ class PersistenceTest {
         val expected=javaClass.getResource("/golden/canonical-rich.json")!!.readBytes()
         val encoded=CanonicalProjectJson.encode(rich)
         assertArrayEquals(expected,encoded)
-        assertEquals(sha(expected),sha(encoded))
         assertEquals(rich,CanonicalProjectJson.decode(expected))
     }
 
@@ -180,7 +178,6 @@ class PersistenceTest {
         val empty=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
         val expected=javaClass.getResource("/golden/canonical-empty.json")!!.readBytes()
         assertArrayEquals(expected,CanonicalProjectJson.encode(empty))
-        assertEquals(sha(CanonicalProjectJson.encode(empty)),sha(expected))
     }
 
     @Test fun canonicalJsonMatchesGoldenBytesAndSha256() {
@@ -188,7 +185,6 @@ class PersistenceTest {
         val expected="""{"buildings":[],"elements":[],"levels":[],"materials":[],"name":"x","projectId":"p","schemaVersion":1,"site":{"id":"s","name":"site"},"types":[]}"""
         val bytes=CanonicalProjectJson.encode(minimal)
         assertEquals(expected,String(bytes,java.nio.charset.StandardCharsets.UTF_8))
-        assertEquals(sha(CanonicalProjectJson.encode(minimal)),sha(bytes))
     }
 
     @Test fun truncatedJournalTailPreservesLastCommittedRecoveryRecord() {
