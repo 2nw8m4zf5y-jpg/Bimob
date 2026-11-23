@@ -115,11 +115,10 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
         return CommandResult.Committed(event.revision, ModelValidator.validate(event.revision.project))
     }
 
-    private fun publish(event: ModelEvent, subscribers: List<(ModelEvent) -> Unit) {
+    private fun publish(event: ModelEvent, subscribers: List<(ModelEvent) -> Unit>) {
         subscribers.forEach { listener -> runCatching { listener(event) } }
     }
 }
-
 
 /** Defensive copies of collection containers prevent callers from mutating published snapshots. */
 private fun freezeProject(project: Project): Project = project.copy(
