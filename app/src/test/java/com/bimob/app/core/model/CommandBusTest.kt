@@ -125,4 +125,29 @@ class CommandBusTest {
         assertEquals(1, count)
     }
 
+    @Test fun reentrantListenerCannotInterleaveRevisionEvents() {
+        val bus = CommandBus(project())
+        val observed = mutableListOf<String>()
+        bus.subscribe { event ->
+            val revision = when (event) {
+                is ModelEvent.RevisionCommitted -> event.revision.number
+                is ModelEvent.RevisionRestored -> event.revision.number
+            }
+            observed += "first:$revision"
+            if (revision == 1L) bus.execute(object : ModelMutation {
+                override val label = "Nested"
+                override fun apply(before: Project) = before.copy(name = "Nested")
+            })
+        }
+        bus.subscribe { event ->
+            val revision = when (event) {
+                is ModelEvent.RevisionCommitted -> event.revision.number
+                is ModelEvent.RevisionRestored -> event.revision.number
+            }
+            observed += "second:$revision"
+        }
+        bus.execute(rename())
+        assertEquals(listOf("first:1", "second:1", "first:2", "second:2"), observed)
+    }
+
 }
