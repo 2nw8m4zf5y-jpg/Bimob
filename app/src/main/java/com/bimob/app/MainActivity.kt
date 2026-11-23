@@ -11,15 +11,12 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bimob.app.core.model.*
@@ -63,10 +60,11 @@ class MainActivity : Activity() {
                     },
                     onExport = { uri ->
                         try {
-                            val revision = activeSession?.snapshot()?.revision ?: return@BimobRoot
-                            val bytes = BimobArchiveWriter().write(revision.project)
-                            val digest = saf.writeNewDocument(uri, bytes)
-                            ToastMessage("Экспорт проверен • SHA-256 ${digest.take(12)}")
+                            activeSession?.snapshot()?.revision?.let { revision ->
+                                val bytes = BimobArchiveWriter().write(revision.project)
+                                val digest = saf.writeNewDocument(uri, bytes)
+                                ToastMessage("Экспорт проверен • SHA-256 ${digest.take(12)}")
+                            } ?: ToastMessage("Нет активного проекта")
                         } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка экспорта") }
                     }
                 )
@@ -263,9 +261,9 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
     }
 }
 
-private fun snapWorld(screen: Offset, size: androidx.compose.ui.geometry.Size, scale: Float): Point2 {
-    val x = (screen.x - size.width/2f)/scale
-    val y = (size.height/2f - screen.y)/scale
+private fun snapWorld(screen: Offset, size: androidx.compose.ui.unit.IntSize, scale: Float): Point2 {
+    val x = (screen.x - size.width.toFloat()/2f)/scale
+    val y = (size.height.toFloat()/2f - screen.y)/scale
     return Point2(round(x*10f)/10f, round(y*10f)/10f)
 }
 private fun worldScreen(point: Point2, size: androidx.compose.ui.geometry.Size, scale: Float) =
