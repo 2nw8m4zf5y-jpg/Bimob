@@ -1,6 +1,7 @@
 package com.bimob.app.core.persistence
 
 import com.bimob.app.core.model.*
+import com.bimob.app.core.dependency.DependencyGraph
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
