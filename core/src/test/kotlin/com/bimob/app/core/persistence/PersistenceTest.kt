@@ -42,7 +42,7 @@ class PersistenceTest {
             )
         )
         val bytes = CanonicalProjectJson.encode(p)
-        assertEquals(p,CanonicalProjectJson.decode(bytes))
+        assertEquals(p.copy(joins=p.joins.sortedBy{it.id.value}),CanonicalProjectJson.decode(bytes))
         val ids = Json.parse(bytes).obj().req("joins").array().a.map{it.obj().req("id").text()}
         assertEquals(listOf("j1","j2"),ids)
         assertArrayEquals(bytes,CanonicalProjectJson.encode(CanonicalProjectJson.decode(bytes)))
@@ -198,7 +198,7 @@ class PersistenceTest {
 
     @Test fun canonicalJsonMatchesGoldenBytesAndSha256() {
         val minimal=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
-        val expected="""{"buildings":[],"elements":[],"levels":[],"materials":[],"name":"x","projectId":"p","schemaVersion":1,"site":{"id":"s","name":"site"},"types":[]}"""
+        val expected="""{"buildings":[],"elements":[],"joins":[],"levels":[],"materials":[],"name":"x","projectId":"p","schemaVersion":1,"site":{"id":"s","name":"site"},"types":[]}"""
         val bytes=CanonicalProjectJson.encode(minimal)
         assertEquals(expected,String(bytes,java.nio.charset.StandardCharsets.UTF_8))
     }
