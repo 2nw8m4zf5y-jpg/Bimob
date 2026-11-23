@@ -1,6 +1,6 @@
 # BIMOB Engineering Agent Prompt
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Repository:** [2nw8m4zf5y-jpg/Bimob](https://github.com/2nw8m4zf5y-jpg/Bimob)  
 **Working branch:** `feature/model-core-v1`  
 **PR:** [#1](https://github.com/2nw8m4zf5y-jpg/Bimob/pull/1)
@@ -47,16 +47,18 @@ API геометрии независим от конкретной библио
 
 ## 9. Dependency Engine
 
-Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)**. Implement in staged gates only; do not improvise a parallel architecture.
+Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)**. E1 is CLOSED with owner-confirmed CI green on `b879e8f`. E2 is IN PROGRESS; do not implement later E3–E5 gates prematurely.
 
 - Directed edges mean source → dependent. Graph must be a DAG; reject self/multi-node cycles on the candidate graph **before commit**, with deterministic cycle-path diagnostics.
 - Changed semantic property keys seed transaction-local dirty propagation. Deduplicate the dirty closure and schedule it with deterministic topological ordering and stable tie-breaks. Recompute only affected nodes.
 - Graph edits, canonical candidate model, derived cache candidates and validation are staged together with CommandBus/TransactionContext. A failed cycle, evaluator, validation, cancellation or resource budget aborts the complete transaction; no revision, graph/cache publication or event is allowed.
 - Evaluators are pure over immutable candidate inputs; return values/diagnostics rather than mutating published state. Initial scheduler is single-threaded. Parallel execution requires a separate proven design.
 - Proposed safety ceilings (review/benchmark before tuning): 250k nodes, 1m edges, 100k dirty nodes, 4096 traversal depth (iterative only), 1m evaluation steps per transaction, 10k outgoing fan-out and 100k edge edits per batch. Cancellation checkpoint every ≤256 steps. Limit violations are typed, safe transaction rejection, never silent truncation.
-- Implementation deliverables: E1 graph model/admission/cycle tests; E2 transaction staging/rollback; E3 dirty propagation/scheduling/limits; E4 cache fingerprints + Undo/Redo; E5 full-recompute oracle, fuzz, profiling and acceptance.
+- E1: typed immutable DAG, candidate admission, cycle-path diagnostics, depth ceiling and tests — ACCEPTED.
+- E2: revision-scoped Project+graph+derived state, TransactionContext staging, dirty closure, deterministic topological recompute, rollback on evaluator errors/cancellation and synchronized Undo/Redo — IN PROGRESS.
+- E3: hard budgets and profiling; E4 cache lifecycle/fingerprints; E5 oracle, fuzz and acceptance — NOT STARTED.
 - Tests include cycles (single and batch), rollback, dirty closure, stable topological order, no partial derived cache/event publication, failure/cancellation, budgets, Undo/Redo and randomized DAG equivalence.
-- ADR is design only; code must not begin until design is reviewed/accepted by the owner.
+- E2 test coverage includes graph/model batch rollback, Undo/Redo synchronization, diamond recompute exactly once after both parents, untouched branch isolation, evaluator failure and cycle rejection. CI is required before declaring E2 accepted.
 
 ## 10. Kotlin prototype → C++20 и Android/NDK
 
