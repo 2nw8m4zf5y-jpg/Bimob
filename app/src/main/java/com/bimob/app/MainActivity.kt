@@ -131,7 +131,7 @@ class MainActivity : Activity() {
         root.addView(header)
 
         val tools = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        addTool(tools, "Стена") { canvasView.tool = DrawingDrawingTool.WALL; status.text = "Проведи пальцем, чтобы поставить стену" }
+        addTool(tools, "Стена") { canvasView.tool = DrawingTool.WALL; status.text = "Проведи пальцем, чтобы поставить стену" }
         addTool(tools, "Выбор") { canvasView.tool = DrawingTool.SELECT; status.text = "Режим просмотра" }
         addTool(tools, "Очистить") {
             AlertDialog.Builder(this).setMessage("Удалить все стены на плане?")
@@ -215,7 +215,7 @@ class MainActivity : Activity() {
             c.drawText(String.format("%.2f", length), (a.first+b.first)/2 + 8, (a.second+b.second)/2 - 8, labelPaint)
         }
         override fun onTouchEvent(event: MotionEvent): Boolean {
-            if (tool != Tool.WALL) return true
+            if (tool != DrawingTool.WALL) return true
             when(event.action) {
                 MotionEvent.ACTION_DOWN -> { start = snap(event.x, event.y); end = start; invalidate(); return true }
                 MotionEvent.ACTION_MOVE -> { end = snap(event.x, event.y); invalidate(); return true }
