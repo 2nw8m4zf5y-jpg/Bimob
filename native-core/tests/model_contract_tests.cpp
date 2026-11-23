@@ -22,4 +22,57 @@ void projectCowSharing(){Project original=fixture();Project candidate=original;a
 void historyLimitAndCancel(){CommandBus bus(fixture(),EngineLimits{},EvaluatorRegistry{},HistoryLimits{3});for(int i=0;i<8;++i){auto m=[i](const Project&p){auto c=p;c.name="Project"+std::to_string(i);return Result<Project>::success(std::move(c));};assert(bus.execute(m).ok());}assert(bus.undoDepth()==3);CancellationToken token;token.cancel();auto before=bus.snapshot();auto r=bus.execute(addWall(),{}, {},&token);assert(!r.ok()&&r.error()->code==ErrorCode::Cancelled&&bus.snapshot()==before);auto graph=admitEdges({},{{"a","b"},{"b","c"}},EngineLimits{});assert(graph.ok());EvaluatorRegistry reg({{"a",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{1.});}},{"b",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{2.});}},{"c",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{3.});}}});auto cancelled=recompute(*graph.value(),{"a"},fixture(),{},reg,EngineLimits{},&token);assert(!cancelled.ok()&&cancelled.error()->code==ErrorCode::Cancelled);}
 void wallJoinAnchored(){Project p=fixture();p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},false,ModelId{"w2"},true,Point2{Meters{2},Meters{0}}});auto solved=solveWallJoin(p,ModelId{"w1"},false,Point2{Meters{3},Meters{0}});assert(solved.ok());assert((solved.value()->walls[0].axis.end==Point2{Meters{3},Meters{0}}));assert((solved.value()->walls[1].axis.start==Point2{Meters{3},Meters{0}}));assert((solved.value()->walls[1].axis.end==Point2{Meters{2},Meters{2}}));}
 void bimEntities(){Project p=fixture();p.levels.push_back(Level{ModelId{"L1"},"Ground",Meters{0},Meters{3}});p.walls[0].levelId=ModelId{"L1"};p.openings.push_back(Opening{ModelId{"O1"},ModelId{"w1"},OpeningKind::Door,Meters{.2},Meters{.8},Meters{2.1},Meters{0}});p.catalogInstances.push_back(CatalogInstance{ModelId{"C1"},"door-asset",Point2{Meters{1},Meters{2}},0,ModelId{"L1"},{},Meters{.9},Meters{.2},Meters{2.1},ScalingMode::Uniform,DimensionBounds{Meters{.5},Meters{1.2}},DimensionBounds{Meters{.1},Meters{.4}},DimensionBounds{Meters{1.8},Meters{2.4}},"door","D-01"});assert(validate(p).empty());p.openings[0].offsetAlongWall=Meters{1.5};auto openingIssues=validate(p);assert(std::any_of(openingIssues.begin(),openingIssues.end(),[](const auto&i){return i.code==ValidationCode::OpeningOutOfBounds;}));p.openings[0].offsetAlongWall=Meters{.2};p.catalogInstances[0].targetWidth=Meters{2};auto catalogIssues=validate(p);assert(std::any_of(catalogIssues.begin(),catalogIssues.end(),[](const auto&i){return i.code==ValidationCode::InvalidCatalogInstance;}));}
-int main(){cowStress10k();wallJoinRejectsHostedOpening();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}
+
+void typedCommandsAndBatchAtomicity(){
+ Project p=fixture();
+ CommandBus bus(p);
+ auto level=Level{ModelId{"L2"},"Upper",Meters{3},Meters{2.8}};
+ auto wall=Wall{ModelId{"w3"},WallAxis{Point2{Meters{0},Meters{3}},Point2{Meters{4},Meters{3}}},Meters{2.8},Meters{.2},ModelId{"L2"}};
+ auto opening=Opening{ModelId{"O3"},ModelId{"w3"},OpeningKind::Window,Meters{1},Meters{1},Meters{1},Meters{.8}};
+ auto instance=CatalogInstance{ModelId{"C3"},"window-asset",Point2{Meters{1},Meters{3}},0,ModelId{"L2"},ModelId{"w3"},Meters{.5},Meters{.2},Meters{1},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{.5}},DimensionBounds{Meters{.5},Meters{2}},"window","W-01"};
+ auto success=commands::batch({commands::createLevel(level),commands::createWall(wall),commands::createOpening(opening),commands::createCatalogInstance(instance)});
+ auto committed=bus.execute(success);
+ assert(committed.ok()&&committed.value()->revision->number==1&&bus.undoDepth()==1);
+ assert(bus.snapshot()->project->levels.size()==1&&bus.snapshot()->project->walls.size()==2&&bus.snapshot()->project->openings.size()==1&&bus.snapshot()->project->catalogInstances.size()==1);
+ auto failed=commands::batch({commands::moveLevel(ModelId{"L2"},Meters{4}),commands::resizeOpening(ModelId{"O3"},Meters{5},Meters{1})});
+ auto before=bus.snapshot();auto rejected=bus.execute(failed);
+ assert(!rejected.ok()&&rejected.error()->code==ErrorCode::ValidationFailed&&bus.snapshot()==before&&bus.undoDepth()==1);
+ assert(bus.execute(commands::moveCatalogInstance(ModelId{"C3"},Point2{Meters{2},Meters{3}}),{}, "catalog-drag").ok());
+ assert(bus.execute(commands::resizeCatalogInstance(ModelId{"C3"},Meters{.6},Meters{.3},Meters{1.2}),{}, "catalog-size").ok());
+ assert(bus.execute(commands::moveOpening(ModelId{"O3"},Meters{1.2},Meters{.9}),{}, "opening-drag").ok());
+ assert(bus.execute(commands::resizeOpening(ModelId{"O3"},Meters{.8},Meters{1.1}),{}, "opening-size").ok());
+ assert(bus.execute(commands::moveWall(ModelId{"w3"},Point2{Meters{1},Meters{0}}),{}, "wall-drag").ok());
+ assert(bus.execute(commands::resizeWall(ModelId{"w3"},Meters{3}),{}, "wall-resize").ok());
+ assert(bus.execute(commands::moveLevel(ModelId{"L2"},Meters{3.2})).ok());
+ assert(bus.execute(commands::resizeLevel(ModelId{"L2"},Meters{3.1})).ok());
+ assert(bus.execute(commands::deleteOpening(ModelId{"O3"})).ok());
+ assert(bus.execute(commands::deleteCatalogInstance(ModelId{"C3"})).ok());
+ assert(bus.execute(commands::deleteWall(ModelId{"w3"})).ok());
+ assert(bus.undo().ok()&&bus.snapshot()->project->walls.size()==2);
+ assert(bus.execute(commands::deleteLevel(ModelId{"L2"})).ok());
+ assert(bus.snapshot()->project->levels.empty());
+ assert(bus.undo().ok()&&bus.snapshot()->project->levels.size()==1);
+}
+void wallJoinCommandBusDependencyIntegration(){
+ Project p=fixture();
+ p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});
+ p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},false,ModelId{"w2"},true,Point2{Meters{2},Meters{0}}});
+ EvaluatorRegistry registry({
+  {"wall:w1:geometry",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{2.0});}},
+  {"wall:w2:geometry",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{3.0});}},
+  {"join:j1:geometry",[](const Project&,const DerivedMap&in){return Result<DerivedValue>::success(DerivedValue{std::get<double>(in.at("wall:w1:geometry").data)+std::get<double>(in.at("wall:w2:geometry").data)});}}
+ });
+ CommandBus bus(p,EngineLimits{},registry);
+ auto moved=bus.execute(commands::moveWallEndpoint(ModelId{"w1"},false,Point2{Meters{3},Meters{0}}));
+ assert(moved.ok());
+ const auto&project=*bus.snapshot()->project;
+ assert((project.walls[0].axis.end==Point2{Meters{3},Meters{0}}));
+ assert((project.walls[1].axis.start==Point2{Meters{3},Meters{0}}));
+ assert((project.walls[1].axis.end==Point2{Meters{2},Meters{2}}));
+ assert(std::get<double>(bus.snapshot()->derived->at("join:j1:geometry").data)==5.0);
+ auto before=bus.snapshot();
+ auto rejected=bus.execute(commands::moveWallEndpoint(ModelId{"w1"},false,Point2{Meters{2},Meters{1.5}}));
+ assert(!rejected.ok()&&bus.snapshot()==before);
+}
+
+int main(){typedCommandsAndBatchAtomicity();wallJoinCommandBusDependencyIntegration();cowStress10k();wallJoinRejectsHostedOpening();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}
