@@ -73,4 +73,56 @@ class CommandBusTest {
         val r=bus.undo(0); assertEquals(CommandFailureCode.STALE_REVISION,(r as CommandResult.Rejected).code)
         assertEquals("Renamed",bus.snapshot().project.name)
     }
+    @Test fun multiEntityMutationCommitsAsOneRevision() {
+        val bus = CommandBus(project())
+        val mutation = object : ModelMutation {
+            override val label = "Add building and level"
+            override fun apply(before: Project) = before.copy(
+                buildings = before.buildings + Building(name = "B1"),
+                levels = before.levels + Level(name = "L1", elevationMeters = 0.0)
+            )
+        }
+        val result = bus.execute(mutation) as CommandResult.Committed
+        assertEquals(1L, result.revision.number)
+        assertEquals(1, result.revision.project.buildings.size)
+        assertEquals(1, result.revision.project.levels.size)
+        assertEquals(0, bus.snapshot().number - 1)
+    }
+
+    @Test fun concurrentWritersPublishEventsInRevisionOrder() {
+        val bus = CommandBus(project())
+        val observed = java.util.Collections.synchronizedList(mutableListOf<Long>())
+        bus.subscribe { observed += when (it) {
+            is ModelEvent.RevisionCommitted -> it.revision.number
+            is ModelEvent.RevisionRestored -> it.revision.number
+        } }
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(8)
+        try {
+            val tasks = (1..32).map { index ->
+                pool.submit {
+                    bus.execute(object : ModelMutation {
+                        override val label = "Concurrent $index"
+                        override fun apply(before: Project) = before.copy(name = label)
+                    })
+                }
+            }
+            tasks.forEach { it.get() }
+        } finally { pool.shutdown() }
+        assertEquals(32L, bus.snapshot().number)
+        assertEquals((1L..32L).toList(), observed.toList())
+    }
+
+    @Test fun closingSubscriptionStopsFutureEvents() {
+        val bus = CommandBus(project())
+        var count = 0
+        val subscription = bus.subscribe { count++ }
+        bus.execute(rename())
+        subscription.close()
+        bus.execute(object : ModelMutation {
+            override val label = "Another rename"
+            override fun apply(before: Project) = before.copy(name = "Second")
+        })
+        assertEquals(1, count)
+    }
+
 }
