@@ -38,7 +38,7 @@ class MainActivity : Activity() {
     private fun baseLayout(): LinearLayout {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 16)
+            setPadding(24, 64, 24, 48)
             setBackgroundColor(Color.rgb(247, 248, 250))
         }
         return root
