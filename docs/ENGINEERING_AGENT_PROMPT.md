@@ -110,11 +110,11 @@ CI must actually build and run tests. Inspect logs on failure, fix and rerun. A 
 A. Architecture contracts and blueprint audit.  
 B. Canonical Model prototype/contracts.  
 C. CommandBus / Transaction Engine prototype and acceptance gates.  
-D. History memory budget and related transaction hardening, as needed to close C.  
+C acceptance gates include memory-budgeted history and cancellation hardening.  
 E. **Dependency Graph / Incremental Recompute (DAG, cycle detection, dirty propagation, deterministic recompute).**  
-F. Kotlin prototype contract completion and migration readiness / native-core C++20 port.  
+F. Kotlin prototype stabilization and migration to native-core C++20, including porting all tests and parity gates.  
 G. Geometry Kernel (only after native-core migration and test parity gates).  
-H. Parametric Model and constraints.  
+H. Parametric Model, families and constraints.  
 I. Architectural families and semantic elements.  
 J. Projection/drawing and spatial subsystem.  
 K. Quantities/schedules.  
