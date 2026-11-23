@@ -27,6 +27,17 @@ class ModelSession(
     private val commandBus: CommandBus = CommandBus(initialProject),
     initiallySaved: Boolean = false
 ) {
+    constructor(initialRevision: ModelRevision, initiallySaved: Boolean = true) : this(
+        initialRevision.project,
+        CommandBus(
+            initialRevision.project,
+            initialRevisionNumber = initialRevision.number,
+            initialDependencyGraph = initialRevision.dependencyGraph,
+            initialDerivedValues = initialRevision.derivedValues
+        ),
+        initiallySaved
+    )
+
     private val lock = Any()
     private var savedProject: Project? = if (initiallySaved) initialProject else null
     private var gestureBase: ModelRevision? = null

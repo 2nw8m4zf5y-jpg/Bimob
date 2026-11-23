@@ -171,14 +171,17 @@ class CommandBus(
     private val pendingEventLimit: Int = 1024,
     private val historyMemoryBudgetBytes: Long = 64L * 1024L * 1024L,
     evaluatorRegistry: EvaluatorRegistry = EvaluatorRegistry.empty(),
-    private val engineLimits: EngineLimits = EngineLimits()
+    private val engineLimits: EngineLimits = EngineLimits(),
+    initialRevisionNumber: Long = 0L,
+    initialDependencyGraph: DependencyGraph = DependencyGraph.empty(),
+    initialDerivedValues: Map<DependencyNodeKey, DerivedValue> = emptyMap()
 ) {
     private val configuredEvaluatorRegistry = evaluatorRegistry
     private val monitor = Any()
     private val dispatchMonitor = Any()
     private var dispatching = false
     private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
-    private var current = ModelRevision(0L, freezeProject(initialProject))
+    private var current = ModelRevision(initialRevisionNumber, freezeProject(initialProject), initialDependencyGraph, freezeDerivedValues(initialDerivedValues))
     private val undoStack = ArrayDeque<HistoryEntry>()
     private val redoStack = ArrayDeque<HistoryEntry>()
     private var nextHistoryOrder = 0L

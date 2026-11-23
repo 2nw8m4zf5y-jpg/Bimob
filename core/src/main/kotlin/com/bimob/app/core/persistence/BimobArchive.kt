@@ -2,6 +2,7 @@ package com.bimob.app.core.persistence
 
 import com.bimob.app.core.model.Project
 import com.bimob.app.core.model.ModelValidator
+import com.bimob.app.core.model.ModelRevision
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
