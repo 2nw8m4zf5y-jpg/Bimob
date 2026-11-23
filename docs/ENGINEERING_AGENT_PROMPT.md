@@ -120,7 +120,7 @@ A. Architecture contracts and blueprint audit.
 B. Canonical Model pure-Kotlin reference prototype/contracts.
 C. CommandBus / Transaction Engine acceptance gates, including memory-budgeted history and cancellation hardening.
 D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** Owner-confirmed CI green on `65cf542` (`:core:test`, `:app:testDebugUnitTest`, `:assembleDebug`).
-E. **Model Ownership & Dependency Engine — DESIGN APPROVED, IMPLEMENTATION NOT STARTED:** ADR 002; execute E1–E5 only after design acceptance.
+E. **Model Ownership & Dependency Engine — IN PROGRESS:** ADR 002 approved. E1 graph implementation and tests committed (`fcb34c6`, `9857900`); CI status not verified. E2–E5 remain pending.
 F. Kotlin prototype stabilization and migration to native-core C++20, including porting all test scenarios and parity gates.
 G. Geometry Kernel (only after native-core migration and test parity gates).
 H. Parametric Model, families and constraints.
