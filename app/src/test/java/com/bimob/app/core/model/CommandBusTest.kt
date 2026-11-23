@@ -160,7 +160,7 @@ class CommandBusTest {
                 release.await()
             }
         }
-        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
         try {
             val first = executor.submit<CommandResult> { bus.execute(rename()) }
             assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS))
@@ -177,7 +177,7 @@ class CommandBusTest {
             assertEquals(2L, bus.snapshot().number)
             assertEquals("Second", bus.snapshot().project.name)
             release.countDown()
-            assertTrue(first.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)
+            assertTrue(first.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)\n            assertTrue(second.get(2, java.util.concurrent.TimeUnit.SECONDS) is CommandResult.Committed)
             assertEquals(listOf(1L, 2L), observed.toList())
         } finally {
             release.countDown()
