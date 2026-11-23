@@ -78,7 +78,7 @@ object CanonicalProjectJson {
     fun encode(p:Project)=Json.bytes(projectJson(p))
     fun decode(bytes:ByteArray):Project=decodeProject(Json.parse(bytes).obj())
     private fun id(x:ModelId?)=nullable(x?.value)
-    private fun parameters(ps:List<Parameter>)=JA(ps.map{jo("definitionId" to js(it.definitionId.value),"value" to parameter(it.value))})
+    private fun parameters(ps:List<Parameter>)=JA(ps.sortedBy{it.definitionId.value}.map{jo("definitionId" to js(it.definitionId.value),"value" to parameter(it.value))})
     private fun parameter(v:ParameterValue):J=when(v){
         is ParameterValue.Bool->jo("kind" to js("bool"),"value" to JB(v.value))
         is ParameterValue.IntNumber->jo("kind" to js("int"),"value" to Json.l(v.value))

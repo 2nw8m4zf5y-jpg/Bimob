@@ -143,11 +143,11 @@ class PersistenceTest {
         val material=Material(ModelId("mat-g"),"Кирпич","Стена",1600.0,0.5,12.0,"m3")
         val type=ElementType(ModelId("type-g"),"Стеновой тип",ElementCategory.WALL,listOf(
             Parameter(ModelId("bool-g"),ParameterValue.Bool(true)),
+            Parameter(ModelId("enum-g"),ParameterValue.EnumValue("STRUCTURE")),
             Parameter(ModelId("int-g"),ParameterValue.IntNumber(7)),
             Parameter(ModelId("real-g"),ParameterValue.Real(0.5)),
-            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка\nвторая")),
             Parameter(ModelId("ref-g"),ParameterValue.Reference(material.id)),
-            Parameter(ModelId("enum-g"),ParameterValue.EnumValue("STRUCTURE"))
+            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка\nвторая"))
         ))
         val firstWall=WallElement(
             id=ModelId("wall-a"),typeId=type.id,levelId=ModelId("level-g"),
