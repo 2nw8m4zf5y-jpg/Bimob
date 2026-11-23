@@ -164,16 +164,20 @@ class CommandBusTest {
         try {
             val first = executor.submit<CommandResult> { bus.execute(rename()) }
             assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS))
-            val second = bus.execute(object : ModelMutation {
-                override val label = "Second"
-                override fun apply(before: Project) = before.copy(name = "Second")
-            })
-            assertTrue(second is CommandResult.Committed)
+            val second = executor.submit<CommandResult> {
+                bus.execute(object : ModelMutation {
+                    override val label = "Second"
+                    override fun apply(before: Project) = before.copy(name = "Second")
+                })
+            }
+            // The second event is queued while revision 1's callback is still in flight.
             val rejected = bus.execute(object : ModelMutation {
                 override val label = "Third"
                 override fun apply(before: Project) = before.copy(name = "Third")
             }) as CommandResult.Rejected
             assertEquals(CommandFailureCode.EVENT_QUEUE_FULL, rejected.code)
+            val undoRejected = bus.undo() as CommandResult.Rejected
+            assertEquals(CommandFailureCode.EVENT_QUEUE_FULL, undoRejected.code)
             assertEquals(2L, bus.snapshot().number)
             assertEquals("Second", bus.snapshot().project.name)
             release.countDown()
