@@ -180,6 +180,8 @@ Latest commits in this work session:
 - `38f0d01ec11f40d61ad4a97e46e77af69f19aa23` — CommandBus tests.
 - `d88fc22a7d65e0b4eb2f96921c24b345dc10a32e` — defensive snapshot collection copies and initial-state validation.
 - `2fd1eed9d781fa5f9ec7550b034830dc69220f8b` — ADR 001 transaction design.
+- `50cea7a92b4b2ff0a706d35741d42db843193f4a` — bound undo/redo history depth.
+- `65055351285f394b419d536c7c7187ca4e01180a` — tests for history limit and initial model validation.
 
 Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `ModelCommands.kt`, `ModelValidator.kt` and validator tests. Always re-check current HEAD and files before future work.
 
@@ -189,13 +191,13 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 - **Phase C — CommandBus/Transaction Engine:** first prototype commit landed. Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
 - **Snapshot note:** Kotlin collection defensive copies and initial model validation were added. Deep immutability and concurrent event ordering remain follow-up gaps, documented in ADR 001.
 - **CI:** GitHub API combined statuses returned an empty status list for the latest test commit; commit-associated workflow-run query also returned no runs. This means CI is **not verified**, not passing. The web Actions page was inaccessible from this session.
-- **Acceptance criteria not yet met:** multi-change atomicity tests, history limit/disposal, concurrency and event ordering, freeze/deep-copy guarantees, revision overflow, and successful CI run.
+- **Acceptance criteria not yet met:** multi-change atomicity tests, history disposal, concurrency and event ordering, comprehensive deep-copy guarantees, revision overflow, and successful CI run. History depth and initial-state validation now have tests.
 
 ## 28. Roadmap and next work
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete.** Next tasks: improve staging/commit concurrency design; add tests for multi-element atomicity, history bounds, listener disposal, event ordering/concurrent writers, defensive copies, and revision overflow; ensure initial-state invariant behavior and cancellation semantics; run and verify CI.  
+C. **CommandBus + Transaction Engine — in progress, not complete.** Next tasks: improve staging/commit concurrency design; add tests for multi-element atomicity, listener disposal, event ordering/concurrent writers, defensive copies, and revision overflow; strengthen cancellation semantics; run and verify CI.  
 D. Persistence/recovery.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
