@@ -25,4 +25,4 @@ All distances use metres; angles use radians. Canonical JSON output must sort ob
 - `engine_limits.json`: each of six native/Kotlin engine budgets.
 - `undo_redo_gestures.json`: multi-step history and per-entity gesture coalescing expectations.
 
-A runner must fail when a command is unsupported, an assertion is unmet, or a fixture cannot be consumed. No runner may filter scenarios by language.
+A runner must fail when a command is unsupported, an assertion is unmet, or a fixture cannot be consumed. No runner may filter scenarios by language.\n\nGesture updates are individual commands carrying the same `gestureId`; they are not an implicit atomic batch. If a command is rejected, it must leave the state and history unchanged at the point of rejection. Earlier successful commands in that gesture remain committed/coalesced and must not be retroactively discarded.
