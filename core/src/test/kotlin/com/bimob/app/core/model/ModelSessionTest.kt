@@ -98,6 +98,25 @@ class ModelSessionTest {
         assertFalse(session.snapshot().gestureActive)
         assertEquals("Session", session.snapshot().projectName)
     }
+    @Test fun canvasScalarGestureApiCoalescesDrawAndMoveCommands() {
+        val session = ModelSession.newProject("Canvas")
+        assertTrue(session.beginGesture("Draw wall"))
+        repeat(30) { frame -> assertTrue(session.previewDrawWall("wall", 0.0, 0.0, frame + 1.0, 0.0)) }
+        assertEquals(30.0, session.snapshot().walls.single().endX, 0.0)
+        assertTrue(session.endGesture() is CommandResult.Committed)
+        assertEquals(1L, session.snapshot().revisionNumber)
+        assertTrue(session.undo() is CommandResult.Committed)
+        assertTrue(session.snapshot().walls.isEmpty())
+
+        session.addWall("wall", 0.0, 0.0, 3.0, 0.0)
+        assertTrue(session.beginGesture("Move wall"))
+        repeat(10) { frame -> assertTrue(session.previewMoveWall("wall", frame.toDouble(), 2.0)) }
+        assertTrue(session.endGesture() is CommandResult.Committed)
+        assertEquals(9.0, session.snapshot().walls.single().startX, 0.0)
+        assertTrue(session.undo() is CommandResult.Committed)
+        assertEquals(0.0, session.snapshot().walls.single().startX, 0.0)
+    }
+
     @Test fun concurrentCommandsAreSerializedAndRevisionsRemainMonotonic() {
         val session = ModelSession(project(), initiallySaved = true)
         val pool = java.util.concurrent.Executors.newFixedThreadPool(4)
