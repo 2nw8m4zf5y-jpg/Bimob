@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.8
+# BIMOB MASTER PROMPT v1.9
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -266,8 +266,9 @@ B. Canonical Model — prototype; continue parity/contract tests.
 C. **CommandBus + Transaction Engine — ACCEPTED / CLOSED.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. CI success for the completed Phase C changes was confirmed by the project owner; acceptance is recorded.  
 D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** ADR 001 approved and implementation complete for the current prototype. Project owner confirmed CI green on `65cf542` for `:core:test`, `:app:testDebugUnitTest`, and `:app:assembleDebug` (workflow's `assembleDebug`). Includes versioned archive/repository, SHA-256 integrity, deterministic canonical JSON and golden fixtures, staged+verified crash-safe journal compaction, recovery tests, schema rejection/migration contract, and Android SAF open/export adapter in `:app`. SAF provider limitations (non-atomic write/no fsync guarantee) are explicitly handled; no broad storage permission is used. Platform SAF smoke testing remains device-level follow-up, not a blocker for closing the core persistence stage.  
 E. **Model Ownership & Dependency Engine — ACCEPTED / CLOSED (2026-11-23).** E1 typed DAG/admission; E2 revision-scoped transactional graph and derived state; E3 evaluator registry, configurable resource budgets, deterministic rejection, linear traversal scheduler, and 10,000-node stress verification. CI GREEN on b024d8d.
-F. **ModelSession + UI ownership migration — IMPLEMENTED; final docs/CI acceptance pending.** Sequential CommandBus execution; immutable StateFlow snapshots; coalesced gesture previews/cancel/one commit; typed wall commands; revision repository; deterministic legacy migration; Compose Canvas/panels. See ADR 003.
-G. Kotlin reference → native-core C++20 migration, C ABI/JNI boundary and parity tests.
+F. **ModelSession + UI ownership migration — ACCEPTED / CLOSED (2026-11-23).** Sequential CommandBus execution; immutable StateFlow snapshots; coalesced gesture previews/cancel/one commit; typed wall commands; revision repository; deterministic legacy migration; Compose Canvas/panels. Latest CI run #210 passed on `1f622c1b52`. See ADR 003.
+G. **Kotlin reference → native-core C++20 migration — IN PROGRESS, G1.** Initial Foundation/Model contract slice is implemented locally and tested; CI wiring and remote commit verification are pending. See ADR 004.
+G2: Native revision/command/transaction parity. G3: Persistence parity. G4: versioned C ABI. G5: JNI integration and Kotlin production retirement after parity gates.
 H. Geometry APIs and backend adapters.
 I. Architectural families and constraints.
 J. Projection/drawing and spatial subsystem.
@@ -317,3 +318,12 @@ Stage E is closed. Preserve offline core workflows and the Android/core boundary
 - **F3 CI verified green:** commit `0340fd1`, run [#45184281677](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45184281677). Expanded regression tests and saved-content dirty tracking are CI green at `1299c8e` (run #45184729141). Final documentation-head CI is pending.
 - **F4 pending:** update docs and ADR, run final CI on documentation HEAD, audit diff and PR/main untouched.
 - **Remaining YELLOW:** native device interaction test for pointer cancellation, directory fsync support in private storage, crash-recovery behavior for revision files, and UI-level test coverage. These are not claimed as verified by JVM/CI tests.
+
+
+## 29. Stage F closeout and Stage G1 native foundation (2026-11-23)
+
+Stage F is closed after GitHub Actions runs #207–#210 passed on successive commits; latest verified head is `1f622c1b52f65f8c0b1179879062596e220ce2d9`. The current UI uses ModelSession and immutable snapshots, and the gesture preview freeze regression is covered. Main remains unchanged; PR #1 is open.
+
+Stage G1 introduces an independent C++20 contract laboratory in `native-core/`: typed opaque IDs, metre-based `double` units, 2D points, wall-axis length/validity, wall invariants, project validation, and owned snapshot copy semantics. CMake/CTest is integrated into the existing CI workflow with warnings-as-errors and ASan/UBSan on Ubuntu. No JNI or Android production linkage is introduced in G1. Kotlin remains the behavioral reference.
+
+G1 must not be declared accepted until the new commit's native CI job and the existing Kotlin tests/Android debug build all pass. The local container build is useful evidence, but does not substitute for remote CI.
