@@ -39,7 +39,7 @@ class ModelSession(
     )
 
     private val lock = Any()
-    private var savedProject: Project? = if (initiallySaved) initialProject else null
+    private var savedRevision: ModelRevision? = if (initiallySaved) commandBus.snapshot() else null
     private var gestureBase: ModelRevision? = null
     private var gesturePreview: Project? = null
     private var gestureLabel: String = "Interactive edit"
@@ -126,7 +126,7 @@ class ModelSession(
 
     /** Called only after a repository has persisted this immutable revision snapshot. */
     fun markSaved(savedRevision: ModelRevision) = synchronized(lock) {
-        savedProject = savedRevision.project
+        this.savedRevision = savedRevision
         diagnostic = null
         publish()
     }
@@ -146,7 +146,7 @@ class ModelSession(
             revision = revision,
             canUndo = commandBus.undoDepth() > 0,
             canRedo = commandBus.redoDepth() > 0,
-            hasUnsavedChanges = savedProject == null || revision.project != savedProject,
+            hasUnsavedChanges = savedRevision?.let { saved -> revision.project != saved.project || revision.dependencyGraph != saved.dependencyGraph || revision.derivedValues != saved.derivedValues } ?: true,
             diagnostic = diagnostic,
             gestureActive = gestureBase != null,
             previewProject = gesturePreview
