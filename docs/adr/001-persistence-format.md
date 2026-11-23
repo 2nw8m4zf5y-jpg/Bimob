@@ -8,7 +8,7 @@
 BIMOB needs a portable project format independent of Android SDK, safe against interrupted writes, versioned, integrity-checked, and capable of autosave/recovery. Current Kotlin model is pure Kotlin but housed in the Android app module; persistence contracts should move to an Android-free core module/package. Platform adapters provide filesystem, SAF, and scheduling only.
 
 ## Decision
-Adopt a versioned ZIP-based `.bimob` container. The canonical model payload is UTF-8 JSON, with assets and disposable derived geometry in separate entries. SQLite is not the canonical interchange file for v1; it may later serve as a local working database behind repository interfaces. The container specification must be implementable by pure Kotlin and future C++20 native-core.
+Adopt a versioned ZIP-based `.bimob` container. The initial Kotlin v1 codec supports the currently implemented `WallElement` concrete model type; adding further element types requires explicit tagged codec support and golden fixtures before those types are considered persistable. The canonical model payload is UTF-8 JSON, with assets and disposable derived geometry in separate entries. SQLite is not the canonical interchange file for v1; it may later serve as a local working database behind repository interfaces. The container specification must be implementable by pure Kotlin and future C++20 native-core.
 
 ### Layout
 Required:
@@ -57,6 +57,15 @@ Canonical serialization, schema migrations, integrity checks, and validation con
 - Single JSON file: portable, but awkward for assets/geometry and container metadata; rejected as envelope, retained as model payload.
 - Custom binary: efficient but costly to inspect, evolve and implement consistently; defer until profiling justifies it.
 - ZIP + manifest + canonical payload: portable, extensible, asset-friendly; selected with strict reader limits.
+
+## Implementation status (2026-11-23)
+
+Phase D implementation is underway in the Android-SDK-free Gradle module `:core`:
+- Model, validator, memory estimator and CommandBus were moved into the JVM module without changing package names, preserving app/test imports.
+- Canonical JSON codec, ZIP writer/reader, SHA-256 integrity index, manifest/schema checks, migration registry, atomic repository contract and crash-recovery journal skeleton are implemented.
+- Test coverage added for deterministic canonical bytes/hash, model/archive round-trip, corrupted archive rejection, simulated restart recovery, truncated journal tail and future-schema rejection.
+- `JvmAtomicStorage` is a test adapter only. Android/SAF storage adapter is not yet implemented.
+- The new CI workflow runs `:core:test` alongside Android unit tests and APK build. CI for Phase D commits is not yet verified.
 
 ## Consequences
 Benefits: Android-independent, cross-language potential, atomic replacement, explicit version/migration, integrity checks, separate canonical data/cache/assets, independent recovery.
