@@ -44,7 +44,7 @@ data class EngineLimits(
     val maxGraphEdges: Int = 1_000_000,
     val maxDependencyDepth: Int = 4096
 ) {
-    init { require(maxDirtyNodesPerTransaction > 0 && maxEvaluationsPerTransaction > 0 && maxFanOutPerNode >= 0 && maxGraphNodes > 0 && maxGraphEdges >= 0 && maxDependencyDepth > 0) }
+    init { require(maxDirtyNodesPerTransaction > 0 && maxEvaluationsPerTransaction >= 0 && maxFanOutPerNode >= 0 && maxGraphNodes > 0 && maxGraphEdges >= 0 && maxDependencyDepth > 0) { "Engine limits must be non-negative; dirty nodes, graph nodes, and depth must be positive." } }
 }
 class EngineBudgetExceeded(val budget: EngineBudget, val node: DependencyNodeKey?, val actual: Int, val maximum: Int) :
     RuntimeException("Engine budget $budget exceeded at ${node?.stableKey() ?: "graph"}: $actual > $maximum.")
