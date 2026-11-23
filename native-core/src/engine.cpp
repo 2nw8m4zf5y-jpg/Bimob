@@ -45,7 +45,7 @@ Result<EvaluationReport> recompute(const DependencyGraph&g,const std::vector<Nod
  for(const auto&n:order){auto evaluator=registry.get(n);if(!evaluator)continue;if(++evaluations>limits.evaluations)return Result<EvaluationReport>::failure(budgetError("evaluations",evaluations,limits.evaluations,n));DerivedMap direct;for(const auto&s:in[n])if(auto it=staged.find(s);it!=staged.end())direct.emplace(it->first,it->second);
   Result<DerivedValue> value=Result<DerivedValue>::failure({ErrorCode::EvaluationFailed,"Evaluator threw",n,{},0,0});
   try{value=(*evaluator)(project,direct);}catch(const std::exception&ex){return Result<EvaluationReport>::failure({ErrorCode::EvaluationFailed,"Evaluator exception at "+n+": "+ex.what(),n,{},0,0});}catch(...){return Result<EvaluationReport>::failure({ErrorCode::EvaluationFailed,"Evaluator exception at "+n,n,{},0,0});}
-  if(!value.ok())return Result<EvaluationReport>::failure({ErrorCode::EvaluationFailed,"Evaluator failed at node "+n+": "+value.error()->message,n,{},0,0});staged[n]=*value.value();
+  if(!value.ok()){return Result<EvaluationReport>::failure({ErrorCode::EvaluationFailed,"Evaluator failed at node "+n+": "+value.error()->message,n,{},0,0});}\n  staged[n]=*value.value();
  }
  return Result<EvaluationReport>::success({std::move(staged),std::move(order),evaluations});
 }
