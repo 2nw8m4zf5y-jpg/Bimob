@@ -91,7 +91,8 @@ object RecomputeEngine {
         project: Project,
         initialValues: Map<DependencyNodeKey, DerivedValue>,
         evaluators: Map<DependencyNodeKey, DependencyEvaluator>,
-        cancellation: RecomputeCancellation = RecomputeCancellation.NEVER
+        cancellation: RecomputeCancellation = RecomputeCancellation.NEVER,
+        limits: EngineLimits = EngineLimits()
     ): EvaluationResult {
         val staged = initialValues.toMutableMap().apply { plan.dirtyNodes.forEach(::remove) }
         val completed = mutableListOf<DependencyNodeKey>()

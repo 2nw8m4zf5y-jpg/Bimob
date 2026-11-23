@@ -163,6 +163,7 @@ class CommandBus(
     evaluatorRegistry: EvaluatorRegistry = EvaluatorRegistry.empty(),
     private val engineLimits: EngineLimits = EngineLimits()
 ) {
+    private val configuredEvaluatorRegistry = evaluatorRegistry
     private val monitor = Any()
     private val dispatchMonitor = Any()
     private var dispatching = false
@@ -210,7 +211,7 @@ class CommandBus(
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before staging.")
 
             val before = current
-            val context = TransactionContext(cancellation, before.dependencyGraph, before.derivedValues, evaluatorRegistry, engineLimits)
+            val context = TransactionContext(cancellation, before.dependencyGraph, before.derivedValues, configuredEvaluatorRegistry, engineLimits)
             val candidate: Project
             val candidateValues: Map<DependencyNodeKey, DerivedValue>
             try {
