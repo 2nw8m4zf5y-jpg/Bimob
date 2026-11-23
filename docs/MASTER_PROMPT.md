@@ -267,8 +267,8 @@ C. **CommandBus + Transaction Engine — ACCEPTED / CLOSED.** Staging candidates
 D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** ADR 001 approved and implementation complete for the current prototype. Project owner confirmed CI green on `65cf542` for `:core:test`, `:app:testDebugUnitTest`, and `:app:assembleDebug` (workflow's `assembleDebug`). Includes versioned archive/repository, SHA-256 integrity, deterministic canonical JSON and golden fixtures, staged+verified crash-safe journal compaction, recovery tests, schema rejection/migration contract, and Android SAF open/export adapter in `:app`. SAF provider limitations (non-atomic write/no fsync guarantee) are explicitly handled; no broad storage permission is used. Platform SAF smoke testing remains device-level follow-up, not a blocker for closing the core persistence stage.  
 E. **Model Ownership & Dependency Engine — ACCEPTED / CLOSED (2026-11-23).** E1 typed DAG/admission; E2 revision-scoped transactional graph and derived state; E3 evaluator registry, configurable resource budgets, deterministic rejection, linear traversal scheduler, and 10,000-node stress verification. CI GREEN on b024d8d.
 F. **ModelSession + UI ownership migration — ACCEPTED / CLOSED (2026-11-23).** Sequential CommandBus execution; immutable StateFlow snapshots; coalesced gesture previews/cancel/one commit; typed wall commands; revision repository; deterministic legacy migration; Compose Canvas/panels. Latest CI run #210 passed on `1f622c1b52`. See ADR 003.
-G. **Kotlin reference → native-core C++20 migration — IN PROGRESS, G1.** Initial Foundation/Model contract slice is implemented locally and tested; CI wiring and remote commit verification are pending. See ADR 004.
-G2: Native revision/command/transaction parity. G3: Persistence parity. G4: versioned C ABI. G5: JNI integration and Kotlin production retirement after parity gates.
+G. **Kotlin reference → native-core C++20 migration — IN PROGRESS. G1 contracts implemented; G2 initial transaction/dependency port committed, pending remote CI and golden parity.** See ADR 004/005.
+G2: CommandBus, revisions, transaction, evaluator/dependency engine (initial port). G3: Persistence parity. G4: versioned C ABI. G5: JNI integration and Kotlin production retirement after parity gates.
 H. Geometry APIs and backend adapters.
 I. Architectural families and constraints.
 J. Projection/drawing and spatial subsystem.
@@ -327,3 +327,23 @@ Stage F is closed after GitHub Actions runs #207–#210 passed on successive com
 Stage G1 introduces an independent C++20 contract laboratory in `native-core/`: typed opaque IDs, metre-based `double` units, 2D points, wall-axis length/validity, wall invariants, project validation, and owned snapshot copy semantics. CMake/CTest is integrated into the existing CI workflow with warnings-as-errors and ASan/UBSan on Ubuntu. No JNI or Android production linkage is introduced in G1. Kotlin remains the behavioral reference.
 
 G1 must not be declared accepted until the new commit's native CI job and the existing Kotlin tests/Android debug build all pass. The local container build is useful evidence, but does not substitute for remote CI.
+
+
+## 30. Stage G1 closeout and G2 initial native transaction port (2026-11-23)
+
+Stage F is accepted and closed. G1 model contracts are implemented: explicit `kCoordinateEpsilon` and `kMinWallLength`, deterministic validation, and no exceptions in public model validation. Remote CI confirmation is still required for acceptance because the latest observed run was pending after a Kotlin test syntax correction.
+
+G2 initial implementation adds a platform-free C++20 CommandBus/revision/dependency engine:
+- immutable `ModelRevision` fields with shared const project, graph, derived map and entity-store snapshots;
+- unchanged wall entities are shared between revisions;
+- deterministic sorted graph/adjacency and FIFO Kahn scheduler;
+- direct-dependency-only evaluator inputs;
+- base EvaluatorRegistry plus transaction-local override copy;
+- all six defensive limits, preflight graph checks and explicit structured budget errors;
+- atomic candidate validation/recompute before publishing;
+- Undo/Redo and gesture-ID coalescing;
+- CTest coverage for command lifecycle, rollback, coalescing, limits, evaluator override, golden scenario and 10,000-node chain + fan-out stress.
+
+G2 is **INITIAL PORT / NOT ACCEPTED**. Local ASan+UBSan CTest passed; stress processed 10,050 nodes, 10,049 edges and exactly 10,050 evaluator calls in approximately 0.61 seconds. This is not yet cross-language golden parity or a remote CI result. Remaining gaps include exact cycle-path parity, cancellation, event/history resource budgets, expanded BIM model coverage, persistence parity and deeper Kotlin fixture extraction.
+
+Main and PR #1 remain untouched; changes stay on `feature/model-core-v1`.
