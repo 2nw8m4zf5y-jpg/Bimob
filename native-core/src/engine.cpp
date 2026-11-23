@@ -71,8 +71,8 @@ Result<EvaluationReport> recompute(const DependencyGraph&g,const std::vector<Nod
 }
 CommandBus::CommandBus(Project p,EngineLimits l,EvaluatorRegistry e,HistoryLimits history):limits_(l),evaluators_(std::move(e)),historyLimits_(history){auto issues=validate(p);if(!issues.empty())initializationError_=Error{ErrorCode::ValidationFailed,issues.front().message,issues.front().elementId,{},0,0};current_=std::make_shared<ModelRevision>(0,std::make_shared<const Project>(std::move(p)),std::make_shared<const DependencyGraph>(),std::make_shared<const DerivedMap>());}
 std::shared_ptr<const ModelRevision>CommandBus::snapshot()const{std::lock_guard lock(mutex_);return current_;}
-Result<Commit>CommandBus::execute(const Mutation&m,std::optional<std::uint64_t>expected,std::optional<std::string>gesture,const CancellationToken*cancellation){std::lock_guard lock(mutex_);if(initializationError_)return Result<Commit>::failure(*initializationError_);if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Command cancelled before mutation",{}, {},0,0});if(expected&&*expected!=current_->number)return Result<Commit>::failure({ErrorCode::StaleRevision,"Stale revision",{}, {},0,0});Result<Project>candidate=Result<Project>::failure({ErrorCode::CommandFailed,"Mutation failed",{}, {},0,0});try{candidate=m(*current_->project);}catch(const std::exception&ex){return Result<Commit>::failure({ErrorCode::CommandFailed,ex.what(),{}, {},0,0});}catch(...){return Result<Commit>::failure({ErrorCode::CommandFailed,"Mutation exception",{}, {},0,0});}if(!candidate.ok())return Result<Commit>::failure(*candidate.error());if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Command cancelled before commit",{}, {},0,0});return commitCandidate(std::move(*candidate.value()),current_->graph,*current_->derived,{}, {},std::move(gesture),cancellation);}
-Result<Commit>CommandBus::transact(const Mutation&m,const std::vector<DependencyEdge>&edges,const std::vector<NodeId>&dirty,const std::map<NodeId,Evaluator>&overrides,std::optional<std::string>gesture,const CancellationToken*cancellation){std::lock_guard lock(mutex_);if(initializationError_)return Result<Commit>::failure(*initializationError_);if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Transaction cancelled before mutation",{}, {},0,0});Result<Project>candidate=Result<Project>::failure({ErrorCode::CommandFailed,"Mutation failed",{}, {},0,0});try{candidate=m(*current_->project);}catch(const std::exception&ex){return Result<Commit>::failure({ErrorCode::CommandFailed,ex.what(),{}, {},0,0});}catch(...){return Result<Commit>::failure({ErrorCode::CommandFailed,"Mutation exception",{}, {},0,0});}if(!candidate.ok())return Result<Commit>::failure(*candidate.error());auto graph=admitEdges(*current_->graph,edges,limits_);if(!graph.ok())return Result<Commit>::failure(*graph.error());if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Transaction cancelled before recompute",{}, {},0,0});return commitCandidate(std::move(*candidate.value()),std::make_shared<const DependencyGraph>(*graph.value()),*current_->derived,dirty,overrides,std::move(gesture),cancellation);}
+Result<Commit>CommandBus::execute(const Mutation&m,std::optional<std::uint64_t>expected,std::optional<std::string>gesture,const CancellationToken*cancellation){std::lock_guard lock(mutex_);if(initializationError_)return Result<Commit>::failure(*initializationError_);if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Command cancelled before mutation",{}, {},0,0});if(expected&&*expected!=current_->number)return Result<Commit>::failure({ErrorCode::StaleRevision,"Stale revision",{}, {},0,0});Result<Project>candidate=Result<Project>::failure({ErrorCode::CommandFailed,"Mutation failed",{}, {},0,0});try{candidate=m(*current_->project);}catch(const std::exception&ex){return Result<Commit>::failure({ErrorCode::CommandFailed,ex.what(),{}, {},0,0});}catch(...){return Result<Commit>::failure({ErrorCode::CommandFailed,"Mutation exception",{}, {},0,0});}if(!candidate.ok())return Result<Commit>::failure(*candidate.error());if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Command cancelled before commit",{}, {},0,0});auto dirty=dirtyForProjectChange(*current_->project,*candidate.value());auto graph=syncJoinGraph(*current_->graph,*candidate.value(),limits_);if(!graph.ok())return Result<Commit>::failure(*graph.error());return commitCandidate(std::move(*candidate.value()),std::make_shared<const DependencyGraph>(*graph.value()),*current_->derived,std::move(dirty),{},std::move(gesture),cancellation);}
+Result<Commit>CommandBus::transact(const Mutation&m,const std::vector<DependencyEdge>&edges,const std::vector<NodeId>&dirty,const std::map<NodeId,Evaluator>&overrides,std::optional<std::string>gesture,const CancellationToken*cancellation){std::lock_guard lock(mutex_);if(initializationError_)return Result<Commit>::failure(*initializationError_);if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Transaction cancelled before mutation",{}, {},0,0});Result<Project>candidate=Result<Project>::failure({ErrorCode::CommandFailed,"Mutation failed",{}, {},0,0});try{candidate=m(*current_->project);}catch(const std::exception&ex){return Result<Commit>::failure({ErrorCode::CommandFailed,ex.what(),{}, {},0,0});}catch(...){return Result<Commit>::failure({ErrorCode::CommandFailed,"Mutation exception",{}, {},0,0});}if(!candidate.ok())return Result<Commit>::failure(*candidate.error());auto graph=admitEdges(*current_->graph,edges,limits_);if(!graph.ok())return Result<Commit>::failure(*graph.error());if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Transaction cancelled before recompute",{}, {},0,0});auto automatic=wallJoinDependencyEdges(*candidate.value());auto mergedEdges=edges;mergedEdges.insert(mergedEdges.end(),automatic.begin(),automatic.end());auto graph=admitEdges(*current_->graph,mergedEdges,limits_);if(!graph.ok())return Result<Commit>::failure(*graph.error());auto derivedDirty=dirtyForProjectChange(*current_->project,*candidate.value());derivedDirty.insert(derivedDirty.end(),dirty.begin(),dirty.end());derivedDirty=sortedUnique(std::move(derivedDirty));return commitCandidate(std::move(*candidate.value()),std::make_shared<const DependencyGraph>(*graph.value()),*current_->derived,std::move(derivedDirty),overrides,std::move(gesture),cancellation);}
 Result<Commit>CommandBus::commitCandidate(Project p,std::shared_ptr<const DependencyGraph>g,DerivedMap values,std::vector<NodeId>dirty,std::map<NodeId,Evaluator>overrides,std::optional<std::string>gesture,const CancellationToken*cancellation){
  auto issues=validate(p);if(!issues.empty())return Result<Commit>::failure({ErrorCode::ValidationFailed,issues.front().message,issues.front().elementId,{},0,0});EvaluatorRegistry local=evaluators_;for(auto&[id,e]:overrides)local=local.withOverride(id,e);if(cancellation&&cancellation->isCancelled())return Result<Commit>::failure({ErrorCode::Cancelled,"Commit cancelled before recomputation",{}, {},0,0});auto evaluated=recompute(*g,dirty,p,values,local,limits_,cancellation);if(!evaluated.ok())return Result<Commit>::failure(*evaluated.error());if(current_->number==std::numeric_limits<std::uint64_t>::max())return Result<Commit>::failure({ErrorCode::RevisionOverflow,"Revision overflow",{}, {},0,0});
  auto projectPtr=std::make_shared<const Project>(std::move(p));std::map<std::string,std::shared_ptr<const Wall>>prior;for(const auto&wp:*current_->wallEntities)prior[wp->id.value]=wp;std::vector<std::shared_ptr<const Wall>>entities;entities.reserve(projectPtr->walls.size());for(const auto&w:projectPtr->walls){auto it=prior.find(w.id.value);if(it!=prior.end()&&*it->second==w)entities.push_back(it->second);else entities.push_back(std::make_shared<const Wall>(w));}
@@ -107,6 +107,40 @@ Result<Project> solveWallJoin(const Project&source,const ModelId&movedWall,bool 
  auto issues=validate(candidate);if(!issues.empty())return Result<Project>::failure({ErrorCode::ValidationFailed,issues.front().message,issues.front().elementId,{},0,0});return Result<Project>::success(std::move(candidate));
 }
 
+
+namespace {
+std::string wallNode(const ModelId&id){return "wall:"+id.value+":geometry";}
+std::string openingNode(const ModelId&id){return "opening:"+id.value+":cut";}
+std::string levelNode(const ModelId&id){return "level:"+id.value+":elevation";}
+std::string catalogNode(const ModelId&id,const char*property){return "entity:"+id.value+":property:"+property;}
+std::vector<NodeId> dirtyForProjectChange(const Project&before,const Project&after){
+ std::vector<NodeId> seeds;
+ auto wallChanged=[&](const ModelId&id){auto a=std::find_if(before.walls.begin(),before.walls.end(),[&](const Wall&w){return w.id==id;});auto b=std::find_if(after.walls.begin(),after.walls.end(),[&](const Wall&w){return w.id==id;});return a==before.walls.end()||b==after.walls.end()||!(*a==*b);};
+ for(const auto&w:before.walls)if(wallChanged(w.id))seeds.push_back(wallNode(w.id));
+ for(const auto&w:after.walls)if(std::none_of(before.walls.begin(),before.walls.end(),[&](const Wall&x){return x.id==w.id;}))seeds.push_back(wallNode(w.id));
+ auto levelChanged=[&](const ModelId&id){auto a=std::find_if(before.levels.begin(),before.levels.end(),[&](const Level&l){return l.id==id;});auto b=std::find_if(after.levels.begin(),after.levels.end(),[&](const Level&l){return l.id==id;});return a==before.levels.end()||b==after.levels.end()||!(*a==*b);};
+ for(const auto&l:before.levels)if(levelChanged(l.id))seeds.push_back(levelNode(l.id));
+ for(const auto&l:after.levels)if(std::none_of(before.levels.begin(),before.levels.end(),[&](const Level&x){return x.id==l.id;}))seeds.push_back(levelNode(l.id));
+ auto openingChanged=[&](const ModelId&id){auto a=std::find_if(before.openings.begin(),before.openings.end(),[&](const Opening&o){return o.id==id;});auto b=std::find_if(after.openings.begin(),after.openings.end(),[&](const Opening&o){return o.id==id;});return a==before.openings.end()||b==after.openings.end()||!(*a==*b);};
+ for(const auto&o:before.openings)if(openingChanged(o.id))seeds.push_back(openingNode(o.id));
+ for(const auto&o:after.openings)if(std::none_of(before.openings.begin(),before.openings.end(),[&](const Opening&x){return x.id==o.id;}))seeds.push_back(openingNode(o.id));
+ auto catalogChanged=[&](const ModelId&id){auto a=std::find_if(before.catalogInstances.begin(),before.catalogInstances.end(),[&](const CatalogInstance&i){return i.id==id;});auto b=std::find_if(after.catalogInstances.begin(),after.catalogInstances.end(),[&](const CatalogInstance&i){return i.id==id;});return a==before.catalogInstances.end()||b==after.catalogInstances.end()||!(*a==*b);};
+ for(const auto&i:before.catalogInstances)if(catalogChanged(i.id)){seeds.push_back(catalogNode(i.id,"POSITION"));seeds.push_back(catalogNode(i.id,"DIMENSIONS"));seeds.push_back(catalogNode(i.id,"HOST"));}
+ for(const auto&i:after.catalogInstances)if(std::none_of(before.catalogInstances.begin(),before.catalogInstances.end(),[&](const CatalogInstance&x){return x.id==i.id;})){seeds.push_back(catalogNode(i.id,"POSITION"));seeds.push_back(catalogNode(i.id,"DIMENSIONS"));seeds.push_back(catalogNode(i.id,"HOST"));}
+ return sortedUnique(std::move(seeds));
+}
+std::vector<DependencyEdge> wallJoinDependencyEdges(const Project&p){
+ std::vector<DependencyEdge> edges;
+ for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id});}
+ return edges;
+}
+Result<DependencyGraph> syncJoinGraph(const DependencyGraph&current,const Project&p,const EngineLimits&limits){
+ std::vector<DependencyEdge> retained;for(const auto&e:current.edges)if(e.source.rfind("join:",0)!=0&&e.dependent.rfind("join:",0)!=0)retained.push_back(e);
+ DependencyGraph base{sortedUnique([&]{std::vector<NodeId> n;for(const auto&e:retained){n.push_back(e.source);n.push_back(e.dependent);}return n;}()),retained};
+ return admitEdges(base,wallJoinDependencyEdges(p),limits);
+}
+}
+
 namespace commands {
 namespace {
 template<class T, class Find, class Insert>
@@ -115,16 +149,6 @@ Mutation createEntity(T value, Find find, Insert insert, const char* label) {
   Project candidate=source;
   if(find(candidate,value.id)) return Result<Project>::failure({ErrorCode::InvalidArgument,std::string(label)+" already exists",value.id.value,{},0,0});
   insert(candidate,value);
-  return Result<Project>::success(std::move(candidate));
- };
-}
-template<class Find, class Update>
-Mutation updateEntity(ModelId id, Find find, Update update, const char* label) {
- return [id=std::move(id),find=std::move(find),update=std::move(update),label](const Project& source) {
-  Project candidate=source;
-  auto it=find(candidate,id);
-  if(it==find(candidate,id) && it==candidate.walls.end()) { /* intentionally unused sentinel */ }
-  update(candidate,id);
   return Result<Project>::success(std::move(candidate));
  };
 }
