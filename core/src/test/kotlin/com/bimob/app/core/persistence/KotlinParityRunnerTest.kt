@@ -30,7 +30,7 @@ class KotlinParityRunner {
   val limits=when(name){"dirty_nodes"->EngineLimits(maxDirtyNodesPerTransaction=maximum);"evaluations"->EngineLimits(maxEvaluationsPerTransaction=maximum);"fan_out"->EngineLimits(maxFanOutPerNode=maximum);"graph_nodes"->EngineLimits(maxGraphNodes=maximum);"graph_edges"->EngineLimits(maxGraphEdges=maximum);"dependency_depth"->EngineLimits(maxDependencyDepth=maximum);else->error("Unknown limit")}
   val failure=try {val plan=RecomputeEngine.plan(graph,if(name=="evaluations")setOf(a) else setOf(a),limits);if(name=="evaluations")RecomputeEngine.execute(plan,initial(fixture("engine_limits")),emptyMap(),mapOf(a to DependencyEvaluator{_,_->DerivedValue.NumberValue(1.0)}),limits=limits);fail("Expected $name budget to reject");null} catch(e:EngineBudgetExceeded){e}
   val expected=EngineBudget.valueOf(name.uppercase())
-  assertEquals(expected,failure?.budget);assertEquals(maximum,failure?.maximum);assertEquals(actual,failure?.actual)
+  assertEquals(expected,failure?.budget);assertEquals(maximum,failure?.maximum);assertEquals(actual,failure?.actual);val expectedNode=when(name){"dirty_nodes"->b;"evaluations"->a;"fan_out"->a;else->null};assertEquals(expectedNode?.stableKey(),failure?.node?.stableKey())
  }
  private fun wall(x:JO):ModelMutation=CreateWallMutation(Wall(id(x.req("id")),WallAxis(point(x.req("start")),point(x.req("end"))),x.req("height").double(),x.req("thickness").double(),x.opt("levelId").strOrNull()?.let(::ModelId)?:ModelId("unassigned")))
  private fun mutation(x:JO):ModelMutation=when(x.req("op").text()){
