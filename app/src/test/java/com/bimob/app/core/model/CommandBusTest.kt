@@ -272,4 +272,88 @@ class CommandBusTest {
     }
 
 
+    @Test fun batchFailureOnThirdStepDiscardsEntireCandidate() {
+        val bus = CommandBus(project())
+        val events = java.util.Collections.synchronizedList(mutableListOf<ModelEvent>())
+        bus.subscribe { events += it }
+        val steps = listOf(
+            object : ModelMutation { override val label = "1"; override fun apply(before: Project) = before.copy(name = "step-1") },
+            object : ModelMutation { override val label = "2"; override fun apply(before: Project) = before.copy(name = "step-2") },
+            object : ModelMutation { override val label = "3"; override fun apply(before: Project): Project = error("failure at step 3") },
+            object : ModelMutation { override val label = "4"; override fun apply(before: Project) = before.copy(name = "step-4") },
+            object : ModelMutation { override val label = "5"; override fun apply(before: Project) = before.copy(name = "step-5") }
+        )
+        val result = bus.execute(BatchCommand("Five-step batch", steps))
+        assertEquals(CommandFailureCode.COMMAND_FAILED, (result as CommandResult.Rejected).code)
+        assertEquals(0L, bus.snapshot().number)
+        assertEquals("Initial", bus.snapshot().project.name)
+        assertEquals(0, bus.undoDepth())
+        assertEquals(0, bus.redoDepth())
+        assertTrue(events.isEmpty())
+    }
+
+    @Test fun cancellationBetweenBatchStagesDiscardsCandidate() {
+        val bus = CommandBus(project())
+        val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
+        val first = object : ModelMutation {
+            override val label = "Stage then cancel"
+            override fun apply(before: Project) = before.copy(name = "private candidate")
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.checkpoint()
+                val candidate = apply(before)
+                cancelled.set(true)
+                return candidate
+            }
+        }
+        val second = object : ModelMutation {
+            override val label = "Should never execute"
+            override fun apply(before: Project) = before.copy(name = "published by second")
+        }
+        val result = bus.execute(BatchCommand("Cancelable batch", listOf(first, second)),
+            cancellation = CancellationCheck { cancelled.get() })
+        assertEquals(CommandFailureCode.CANCELLED, (result as CommandResult.Rejected).code)
+        assertEquals(0L, bus.snapshot().number)
+        assertEquals("Initial", bus.snapshot().project.name)
+        assertEquals(0, bus.undoDepth())
+    }
+
+    @Test fun concurrentSnapshotReadersObserveMonotonicCompleteRevisionsDuringUndoRedo() {
+        val bus = CommandBus(project())
+        val running = java.util.concurrent.atomic.AtomicBoolean(true)
+        val failures = java.util.Collections.synchronizedList(mutableListOf<Throwable>())
+        val readerPool = java.util.concurrent.Executors.newFixedThreadPool(4)
+        val readers = (1..4).map {
+            readerPool.submit {
+                var previous = -1L
+                while (running.get()) {
+                    val revision = bus.snapshot()
+                    if (revision.number < previous) failures += AssertionError("Revision moved backwards")
+                    if (revision.project.name.isBlank()) failures += AssertionError("Observed incomplete model")
+                    previous = revision.number
+                }
+            }
+        }
+        val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            val task = writer.submit {
+                repeat(50) { index ->
+                    bus.execute(object : ModelMutation {
+                        override val label = "Writer $index"
+                        override fun apply(before: Project) = before.copy(name = "state-$index")
+                    })
+                    bus.undo()
+                    bus.redo()
+                }
+            }
+            task.get(10, java.util.concurrent.TimeUnit.SECONDS)
+        } finally {
+            running.set(false)
+            readers.forEach { it.get(2, java.util.concurrent.TimeUnit.SECONDS) }
+            readerPool.shutdownNow()
+            writer.shutdownNow()
+        }
+        assertTrue("Reader observed an inconsistent snapshot: $failures", failures.isEmpty())
+        assertEquals(150L, bus.snapshot().number)
+    }
+
 }
