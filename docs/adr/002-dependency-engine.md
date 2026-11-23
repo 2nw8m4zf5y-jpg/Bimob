@@ -86,11 +86,11 @@ Proposed pipeline:
 8. Atomically publish Project revision + graph revision + derived-cache snapshot as one commit envelope.
 9. Publish commit/dependency events only after atomic publication.
 
-The TransactionContext API will need a typed dependency-evaluation interface and budget/cancellation accounting. Avoid letting the Dependency Engine call CommandBus.execute recursively; derived evaluation is part of the active transaction and may not create nested commits. Undo/Redo must restore canonical model state and either rebuild/replay the derived graph deterministically or restore a versioned derived snapshot; canonical model snapshots remain authoritative.
+TransactionContext now provides the typed dependency-evaluation interface and resource-budget accounting. The Dependency Engine does not call CommandBus.execute recursively; derived evaluation is part of the active transaction and cannot create nested commits. Undo/Redo restores canonical model state and the revision-scoped derived snapshot; canonical model snapshots remain authoritative.
 
 ## 7. Graph and computation limits
 
-Initial proposed hard limits, configurable in tests and reviewed against real workloads:
+Implemented E3 safety budgets (configuration is explicit and testable):
 - Maximum graph nodes: **250,000**.
 - Maximum graph edges: **1,000,000**.
 - Maximum dirty nodes per transaction: **100,000**.
@@ -99,7 +99,7 @@ Initial proposed hard limits, configurable in tests and reviewed against real wo
 - Maximum dependency fan-out per node: **10,000**.
 - Maximum candidate graph mutation batch: **100,000 edges**.
 
-These are safety ceilings, not target project sizes or performance promises. Exceeding a limit yields a typed DEPENDENCY_LIMIT_EXCEEDED diagnostic, safely rejects the candidate, and preserves current revision. No unbounded recursion, infinite loops, or silent truncation. Defaults must be benchmarked and may be reduced on low-memory devices; configuration is explicit and deterministic.
+These are safety ceilings, not target project sizes or performance promises. Graph node/edge limits are preflighted before admission; other limits are enforced during dirty planning/evaluation. Exceeding a limit yields deterministic ENGINE_LIMIT_EXCEEDED diagnostics (budget, node where applicable, actual and maximum), safely rejects the candidate and preserves the current revision. The proposed 100,000-edge batch cap is not implemented and remains deferred. No silent truncation.
 
 ## 8. Diagnostics, observability and testing
 
@@ -113,7 +113,7 @@ These are safety ceilings, not target project sizes or performance promises. Exc
 ### Current audited state (2026-11-23)
 MainActivity is not yet connected to CommandBus or ProjectRepository. It owns a mutable list of Wall; PlanCanvas mutates this local list directly on touch. Wall is a UI-local float record. Local project persistence uses SharedPreferences/JSON for this sketch. SAF import/export creates a conversion boundary to/from Project and archive writer/reader, but does not make core authoritative. Therefore the UI currently duplicates canonical wall data and can lose or degrade BIM semantics through this conversion.
 
-### Required follow-up, after Stage E dependency-engine acceptance
+### Required follow-up, now that Stage E dependency-engine acceptance is complete
 1. Introduce an app-level model session owning a CommandBus initialized from ProjectRepository.load() (or a new project) and a persistence coordinator using ProjectRepository.save() after committed revisions.
 2. Implement wall-create/edit/delete mutations and execute exclusively through CommandBus with expected-revision checks. UI gestures generate intent/commands; no direct model mutation.
 3. Canvas subscribes to revision events and renders immutable Project snapshots; wall drawing uses a read-only projection/adapter of canonical WallElement data. Remove UI mutable Wall list as source of truth.
@@ -130,7 +130,7 @@ This ADR is owner-approved and authorizes staged implementation. Stage E impleme
 - E3 dirty propagation, deterministic scheduler, budget limits and evaluator contract.
 - E4 derived state/fingerprint and undo/redo revision integration.
 - E5 test oracle/fuzzing, performance/memory profiling and acceptance review.
-- Only after Stage E acceptance, begin the UI ownership migration listed in section 9.
+- Stage E is accepted; begin the UI ownership migration listed in section 9.
 
 ## Consequences
 
@@ -140,7 +140,7 @@ This ADR is owner-approved and authorizes staged implementation. Stage E impleme
 
 ## 11. Implementation status (2026-11-23)
 
-- **E1 — ACCEPTED / CLOSED:** typed immutable graph, edge admission, deterministic cycle-path diagnostics, max-depth rejection and graph cleanup. Owner-confirmed CI green on `b879e8f` (`:core:test`, `testDebugUnitTest`, `assembleDebug`).
-- **E2 — IMPLEMENTED / CI GREEN; OWNER ACCEPTANCE PENDING:** `ModelRevision` includes Project, DependencyGraph and derived values. `TransactionContext` stages graph mutations, dirty seeds and evaluators. CommandBus recomputes a deduplicated dirty closure in deterministic topological order and publishes state atomically; Undo/Redo restores graph and derived values. Failure/cancellation rejects before publication.
-- E2 regression tests cover grouped rollback, graph+model synchronization through Undo/Redo, diamond DAG recompute once after both parents, untouched-branch isolation, evaluator failure, cycle admission rejection, cancellation rollback, stale-derived-value invalidation and history-memory accounting for graph/derived snapshots. CI green on code commit `add8a18` (`:core:test`, `testDebugUnitTest`, `assembleDebug`). Owner acceptance remains pending.
-- **E3–E5 — NOT STARTED:** hard resource budgets, cache fingerprint lifecycle, full-recompute oracle, fuzzing, profiling and acceptance remain later gates.
+- **E1 — ACCEPTED / CLOSED:** typed immutable graph, edge admission, deterministic cycle-path diagnostics, max-depth rejection and graph cleanup. CI green on b879e8f (:core:test, testDebugUnitTest, assembleDebug).
+- **E2 — ACCEPTED / CLOSED:** revision-owned Project, DependencyGraph and derived values; transaction staging; atomic rollback; deterministic dirty closure/recompute; Undo/Redo synchronization. Owner accepted 2026-11-23; CI green on add8a18.
+- **E3 — ACCEPTED / CLOSED:** configuration-level immutable EvaluatorRegistry with transaction-local override; configurable dirty/evaluation/fan-out/graph node/edge budgets; preflight resource rejection; deterministic ENGINE_LIMIT_EXCEEDED diagnostics; linear adjacency grouping and FIFO Kahn traversal; evaluators receive immutable direct dependency inputs; 10,000-node chain+fan-out stress verification. CI green on eb8b751 (:core:test, testDebugUnitTest, assembleDebug).
+- **Stage E — ACCEPTED / CLOSED** at owner direction after E3 verification. Deferred hardening (YELLOW): derived-cache fingerprints, full-recompute oracle, fuzz/property stress and detailed heap profiling. These are not claimed complete and are not blockers to the next UI migration.

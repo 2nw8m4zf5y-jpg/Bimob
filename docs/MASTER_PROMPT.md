@@ -265,26 +265,31 @@ A. Architecture contracts and blueprint — documented; verify periodically.
 B. Canonical Model — prototype; continue parity/contract tests.  
 C. **CommandBus + Transaction Engine — ACCEPTED / CLOSED.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. CI success for the completed Phase C changes was confirmed by the project owner; acceptance is recorded.  
 D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** ADR 001 approved and implementation complete for the current prototype. Project owner confirmed CI green on `65cf542` for `:core:test`, `:app:testDebugUnitTest`, and `:app:assembleDebug` (workflow's `assembleDebug`). Includes versioned archive/repository, SHA-256 integrity, deterministic canonical JSON and golden fixtures, staged+verified crash-safe journal compaction, recovery tests, schema rejection/migration contract, and Android SAF open/export adapter in `:app`. SAF provider limitations (non-atomic write/no fsync guarantee) are explicitly handled; no broad storage permission is used. Platform SAF smoke testing remains device-level follow-up, not a blocker for closing the core persistence stage.  
-E. **Model Ownership & Dependency Engine (DAG) — DESIGN APPROVED / IMPLEMENTATION NOT STARTED.** ADR 002 defines node/edge semantics, cycle detection before commit, dirty propagation, deterministic topological scheduling, transactional CommandBus integration, graph budgets, test strategy, and MainActivity ownership debt/migration plan. First coding gate is E1 graph data model/admission and cycle tests.  
-F. Geometry APIs and backend adapters.  
-G. Architectural families and constraints.  
-H. Projection/drawing and spatial subsystem.  
-I. Quantities/schedules.  
-J. IFC interop.  
-K. Mobile rendering/performance.  
-L. Extension system and AI workflows.
+E. **Model Ownership & Dependency Engine — ACCEPTED / CLOSED (2026-11-23).** E1 typed DAG/admission; E2 revision-scoped transactional graph and derived state; E3 evaluator registry, configurable resource budgets, deterministic rejection, linear traversal scheduler, and 10,000-node stress verification. CI GREEN on eb8b751.
+F. **MainActivity UI ownership migration via ModelSession** — next: CommandBus + ProjectRepository-backed session, command-only edits, immutable snapshot rendering, revision-aware persistence and legacy sketch migration.
+G. Kotlin reference → native-core C++20 migration, C ABI/JNI boundary and parity tests.
+H. Geometry APIs and backend adapters.
+I. Architectural families and constraints.
+J. Projection/drawing and spatial subsystem.
+K. Quantities/schedules.
+L. IFC interop.
+M. Mobile rendering/performance.
+N. Extension system and AI workflows.
 
-Phase E may proceed because Phase D is accepted by owner-confirmed CI. Stage E starts with architecture only in ADR 002; implementation must be delivered in atomic sub-stages E1–E5 and reviewed before UI ownership migration. Preserve offline core workflows and the Android/core boundary.
+Stage E is closed. Preserve offline core workflows and the Android/core boundary. Cache fingerprints, full-recompute oracle, fuzzing and detailed heap profiling remain future hardening items, not blockers to this acceptance.
 
-\n## 30. Phase D closure and Stage E architecture
+
+## 30. Phase D closure and Stage E architecture
 
 - **Phase D CLOSED:** owner confirmed CI green on commit `65cf542` with `:core:test`, `:app:testDebugUnitTest`, and `:assembleDebug`. This is owner-provided CI evidence.
+- **Stage E CLOSED:** E1, E2 and E3 are accepted; implementation and verification details are summarized above. Next is the MainActivity → ModelSession ownership migration.
 - **ADR 002:** [Dependency Engine and Model Ownership](adr/002-dependency-engine.md). Owner-approved architecture.
 - **UI ownership audit:** `MainActivity` still owns a mutable UI-local `walls` list, `PlanCanvas` directly mutates it, and local sketch persistence uses SharedPreferences/JSON. SAF import/export converts to/from Project but does not route editing through CommandBus or ProjectRepository. This remains tracked debt.
-- **Migration target after Stage E acceptance:** app ModelSession backed by CommandBus + ProjectRepository; wall commands; canvas renders immutable revisions; revision-aware save; migrate legacy sketches and remove the mutable duplicate list.
-- **Stage E1 CLOSED:** typed immutable graph, edge admission, deterministic cycle-path diagnostics, max-depth enforcement, edge/node cleanup and tests. Owner confirmed CI green on commit `b879e8f`: `:core:test`, `testDebugUnitTest`, `assembleDebug`.
-- **Stage E2 IMPLEMENTED; CI GREEN; owner acceptance pending:** ModelRevision carries Project + DependencyGraph + derived values. TransactionContext stages graph edits, dirty seeds and evaluators; CommandBus atomically validates and publishes all state. Undo/Redo restores graph and derived state with Project. Dirty closure and deterministic topological recompute are implemented; evaluator failure/cancellation rejects the transaction. Tests cover batch rollback, Undo/Redo, diamond exactly-once, untouched branches, cycle rejection, evaluator failure, cancellation, stale-derived invalidation and graph/derived history memory estimates. CI green on code commit `add8a18`.
-- **E3 pending:** hard resource budgets, evaluation-step limits and profiling. **E4 pending:** cache fingerprints and derived-state lifecycle refinements. **E5 pending:** full-recompute oracle, fuzz, performance and acceptance.
+- **Next UI migration:** app-level ModelSession backed by CommandBus + ProjectRepository; wall commands; canvas renders immutable revisions; revision-aware save; migrate legacy sketches and remove the mutable duplicate list. This begins now that Stage E is accepted.
+- **Stage E1 CLOSED:** typed immutable DAG, edge admission, deterministic cycle-path diagnostics, depth enforcement, cleanup; CI green on b879e8f.
+- **Stage E2 ACCEPTED / CLOSED:** revision-scoped Project+graph+derived state; TransactionContext staging; atomic rollback; Undo/Redo synchronization; dirty propagation; deterministic recompute. Owner accepted E2 on 2026-11-23; CI green on add8a18.
+- **Stage E3 ACCEPTED / CLOSED:** immutable EvaluatorRegistry at CommandBus configuration with transaction-local overrides; limits (dirty=100,000, evaluations=1,000,000, fan-out=10,000, graph nodes=250,000, graph edges=1,000,000); preflight graph-size rejection; deterministic ENGINE_LIMIT_EXCEEDED diagnostics; adjacency grouping and FIFO Kahn scheduling. Evaluators receive immutable direct-dependency inputs, avoiding a full derived-value-map copy per evaluation. 10,000-node chain+fan-out stress test. CI green on eb8b751.
+- **Stage E CLOSED:** owner-directed completion after E3 CI green. Cache fingerprints, full-recompute oracle, fuzzing and detailed heap profiling remain deferred hardening; tracked as YELLOW, not falsely claimed complete.
 
 ## 29. Phase D approved implementation clarifications
 - Canonical JSON is deterministic: fixed schema/key order, UTF-8 without BOM, stable escaping, no insignificant whitespace, locale-independent finite numeric format using shortest-round-trip decimal (`BigDecimal.valueOf` in Kotlin), negative zero normalized to `0`, and exact-byte SHA-256. Kotlin and C++20 must match golden byte/hash fixtures.

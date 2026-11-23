@@ -47,18 +47,18 @@ API геометрии независим от конкретной библио
 
 ## 9. Dependency Engine
 
-Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)**. E1 is CLOSED with owner-confirmed CI green on `b879e8f`. E2 implementation is complete and CI green on `add8a18`; owner acceptance is pending. Do not implement later E3–E5 gates prematurely.
+Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)**. **Stage E is ACCEPTED / CLOSED** (owner decision, 2026-11-23); E1/E2/E3 and CI evidence are recorded below. Next work is UI ownership migration through ModelSession; do not begin native C++20 port until this app-layer boundary is stabilized.
 
 - Directed edges mean source → dependent. Graph must be a DAG; reject self/multi-node cycles on the candidate graph **before commit**, with deterministic cycle-path diagnostics.
 - Changed semantic property keys seed transaction-local dirty propagation. Deduplicate the dirty closure and schedule it with deterministic topological ordering and stable tie-breaks. Recompute only affected nodes.
 - Graph edits, canonical candidate model, derived cache candidates and validation are staged together with CommandBus/TransactionContext. A failed cycle, evaluator, validation, cancellation or resource budget aborts the complete transaction; no revision, graph/cache publication or event is allowed.
 - Evaluators are pure over immutable candidate inputs; return values/diagnostics rather than mutating published state. Initial scheduler is single-threaded. Parallel execution requires a separate proven design.
 - Proposed safety ceilings (review/benchmark before tuning): 250k nodes, 1m edges, 100k dirty nodes, 4096 traversal depth (iterative only), 1m evaluation steps per transaction, 10k outgoing fan-out and 100k edge edits per batch. Cancellation checkpoint every ≤256 steps. Limit violations are typed, safe transaction rejection, never silent truncation.
-- E1: typed immutable DAG, candidate admission, cycle-path diagnostics, depth ceiling and tests — ACCEPTED.
-- E2: revision-scoped Project+graph+derived state, TransactionContext staging, dirty closure, deterministic topological recompute, rollback on evaluator errors/cancellation and synchronized Undo/Redo — IMPLEMENTED; CI GREEN on `add8a18`, owner acceptance pending.
-- E3: hard budgets and profiling; E4 cache lifecycle/fingerprints; E5 oracle, fuzz and acceptance — NOT STARTED.
+- E1: typed immutable DAG, candidate admission, cycle-path diagnostics, depth ceiling and tests — ACCEPTED / CLOSED; CI green on b879e8f.
+- E2: revision-scoped Project+graph+derived state, TransactionContext staging, dirty closure, deterministic topological recompute, rollback and synchronized Undo/Redo — ACCEPTED / CLOSED by owner; CI green on add8a18.
+- E3: immutable configuration-level EvaluatorRegistry plus transaction overrides; graph/dirty/evaluation/fan-out budgets; atomic rollback and stable diagnostics; adjacency grouping and FIFO Kahn scheduling; direct dependency input maps; 10k stress test — ACCEPTED / CLOSED; CI green on eb8b751.
 - Tests include cycles (single and batch), rollback, dirty closure, stable topological order, no partial derived cache/event publication, failure/cancellation, budgets, Undo/Redo and randomized DAG equivalence.
-- E2 test coverage includes graph/model batch rollback, Undo/Redo synchronization, diamond recompute exactly once after both parents, untouched branch isolation, evaluator failure and cycle rejection. CI is required before declaring E2 accepted.
+- Stage E overall — ACCEPTED / CLOSED. Deferred YELLOW: cache fingerprints, full-recompute oracle, fuzz/property stress and detailed heap profiling. Next: MainActivity ownership migration to ModelSession, then C++20 port.
 
 ## 10. Kotlin prototype → C++20 и Android/NDK
 
@@ -122,21 +122,22 @@ A. Architecture contracts and blueprint audit.
 B. Canonical Model pure-Kotlin reference prototype/contracts.
 C. CommandBus / Transaction Engine acceptance gates, including memory-budgeted history and cancellation hardening.
 D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** Owner-confirmed CI green on `65cf542` (`:core:test`, `:app:testDebugUnitTest`, `:assembleDebug`).
-E. **Model Ownership & Dependency Engine — IN PROGRESS:** ADR 002 approved. E1 graph implementation and tests committed (`fcb34c6`, `9857900`); CI status not verified. E2–E5 remain pending.
-F. Kotlin prototype stabilization and migration to native-core C++20, including porting all test scenarios and parity gates.
-G. Geometry Kernel (only after native-core migration and test parity gates).
-H. Parametric Model, families and constraints.
-I. Projection/drawing and spatial subsystem.
-J. Quantities/schedules.
-K. IFC interoperability.
-L. Rendering/mobile performance.
-M. Extensions and AI workflows.
-N. UI/tool expansion.
+E. **Model Ownership & Dependency Engine — ACCEPTED / CLOSED.** E1–E3 verified; see section 9 and ADR 002.
+F. **MainActivity ownership migration via ModelSession** (CommandBus + ProjectRepository; commands-only mutation; immutable snapshots; revision-aware save; legacy sketch migration).
+G. Kotlin reference stabilization → native-core C++20 port, C ABI/JNI and behavioral parity.
+H. Geometry Kernel (only after native-core migration and test parity gates).
+I. Parametric Model, families and constraints.
+J. Projection/drawing and spatial subsystem.
+K. Quantities/schedules.
+L. IFC interoperability.
+M. Rendering/mobile performance.
+N. Extensions and AI workflows.
+O. UI/tool expansion.
 
 Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–E. Native C++20 migration and test parity must be completed before Geometry Kernel stage G.
 
 ### MainActivity model-ownership debt (audited 2026-11-23)
-MainActivity still keeps a mutable local wall list; canvas gestures directly mutate it. Local sketches use SharedPreferences/JSON. SAF import/export maps between UI walls and canonical Project, but editing is not yet through CommandBus or ProjectRepository. After Dependency Engine acceptance, migrate to an app ModelSession backed by CommandBus + ProjectRepository; commands for create/edit/delete; canvas renders immutable snapshots; revision-aware save; migrate legacy data; delete duplicate mutable wall source. This UI migration is tracked after Stage E, not silently mixed into graph implementation.
+MainActivity still keeps a mutable local wall list; canvas gestures directly mutate it. Local sketches use SharedPreferences/JSON. SAF import/export maps between UI walls and canonical Project, but editing is not yet through CommandBus or ProjectRepository. Now that Dependency Engine is accepted, migrate to an app ModelSession backed by CommandBus + ProjectRepository; commands for create/edit/delete; canvas renders immutable snapshots; revision-aware save; migrate legacy data; delete duplicate mutable wall source. This UI migration is tracked after Stage E, not silently mixed into graph implementation.
 ## 20. GitHub workflow
 
 Work only in `feature/model-core-v1`. Never directly change `main`; do not merge PR without explicit user approval. Use GitHub API/tools for real repository changes. Each logical change: inspect diff, validate paths and content, commit, verify SHA, run CI and confirm outcome. Do not claim a file/commit/test changed unless verified. Avoid fake commits, unsubstantiated success claims or unnecessary edits.
