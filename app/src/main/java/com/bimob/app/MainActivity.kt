@@ -62,8 +62,8 @@ class MainActivity : ComponentActivity() {
                     },
                     onExport = { uri ->
                         try {
-                            activeSession?.snapshot()?.revision?.let { revision ->
-                                val bytes = activeSession?.exportArchive() ?: return@onExport
+                            activeSession?.let { current ->
+                                val bytes = current.exportArchive()
                                 val digest = saf.writeNewDocument(uri, bytes)
                                 ToastMessage("Экспорт проверен • SHA-256 ${digest.take(12)}")
                             } ?: ToastMessage("Нет активного проекта")
@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun revisionPath(project: Project) = "projects/${safeId(project.id.value)}.revision"
+    private fun revisionPath(projectId: String) = "projects/${safeId(projectId)}.revision"
     private fun safeId(raw: String): String {
         val safe = raw.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
         return safe.takeIf { it.isNotBlank() } ?: raw.hashCode().toString()
@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
                 ModelSession.load(privateRepository, "projects/$id.revision")
             } else {
                 val migrated = LegacySketchMigrator.migrateJson(stored)
-                val path = revisionPath(migrated)
+                val path = revisionPath(migrated.id.value)
                 ModelSession.migrateLegacyProject(migrated).also { first ->
                     first.save(privateRepository, path)
                     prefs.edit().putString(name, "revision:${safeId(first.snapshot().projectId)}").apply()
