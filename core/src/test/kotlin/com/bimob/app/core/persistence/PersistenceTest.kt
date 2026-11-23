@@ -33,10 +33,20 @@ class PersistenceTest {
 
     @Test fun damagedArchiveFailsIntegrityWithoutThrowingUncontrolledException() {
         val bytes=BimobArchiveWriter().write(fixture())
-        val damaged=bytes.copyOf()
-        damaged[damaged.size/2]=(damaged[damaged.size/2].toInt() xor 0x20).toByte()
+        val damagedOut=java.io.ByteArrayOutputStream()
+        java.util.zip.ZipInputStream(bytes.inputStream()).use { zin ->
+            java.util.zip.ZipOutputStream(damagedOut).use { zout ->
+                while(true) {
+                    val entry=zin.nextEntry ?: break
+                    val data=zin.readBytes()
+                    val changed=if(entry.name=="model/model.json") data.copyOf().also { it[0]=(it[0].toInt() xor 1).toByte() } else data
+                    val outEntry=java.util.zip.ZipEntry(entry.name).also { it.time=0L }
+                    zout.putNextEntry(outEntry);zout.write(changed);zout.closeEntry()
+                }
+            }
+        }
         try {
-            BimobArchiveReader().read(damaged)
+            BimobArchiveReader().read(damagedOut.toByteArray())
             fail("Corrupt archive should be rejected.")
         } catch(e:PersistenceException) {
             assertNotNull(e.message)
