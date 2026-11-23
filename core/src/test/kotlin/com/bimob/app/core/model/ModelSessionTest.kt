@@ -25,7 +25,7 @@ class ModelSessionTest {
         assertEquals(29.0, session.snapshot().walls.single().startX, 0.0)
         val result = session.endGesture()
         assertTrue(result is CommandResult.Committed)
-        assertEquals(1L, session.snapshot().revision.number)
+        assertEquals(1L, session.snapshot().revisionNumber)
         assertTrue(session.snapshot().canUndo)
         assertTrue(session.snapshot().hasUnsavedChanges)
         assertTrue(session.undo() is CommandResult.Committed)
@@ -50,10 +50,10 @@ class ModelSessionTest {
         val session = ModelSession(project(), initiallySaved = true)
         assertTrue(session.beginGesture("Draw wall"))
         session.updateGesture { it.copy(elements = it.elements + wall("w2")) }
-        assertEquals(2, session.snapshot().displayedProject.elements.size)
+        assertEquals(2, session.snapshot().walls.size)
         assertTrue(session.cancelGesture())
         assertEquals(1, session.snapshot().walls.size)
-        assertEquals(0L, session.snapshot().revision.number)
+        assertEquals(0L, session.snapshot().revisionNumber)
         assertFalse(session.snapshot().canUndo)
         assertFalse(session.snapshot().hasUnsavedChanges)
     }
@@ -64,7 +64,7 @@ class ModelSessionTest {
         val result = session.execute(ReplaceProjectMutation("Migrate legacy sketch",legacy))
         assertTrue(result is CommandResult.Committed)
         assertEquals(1,session.snapshot().walls.size)
-        assertEquals(1L,session.snapshot().revision.number)
+        assertEquals(1L,session.snapshot().revisionNumber)
         assertTrue(session.snapshot().canUndo)
     }
 
@@ -83,9 +83,9 @@ class ModelSessionTest {
         }
         val result = session.execute(mutation) as CommandResult.Rejected
         assertEquals(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, result.code)
-        assertEquals(0L, session.snapshot().revision.number)
+        assertEquals(0L, session.snapshot().revisionNumber)
         assertEquals("Session", session.snapshot().projectName)
-        assertEquals(0, 0)
+        assertEquals(1, session.snapshot().walls.size)
         assertEquals(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, session.snapshot().diagnostic?.code)
     }
 
@@ -96,7 +96,7 @@ class ModelSessionTest {
         session.updateGesture { it.copy(name = "Preview") }
         session.undo()
         assertFalse(session.snapshot().gestureActive)
-        assertEquals("Session", session.snapshot().revision.project.name)
+        assertEquals("Session", session.snapshot().projectName)
     }
     @Test fun concurrentCommandsAreSerializedAndRevisionsRemainMonotonic() {
         val session = ModelSession(project(), initiallySaved = true)
@@ -109,7 +109,7 @@ class ModelSessionTest {
             }
             val results = pool.invokeAll(tasks).map { it.get() }
             assertTrue(results.all { it is CommandResult.Committed })
-            assertEquals(40L, session.snapshot().revision.number)
+            assertEquals(40L, session.snapshot().revisionNumber)
             assertTrue(session.snapshot().canUndo)
         } finally { pool.shutdownNow() }
     }
