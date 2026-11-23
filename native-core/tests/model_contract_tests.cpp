@@ -23,6 +23,25 @@ void historyLimitAndCancel(){CommandBus bus(fixture(),EngineLimits{},EvaluatorRe
 void wallJoinAnchored(){Project p=fixture();p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},false,ModelId{"w2"},true,Point2{Meters{2},Meters{0}}});auto solved=solveWallJoin(p,ModelId{"w1"},false,Point2{Meters{3},Meters{0}});assert(solved.ok());assert((solved.value()->walls[0].axis.end==Point2{Meters{3},Meters{0}}));assert((solved.value()->walls[1].axis.start==Point2{Meters{3},Meters{0}}));assert((solved.value()->walls[1].axis.end==Point2{Meters{2},Meters{2}}));}
 void bimEntities(){Project p=fixture();p.levels.push_back(Level{ModelId{"L1"},"Ground",Meters{0},Meters{3}});p.walls[0].levelId=ModelId{"L1"};p.openings.push_back(Opening{ModelId{"O1"},ModelId{"w1"},OpeningKind::Door,Meters{.2},Meters{.8},Meters{2.1},Meters{0}});p.catalogInstances.push_back(CatalogInstance{ModelId{"C1"},"door-asset",Point2{Meters{1},Meters{2}},0,ModelId{"L1"},{},Meters{.9},Meters{.2},Meters{2.1},ScalingMode::Uniform,DimensionBounds{Meters{.5},Meters{1.2}},DimensionBounds{Meters{.1},Meters{.4}},DimensionBounds{Meters{1.8},Meters{2.4}},"door","D-01"});assert(validate(p).empty());p.openings[0].offsetAlongWall=Meters{1.5};auto openingIssues=validate(p);assert(std::any_of(openingIssues.begin(),openingIssues.end(),[](const auto&i){return i.code==ValidationCode::OpeningOutOfBounds;}));p.openings[0].offsetAlongWall=Meters{.2};p.catalogInstances[0].targetWidth=Meters{2};auto catalogIssues=validate(p);assert(std::any_of(catalogIssues.begin(),catalogIssues.end(),[](const auto&i){return i.code==ValidationCode::InvalidCatalogInstance;}));}
 
+
+void typedGestureCoalescingAcrossEntityKinds(){
+ Project p=fixture();
+ p.openings.push_back(Opening{ModelId{"G1"},ModelId{"w1"},OpeningKind::Window,Meters{.2},Meters{.5},Meters{1},Meters{.8}});
+ p.catalogInstances.push_back(CatalogInstance{ModelId{"G2"},"asset",Point2{Meters{0},Meters{0}},0,ModelId{},ModelId{},Meters{.5},Meters{.5},Meters{.5},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},"furniture",""});
+ CommandBus bus(p);
+ const auto initial=bus.snapshot();
+ for(int i=1;i<=5;++i)assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{static_cast<double>(i)},Meters{0}}),{}, "wall-drag").ok());
+ assert(bus.undoDepth()==1);
+ assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==0);
+ assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==5);
+ assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.3},Meters{.8}),{}, "opening-drag").ok());
+ assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.4},Meters{.8}),{}, "opening-drag").ok());
+ assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{1},Meters{1}}),{}, "catalog-drag").ok());
+ assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{2},Meters{2}}),{}, "catalog-drag").ok());
+ assert(bus.undoDepth()==4);
+ (void)initial;
+}
+
 void typedCommandsAndBatchAtomicity(){
  Project p=fixture();
  CommandBus bus(p);
@@ -76,4 +95,4 @@ void wallJoinCommandBusDependencyIntegration(){
  assert(!rejected.ok()&&bus.snapshot()==before);
 }
 
-int main(){typedCommandsAndBatchAtomicity();wallJoinCommandBusDependencyIntegration();cowStress10k();wallJoinRejectsHostedOpening();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}
+int main(){typedGestureCoalescingAcrossEntityKinds();typedCommandsAndBatchAtomicity();wallJoinCommandBusDependencyIntegration();cowStress10k();wallJoinRejectsHostedOpening();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}
