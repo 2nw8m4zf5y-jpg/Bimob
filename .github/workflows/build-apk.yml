@@ -2,7 +2,7 @@ name: Build Bimob APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/model-core-v1 ]
   workflow_dispatch:
 
 jobs:
