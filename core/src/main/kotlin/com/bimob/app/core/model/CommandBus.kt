@@ -164,7 +164,6 @@ class CommandBus(
     private val engineLimits: EngineLimits = EngineLimits()
 ) {
     private val configuredEvaluatorRegistry = evaluatorRegistry
-    private val configuredEvaluatorRegistry = evaluatorRegistry
     private val monitor = Any()
     private val dispatchMonitor = Any()
     private var dispatching = false
