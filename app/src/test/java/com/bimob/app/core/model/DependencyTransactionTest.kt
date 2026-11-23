@@ -231,4 +231,105 @@ class DependencyTransactionTest {
         assertEquals(0L,bus.snapshot().number)
         assertEquals(0,bus.snapshot().dependencyGraph.edgeCount)
     }
+    @Test fun evaluatorRegistryIsPersistentAndTransactionOverrideIsScoped() {
+        val source = key("registry-source")
+        val registry = EvaluatorRegistry.empty().withEvaluator(source) { project, _ -> DerivedValue.TextValue("base:" + project.name) }
+        val bus = CommandBus(project(), evaluatorRegistry = registry)
+        val command = object : ModelMutation {
+            override val label = "Configured evaluator"
+            override fun apply(before: Project) = before.copy(name = "configured")
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.markDirty(source)
+                return before.copy(name = "configured")
+            }
+        }
+        assertTrue(bus.execute(command) is CommandResult.Committed)
+        assertEquals(DerivedValue.TextValue("base:configured"), bus.snapshot().derivedValues[source])
+        val local = object : ModelMutation {
+            override val label = "Local override"
+            override fun apply(before: Project) = before.copy(name = "local")
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.markDirty(source)
+                context.registerEvaluator(source) { p, _ -> DerivedValue.TextValue("local:" + p.name) }
+                return before.copy(name = "local")
+            }
+        }
+        assertTrue(bus.execute(local) is CommandResult.Committed)
+        assertEquals(DerivedValue.TextValue("local:local"), bus.snapshot().derivedValues[source])
+        assertTrue(bus.execute(command) is CommandResult.Committed)
+        assertEquals(DerivedValue.TextValue("base:configured"), bus.snapshot().derivedValues[source])
+    }
+
+    @Test fun dirtyBudgetRejectsWithDeterministicDiagnosticAndAtomicRollback() {
+        val a = key("budget-A"); val b = key("budget-B"); val c = key("budget-C")
+        val bus = CommandBus(project(), engineLimits = EngineLimits(maxDirtyNodesPerTransaction = 2, maxEvaluationsPerTransaction = 10, maxFanOutPerNode = 10))
+        val graphSetup = object : ModelMutation {
+            override val label = "Graph setup"
+            override fun apply(before: Project) = before
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.admitDependencies(listOf(edge(a,b), edge(b,c)))
+                return before
+            }
+        }
+        assertTrue(bus.execute(graphSetup) is CommandResult.Committed)
+        val trigger = object : ModelMutation {
+            override val label = "Over-budget dirty closure"
+            override fun apply(before: Project) = before.copy(name = "must rollback")
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.markDirty(a)
+                return before.copy(name = "must rollback")
+            }
+        }
+        val rejected = bus.execute(trigger) as CommandResult.Rejected
+        assertEquals(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, rejected.code)
+        assertTrue(rejected.message.contains("DIRTY_NODES"))
+        assertTrue(rejected.message.contains("budget-C"))
+        assertEquals(1L, bus.snapshot().number)
+        assertEquals("Initial", bus.snapshot().project.name)
+        assertEquals(2, bus.snapshot().dependencyGraph.edgeCount)
+    }
+
+    @Test fun stressTenThousandNodesChainPlusFanOutRecomputeExactlyOnce() {
+        val n = 10_000
+        val nodes = (0 until n).map { key("stress-" + it.toString().padStart(5, '0')) }
+        val edges = buildList {
+            for (i in 0 until n - 1) add(edge(nodes[i], nodes[i + 1]))
+            for (i in 2 until n) add(edge(nodes[0], nodes[i]))
+        }
+        val admitted = DependencyGraph.empty().admitEdges(edges) as EdgeAdmission.Accepted
+        val graph = admitted.graph
+        assertEquals(n, graph.nodeCount)
+        val limits = EngineLimits(maxDirtyNodesPerTransaction = n, maxEvaluationsPerTransaction = n, maxFanOutPerNode = n)
+        val plan = RecomputeEngine.plan(graph, setOf(nodes.first()), limits)
+        assertEquals(n, plan.order.size)
+        assertEquals(n, plan.order.toSet().size)
+        var evaluationCount = 0
+        val evaluators = nodes.associateWith { DependencyEvaluator { _, _ -> evaluationCount++; DerivedValue.NumberValue(evaluationCount.toDouble()) } }
+        val result = RecomputeEngine.execute(plan, project(), emptyMap(), evaluators, limits = limits)
+        assertTrue(result is EvaluationResult.Success)
+        assertEquals(n, evaluationCount)
+        assertEquals(n, (result as EvaluationResult.Success).values.size)
+    }
+
+    @Test fun fanOutAndEvaluationBudgetsRejectAtDeterministicNode() {
+        val a = key("fanout-A"); val b = key("fanout-B"); val c = key("fanout-C")
+        val graph = (DependencyGraph.empty().admitEdges(listOf(edge(a,b),edge(a,c))) as EdgeAdmission.Accepted).graph
+        val fanOut = try {
+            RecomputeEngine.plan(graph, setOf(a), EngineLimits(maxFanOutPerNode = 1))
+            fail("Expected fan-out budget failure")
+            null
+        } catch (e: EngineBudgetExceeded) { e }
+        assertEquals(EngineBudget.FAN_OUT, fanOut?.budget)
+        assertEquals(a, fanOut?.node)
+        val plan = RecomputeEngine.plan(graph, setOf(a), EngineLimits(maxFanOutPerNode = 2))
+        val evaluators = mapOf(a to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(1.0) }, b to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(2.0) }, c to DependencyEvaluator { _, _ -> DerivedValue.NumberValue(3.0) })
+        val evalLimit = try {
+            RecomputeEngine.execute(plan, project(), emptyMap(), evaluators, limits = EngineLimits(maxEvaluationsPerTransaction = 1))
+            fail("Expected evaluation budget failure")
+            null
+        } catch (e: EngineBudgetExceeded) { e }
+        assertEquals(EngineBudget.EVALUATIONS, evalLimit?.budget)
+        assertEquals(c, evalLimit?.node)
+    }
+
 }
