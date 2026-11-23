@@ -78,3 +78,12 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 - Added CTest contract scenario for valid opening/catalog instance plus invalid opening bounds and invalid catalog dimension.
 - CI run #233 for commit `6eca21643528` is currently in progress. No acceptance claim until completion.
 - **This is an initial model-domain slice, not yet a complete BIM engine:** Project collections still use value vectors; wall-join geometry solving, dependency wiring/recomputation, entity commands, BatchCommand, COW, history limits, cancellation checkpoints and Kotlin-generated cross-language goldens remain outstanding.
+
+
+## G2 continuation work
+- Run #235 for `037bc291345e`: **SUCCESS**, including strict native compilation and the full Android/Kotlin pipeline.
+- Implemented configurable `HistoryLimits` default 100; oldest Undo snapshots are evicted on commit and Undo-stack growth during Redo.
+- Added `CancellationToken` checkpoints before mutation/publication and during dirty traversal, scheduling and evaluation. Cancelled operations return before publishing a revision.
+- Added pure `solveWallJoin`: moves the selected endpoint and explicit connected endpoint(s), keeps opposite endpoints anchored, and validates candidate wall/opening bounds before returning.
+- Tests added for 3-entry history eviction, pre-cancel rollback, cancellation during recompute, and anchored endpoint geometry.
+- **Not G2 acceptance:** COW collections, host-delete cascades, typed entity commands/BatchCommand, wall solver integration into dependency transactions, comprehensive Kotlin golden fixtures, exact cycle path diagnostics and stress coverage across 10k BIM entities remain outstanding.

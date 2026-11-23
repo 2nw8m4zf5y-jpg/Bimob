@@ -1,5 +1,6 @@
 #pragma once
 #include "bimob/model.hpp"
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -10,6 +11,8 @@
 #include <vector>
 namespace bimob {
 enum class ErrorCode { InvalidArgument, ValidationFailed, StaleRevision, Cancelled, CommandFailed, DependencyCycle, DependencyDepthExceeded, EngineLimitExceeded, EvaluationFailed, HistoryEmpty, RevisionOverflow };
+struct CancellationToken final { std::atomic<bool> cancelled{false}; void cancel() noexcept { cancelled.store(true,std::memory_order_relaxed); } [[nodiscard]] bool isCancelled() const noexcept { return cancelled.load(std::memory_order_relaxed); } };
+struct HistoryLimits final { std::size_t max_steps{100}; };
 struct Error { ErrorCode code; std::string message; std::string nodeId; std::string budget; std::size_t actual{}; std::size_t limit{}; };
 template<class T> class Result final {
 public:
@@ -52,19 +55,20 @@ using Mutation=std::function<Result<Project>(const Project&)>;
 struct Commit {std::shared_ptr<const ModelRevision> revision;bool coalesced{};};
 class CommandBus final {
 public:
- explicit CommandBus(Project initial,EngineLimits limits={},EvaluatorRegistry evaluators={});
+ explicit CommandBus(Project initial,EngineLimits limits={},EvaluatorRegistry evaluators={},HistoryLimits historyLimits={});
  [[nodiscard]] std::shared_ptr<const ModelRevision> snapshot()const;
- Result<Commit> execute(const Mutation&,std::optional<std::uint64_t> expectedRevision={},std::optional<std::string> gestureId={});
+ Result<Commit> execute(const Mutation&,std::optional<std::uint64_t> expectedRevision={},std::optional<std::string> gestureId={},const CancellationToken* cancellation=nullptr);
  Result<std::shared_ptr<const ModelRevision>> undo();
  Result<std::shared_ptr<const ModelRevision>> redo();
- Result<Commit> transact(const Mutation&,const std::vector<DependencyEdge>& addEdges,const std::vector<NodeId>& dirty,const std::map<NodeId,Evaluator>& overrides={},std::optional<std::string> gestureId={});
+ Result<Commit> transact(const Mutation&,const std::vector<DependencyEdge>& addEdges,const std::vector<NodeId>& dirty,const std::map<NodeId,Evaluator>& overrides={},std::optional<std::string> gestureId={},const CancellationToken* cancellation=nullptr);
  [[nodiscard]] std::size_t undoDepth()const;
  [[nodiscard]] std::size_t redoDepth()const;
 private:
- Result<Commit> commitCandidate(Project,std::shared_ptr<const DependencyGraph>,DerivedMap,std::vector<NodeId>,std::map<NodeId,Evaluator>,std::optional<std::string>);
- mutable std::mutex mutex_;EngineLimits limits_;EvaluatorRegistry evaluators_;std::shared_ptr<const ModelRevision> current_;std::optional<Error> initializationError_;
+ Result<Commit> commitCandidate(Project,std::shared_ptr<const DependencyGraph>,DerivedMap,std::vector<NodeId>,std::map<NodeId,Evaluator>,std::optional<std::string>,const CancellationToken* cancellation=nullptr);
+ mutable std::mutex mutex_;EngineLimits limits_;EvaluatorRegistry evaluators_;std::shared_ptr<const ModelRevision> current_;std::optional<Error> initializationError_;HistoryLimits historyLimits_;
  std::vector<std::shared_ptr<const ModelRevision>> undo_;std::vector<std::shared_ptr<const ModelRevision>> redo_;std::optional<std::string> lastGesture_;
 };
+Result<Project> solveWallJoin(const Project&,const ModelId& movedWall,bool movedStart,Point2 newJoint);
 Result<DependencyGraph> admitEdges(const DependencyGraph&,const std::vector<DependencyEdge>&,const EngineLimits&);
-Result<EvaluationReport> recompute(const DependencyGraph&,const std::vector<NodeId>& seeds,const Project&,const DerivedMap&,const EvaluatorRegistry&,const EngineLimits&);
+Result<EvaluationReport> recompute(const DependencyGraph&,const std::vector<NodeId>& seeds,const Project&,const DerivedMap&,const EvaluatorRegistry&,const EngineLimits&,const CancellationToken* cancellation=nullptr);
 } // namespace bimob
