@@ -220,12 +220,14 @@ class DependencyGraph private constructor(
         ): DependencyGraph {
             val normalizedNodes = nodes.toSet()
             val normalizedEdges = edges.toSet()
-            val out = normalizedNodes.associateWith { key ->
-                normalizedEdges.filter { it.source == key }.sortedBy { it.stableKey() }
+            val outMutable = normalizedNodes.associateWith { mutableListOf<DependencyEdge>() }
+            val intoMutable = normalizedNodes.associateWith { mutableListOf<DependencyEdge>() }
+            normalizedEdges.forEach { edge ->
+                outMutable.getValue(edge.source).add(edge)
+                intoMutable.getValue(edge.dependent).add(edge)
             }
-            val into = normalizedNodes.associateWith { key ->
-                normalizedEdges.filter { it.dependent == key }.sortedBy { it.stableKey() }
-            }
+            val out = outMutable.mapValues { (_, list) -> list.sortedBy { it.stableKey() } }
+            val into = intoMutable.mapValues { (_, list) -> list.sortedBy { it.stableKey() } }
             return DependencyGraph(
                 normalizedNodes, normalizedEdges,
                 out.toMap(), into.toMap(), limits

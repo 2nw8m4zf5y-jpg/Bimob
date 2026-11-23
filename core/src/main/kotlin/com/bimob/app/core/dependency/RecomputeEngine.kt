@@ -50,12 +50,16 @@ class EngineBudgetExceeded(val budget: EngineBudget, val node: DependencyNodeKey
 /** Deterministic dirty-closure planning and topological execution. Each reachable node appears once. */
 object RecomputeEngine {
     fun plan(graph: DependencyGraph, seeds: Set<DependencyNodeKey>, limits: EngineLimits = EngineLimits()): RecomputePlan {
-        if (graph.nodeCount > limits.maxGraphNodes) throw EngineBudgetExceeded(EngineBudget.GRAPH_NODES, null, graph.nodeCount, limits.maxGraphNodes)\n        if (graph.edgeCount > limits.maxGraphEdges) throw EngineBudgetExceeded(EngineBudget.GRAPH_EDGES, null, graph.edgeCount, limits.maxGraphEdges)\n        if (seeds.isEmpty()) return RecomputePlan(emptyList(), emptyList())
+        if (graph.nodeCount > limits.maxGraphNodes) throw EngineBudgetExceeded(EngineBudget.GRAPH_NODES, null, graph.nodeCount, limits.maxGraphNodes)
+        if (graph.edgeCount > limits.maxGraphEdges) throw EngineBudgetExceeded(EngineBudget.GRAPH_EDGES, null, graph.edgeCount, limits.maxGraphEdges)
+        if (seeds.isEmpty()) return RecomputePlan(emptyList(), emptyList())
         val dirty = linkedSetOf<DependencyNodeKey>()
         val queue = ArrayDeque<DependencyNodeKey>()
         seeds.sortedBy { it.stableKey() }.forEach { if (dirty.add(it)) { if (dirty.size > limits.maxDirtyNodesPerTransaction) throw EngineBudgetExceeded(EngineBudget.DIRTY_NODES, it, dirty.size, limits.maxDirtyNodesPerTransaction); queue.addLast(it) } }
         while (queue.isNotEmpty()) {
             val node = queue.removeFirst()
+            val fanOut = graph.outgoingEdges(node).map { it.dependent }.distinct().size
+            if (fanOut > limits.maxFanOutPerNode) throw EngineBudgetExceeded(EngineBudget.FAN_OUT, node, fanOut, limits.maxFanOutPerNode)
             graph.outgoingEdges(node).map { it.dependent }.distinct()
                 .sortedBy { it.stableKey() }.forEach { dependent ->
                     if (dirty.add(dependent)) { if (dirty.size > limits.maxDirtyNodesPerTransaction) throw EngineBudgetExceeded(EngineBudget.DIRTY_NODES, dependent, dirty.size, limits.maxDirtyNodesPerTransaction); queue.addLast(dependent) }
@@ -91,9 +95,12 @@ object RecomputeEngine {
     ): EvaluationResult {
         val staged = initialValues.toMutableMap().apply { plan.dirtyNodes.forEach(::remove) }
         val completed = mutableListOf<DependencyNodeKey>()
+        var evaluations = 0
         for (node in plan.order) {
             if (cancellation.isCancelled()) return EvaluationResult.Cancelled(completed.toList())
             val evaluator = evaluators[node] ?: continue
+            evaluations++
+            if (evaluations > limits.maxEvaluationsPerTransaction) throw EngineBudgetExceeded(EngineBudget.EVALUATIONS, node, evaluations, limits.maxEvaluationsPerTransaction)
             try {
                 staged[node] = evaluator.evaluate(project, staged.toMap())
                 completed += node
