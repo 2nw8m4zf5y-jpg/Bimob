@@ -15,9 +15,16 @@ data class Project(
     val site: Site = Site(),
     val buildings: List<Building> = emptyList(),
     val levels: List<Level> = emptyList(),
+    /** Legacy UI/domain projection retained for source compatibility. */
     val elements: List<BimElement> = emptyList(),
     val materials: List<Material> = emptyList(),
-    val types: List<ElementType> = emptyList()
+    val types: List<ElementType> = emptyList(),
+    /** Native-Core typed model collections. Legacy WallElements are mapped on construction. */
+    val walls: List<Wall> = elements.filterIsInstance<WallElement>().map {
+        Wall(it.id, it.axis, it.heightMeters, it.thicknessMeters, it.levelId ?: ModelId(""))
+    },
+    val openings: List<Opening> = emptyList(),
+    val catalogInstances: List<CatalogInstance> = emptyList()
 )
 data class Site(val id: ModelId = ModelId.newId(), val name: String = "Site")
 data class Building(val id: ModelId = ModelId.newId(), val name: String = "Building")
@@ -87,3 +94,49 @@ sealed interface ParameterValue {
     data class Reference(val id: ModelId) : ParameterValue
     data class EnumValue(val value: String) : ParameterValue
 }
+
+/** Native Core wall contract; lengths are metres. */
+data class Wall(
+    val id: ModelId,
+    val axis: WallAxis,
+    val height: Double,
+    val thickness: Double,
+    val levelId: ModelId
+)
+
+enum class OpeningKind { DOOR, WINDOW, GENERIC }
+
+data class Opening(
+    val id: ModelId,
+    val hostWallId: ModelId,
+    val kind: OpeningKind = OpeningKind.GENERIC,
+    val offsetAlongWall: Double,
+    val width: Double,
+    val height: Double,
+    val sillHeight: Double
+)
+
+enum class ScalingMode { FREE_STRETCH, UNIFORM, PRESETS }
+data class DimensionBounds(val min: Double, val max: Double)
+
+data class CatalogInstance(
+    val id: ModelId,
+    val assetId: String,
+    val position: Point2,
+    val rotationRadians: Double,
+    val levelId: ModelId,
+    val hostWallId: ModelId,
+    val targetWidth: Double,
+    val targetDepth: Double,
+    val targetHeight: Double,
+    val scalingMode: ScalingMode = ScalingMode.FREE_STRETCH,
+    val bounds: CatalogInstanceBounds,
+    val category: String,
+    val scheduleTag: String
+)
+
+data class CatalogInstanceBounds(
+    val width: DimensionBounds,
+    val depth: DimensionBounds,
+    val height: DimensionBounds
+)
