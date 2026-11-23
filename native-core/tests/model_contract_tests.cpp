@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 using namespace bimob;
 Project fixture(){return Project{ModelId{"p"},"Project",{Wall{ModelId{"w1"},WallAxis{Point2{Meters{0},Meters{0}},Point2{Meters{2},Meters{0}}},Meters{2.7},Meters{.2},ModelId{}}}, {}, {}, {}, {}};}
@@ -58,7 +59,7 @@ void typedGestureCoalescingAcrossEntityKinds(){
  for(double length:{1.6,1.7,1.8})assert(bus.execute(commands::resizeWall(ModelId{"w1"},Meters{length}),{}, "wall-resize-gesture").ok());
  assert(bus.undoDepth()==4);
  assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.length().value==wallLengthBefore);
- assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.length().value==1.8);
+ assert(bus.redo().ok()&&std::abs(bus.snapshot()->project->walls[0].axis.length().value-1.8)<1e-9);
 
  // Opening resize coalesces independently and restores exact width.
  const double openingWidthBefore=bus.snapshot()->project->openings[0].width.value;
