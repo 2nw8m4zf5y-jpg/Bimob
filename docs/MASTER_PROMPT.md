@@ -240,6 +240,9 @@ Latest commits in this work session:
 - `6fd0916b7f9e9229c7ddce3f712c6b620d596e14` — test revision overflow boundary.
 - `c411c0242c8775979af95f3f3b1e42aa62799116` — make published snapshot collection wrappers unmodifiable; isolate ordinary listener exceptions without swallowing fatal errors.
 - `045d42b8da4e46285635b7a2a7a2c1e7ecbdfe5b` — snapshot immutability regression test.
+- `92b703e53920e66d6c8fd5c0ea3ad37dac0a9263` — transaction staging API, BatchCommand/CompositeCommand and cooperative cancellation checkpoints.
+- `f5b97594cfe4622ecdf3b41720241a1f2e1cd684` — tests for third-step batch failure rollback, cancellation between stages, and concurrent snapshot readers during Undo/Redo.
+- `a08e28973fe6c6fcc6a127d1f862ccc0caf888ae` — freeze the staged batch command list.
 
 Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `CommandBus.kt`, `ModelValidator.kt` and validator tests. Legacy `ModelCommands.kt`/`ModelStore` was removed; CommandBus is the only canonical model mutation boundary. Always re-check current HEAD and files before future work.
 
@@ -250,14 +253,15 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 - **Snapshot note:** model collections are defensively copied and wrapped as unmodifiable lists; current nested model collections are copied too. This guards collection mutation and source-list aliasing, but review new mutable model fields whenever the domain expands.
 - **Revision safety:** commit and history restore reject counter overflow instead of wrapping. A pure boundary test covers `Long.MAX_VALUE`.
 - **Listener error policy:** ordinary `Exception`s from command code/listeners are isolated; fatal JVM errors are not swallowed.
-- **CI:** Run #36 on `e63ff36...` initially failed only because Maven Central returned HTTP 429 for JUnit; retry attempt 2 completed green. The newest run for snapshot immutability tests is pending; verify its final result before claiming this set of changes passes.
-- **Acceptance criteria status:** tests for multi-entity atomic commit, concurrent writer event order, and subscription disposal have been added. Remaining gaps: event queue/backpressure policy under slow subscribers, history memory/disposal budget, richer transaction staging and cooperative cancellation semantics, and green CI for latest commits.
+- **CI verified:** Run #64 for commit `540b0510988250bd0a7c8c42f6d4b4d7b6521dca` completed successfully. Logs show `:app:assembleDebug`, `:app:testDebugUnitTest`, and artifact upload all successful (`BUILD SUCCESSFUL`). This verifies the memory-budget tests on that commit, not the later staging changes.
+- **New staging work:** commit `92b703e...` adds `TransactionContext`, checkpoints, `BatchCommand`, and `CompositeCommand`; commit `f5b9759...` adds rollback/cancellation/concurrent snapshot tests; commit `a08e289...` freezes the child command list. CI for these newer commits must be verified before claiming them green.
+- **Acceptance criteria status:** event FIFO/backpressure, bounded history and memory budget, staged batch rollback, cancellation checkpoints, concurrent command submission, parallel snapshot readers during Undo/Redo, and subscription disposal have tests. Remaining: confirm latest CI, review test log counts/results, inspect any failures, and then formally accept Phase C.
 
 ## 28. Roadmap and next work
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete.** FIFO event delivery is now queued at commit time and dispatched outside the model monitor; concurrent commit events should retain revision order. Tests added for atomic multi-entity changes, concurrent writers/event ordering, and listener disposal. Next: verify the new immutability/overflow tests in CI, define event queue/backpressure policy, bound history by memory as well as count, and strengthen cooperative cancellation semantics.  
+C. **CommandBus + Transaction Engine — in progress, not complete.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. Still requires latest CI verification and final audit before Phase C acceptance.  
 D. Persistence/recovery.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
