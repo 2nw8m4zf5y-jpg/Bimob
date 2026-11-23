@@ -3,6 +3,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <variant>
@@ -57,11 +58,11 @@ public:
  Result<std::shared_ptr<const ModelRevision>> undo();
  Result<std::shared_ptr<const ModelRevision>> redo();
  Result<Commit> transact(const Mutation&,const std::vector<DependencyEdge>& addEdges,const std::vector<NodeId>& dirty,const std::map<NodeId,Evaluator>& overrides={},std::optional<std::string> gestureId={});
- [[nodiscard]] std::size_t undoDepth()const noexcept;
- [[nodiscard]] std::size_t redoDepth()const noexcept;
+ [[nodiscard]] std::size_t undoDepth()const;
+ [[nodiscard]] std::size_t redoDepth()const;
 private:
  Result<Commit> commitCandidate(Project,std::shared_ptr<const DependencyGraph>,DerivedMap,std::vector<NodeId>,std::map<NodeId,Evaluator>,std::optional<std::string>);
- EngineLimits limits_;EvaluatorRegistry evaluators_;std::shared_ptr<const ModelRevision> current_;std::optional<Error> initializationError_;
+ mutable std::mutex mutex_;EngineLimits limits_;EvaluatorRegistry evaluators_;std::shared_ptr<const ModelRevision> current_;std::optional<Error> initializationError_;
  std::vector<std::shared_ptr<const ModelRevision>> undo_;std::vector<std::shared_ptr<const ModelRevision>> redo_;std::optional<std::string> lastGesture_;
 };
 Result<DependencyGraph> admitEdges(const DependencyGraph&,const std::vector<DependencyEdge>&,const EngineLimits&);
