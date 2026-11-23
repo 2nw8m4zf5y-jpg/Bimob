@@ -1,6 +1,6 @@
 package com.bimob.app
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -30,7 +30,7 @@ import java.io.File
 import kotlin.math.round
 import kotlin.math.sqrt
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private val prefs by lazy { getSharedPreferences("bimob_projects", MODE_PRIVATE) }
     private val privateRepository by lazy { ProjectRepository(PrivateFileAtomicStorage(File(filesDir, "model_repository"))) }
     private val saf by lazy { SafDocumentAdapter(contentResolver, cacheDir) }
@@ -264,10 +264,10 @@ private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: C
 private fun snapWorld(screen: Offset, size: androidx.compose.ui.unit.IntSize, scale: Float): Point2 {
     val x = (screen.x - size.width.toFloat()/2f)/scale
     val y = (size.height.toFloat()/2f - screen.y)/scale
-    return Point2(round(x*10f)/10f, round(y*10f)/10f)
+    return Point2((round(x*10f)/10f).toDouble(), (round(y*10f)/10f).toDouble())
 }
 private fun worldScreen(point: Point2, size: androidx.compose.ui.geometry.Size, scale: Float) =
-    Offset(size.width/2f + point.xMeters*scale,size.height/2f-point.yMeters*scale)
+    Offset((size.width/2f + point.xMeters*scale).toFloat(),(size.height/2f-point.yMeters*scale).toFloat())
 private fun wallFrom(id: ModelId, a: Point2, b: Point2) = WallElement(id=id,axis=WallAxis(a,b),heightMeters=2.7,thicknessMeters=.2)
 private fun nearestWall(project: Project, point: Point2, tolerance: Double): ModelId? {
     return project.elements.filterIsInstance<WallElement>().minByOrNull { w ->
