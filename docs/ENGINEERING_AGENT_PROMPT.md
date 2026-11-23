@@ -1,6 +1,6 @@
 # BIMOB Engineering Agent Prompt
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Repository:** [2nw8m4zf5y-jpg/Bimob](https://github.com/2nw8m4zf5y-jpg/Bimob)  
 **Working branch:** `feature/model-core-v1`  
 **PR:** [#1](https://github.com/2nw8m4zf5y-jpg/Bimob/pull/1)
@@ -47,7 +47,16 @@ API геометрии независим от конкретной библио
 
 ## 9. Dependency Engine
 
-До Parametric Model и Geometry Kernel реализуй архитектуру **Dependency Graph / Incremental Recompute**: DAG явных зависимостей, cycle detection, dirty propagation, детерминированный topological scheduling, revision/fingerprint tracking и инкрементальный пересчёт. Избегай полного rebuild при каждом изменении. Изменения graph и пересчёт должны быть согласованы с транзакциями; ошибочный цикл/вычисление не должно публиковать частичное состояние.
+Architecture is documented in **ADR 002: [Dependency Engine and Model Ownership](adr/002-dependency-engine.md)**. Implement in staged gates only; do not improvise a parallel architecture.
+
+- Directed edges mean source → dependent. Graph must be a DAG; reject self/multi-node cycles on the candidate graph **before commit**, with deterministic cycle-path diagnostics.
+- Changed semantic property keys seed transaction-local dirty propagation. Deduplicate the dirty closure and schedule it with deterministic topological ordering and stable tie-breaks. Recompute only affected nodes.
+- Graph edits, canonical candidate model, derived cache candidates and validation are staged together with CommandBus/TransactionContext. A failed cycle, evaluator, validation, cancellation or resource budget aborts the complete transaction; no revision, graph/cache publication or event is allowed.
+- Evaluators are pure over immutable candidate inputs; return values/diagnostics rather than mutating published state. Initial scheduler is single-threaded. Parallel execution requires a separate proven design.
+- Proposed safety ceilings (review/benchmark before tuning): 250k nodes, 1m edges, 100k dirty nodes, 4096 traversal depth (iterative only), 1m evaluation steps per transaction, 10k outgoing fan-out and 100k edge edits per batch. Cancellation checkpoint every ≤256 steps. Limit violations are typed, safe transaction rejection, never silent truncation.
+- Implementation deliverables: E1 graph model/admission/cycle tests; E2 transaction staging/rollback; E3 dirty propagation/scheduling/limits; E4 cache fingerprints + Undo/Redo; E5 full-recompute oracle, fuzz, profiling and acceptance.
+- Tests include cycles (single and batch), rollback, dirty closure, stable topological order, no partial derived cache/event publication, failure/cancellation, budgets, Undo/Redo and randomized DAG equivalence.
+- ADR is design only; code must not begin until design is reviewed/accepted by the owner.
 
 ## 10. Kotlin prototype → C++20 и Android/NDK
 
@@ -110,8 +119,8 @@ CI must actually build and run tests. Inspect logs on failure, fix and rerun. A 
 A. Architecture contracts and blueprint audit.
 B. Canonical Model pure-Kotlin reference prototype/contracts.
 C. CommandBus / Transaction Engine acceptance gates, including memory-budgeted history and cancellation hardening.
-D. Persistence/recovery contracts and Kotlin reference prototype (only after C gates pass).
-E. **Dependency Graph / Incremental Recompute:** DAG, cycle detection, dirty propagation and deterministic recompute.
+D. **Persistence & Crash Recovery — ACCEPTED / CLOSED.** Owner-confirmed CI green on `65cf542` (`:core:test`, `:app:testDebugUnitTest`, `:assembleDebug`).
+E. **Model Ownership & Dependency Engine — DESIGN APPROVED, IMPLEMENTATION NOT STARTED:** ADR 002; execute E1–E5 only after design acceptance.
 F. Kotlin prototype stabilization and migration to native-core C++20, including porting all test scenarios and parity gates.
 G. Geometry Kernel (only after native-core migration and test parity gates).
 H. Parametric Model, families and constraints.
@@ -122,7 +131,10 @@ L. Rendering/mobile performance.
 M. Extensions and AI workflows.
 N. UI/tool expansion.
 
-Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–D; native C++20 migration and test parity must be completed before Geometry Kernel stage G.
+Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–E. Native C++20 migration and test parity must be completed before Geometry Kernel stage G.
+
+### MainActivity model-ownership debt (audited 2026-11-23)
+MainActivity still keeps a mutable local wall list; canvas gestures directly mutate it. Local sketches use SharedPreferences/JSON. SAF import/export maps between UI walls and canonical Project, but editing is not yet through CommandBus or ProjectRepository. After Dependency Engine acceptance, migrate to an app ModelSession backed by CommandBus + ProjectRepository; commands for create/edit/delete; canvas renders immutable snapshots; revision-aware save; migrate legacy data; delete duplicate mutable wall source. This UI migration is tracked after Stage E, not silently mixed into graph implementation.
 ## 20. GitHub workflow
 
 Work only in `feature/model-core-v1`. Never directly change `main`; do not merge PR without explicit user approval. Use GitHub API/tools for real repository changes. Each logical change: inspect diff, validate paths and content, commit, verify SHA, run CI and confirm outcome. Do not claim a file/commit/test changed unless verified. Avoid fake commits, unsubstantiated success claims or unnecessary edits.
