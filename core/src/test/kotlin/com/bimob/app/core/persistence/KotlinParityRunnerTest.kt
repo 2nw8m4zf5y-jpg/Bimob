@@ -1,5 +1,6 @@
 package com.bimob.app.core.persistence
 import com.bimob.app.core.model.*
+import com.bimob.app.core.dependency.*
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
@@ -7,6 +8,11 @@ class KotlinParityRunner {
  private fun root()=sequenceOf(File("."),File("..")).first{File(it,"shared-tests/golden-scenarios").isDirectory}
  private fun fixture(n:String)=Json.parse(File(root(),"shared-tests/golden-scenarios/$n.json").readBytes()).obj()
  private fun id(v:J)=ModelId(v.text())
+ private fun depNode(name:String)=EntityProperty(ModelId(name),PropertyAspect.PARAMETERS)
+ private fun initialGraph(f:JO):DependencyGraph {
+  val deps=f.req("initialState").obj().req("dependencies").array().a.map{val pair=it.array().a;DependencyEdge(depNode(pair[0].text()),depNode(pair[1].text()))}
+  return when(val admitted=DependencyGraph.empty().admitEdges(deps)){is EdgeAdmission.Accepted->admitted.graph;is EdgeAdmission.Rejected->error("Invalid initial dependency fixture: ${admitted.diagnostic}")}
+ }
  private fun point(v:J):Point2 {val a=v.array().a;return Point2(a[0].double(),a[1].double())}
  private fun initial(f:JO):Project {
   val s=f.req("initialState").obj();val p=s.req("project").obj()
@@ -27,8 +33,8 @@ class KotlinParityRunner {
   else->error("Unsupported operation: "+x.req("op").text())
  }
  fun runScenario(name:String) {
-  val f=fixture(name);val bus=CommandBus(initial(f));val states=mutableListOf<Project>();var batches=0
-  f.req("commands").array().a.forEach{c->val x=c.obj();val op=x.req("op").text();if(op=="batch")batches++;val r=when(op){"undo"->bus.undo();"redo"->bus.redo();else->bus.execute(mutation(x))};assertTrue("Rejected $op in $name: $r",r is CommandResult.Committed);states+=bus.snapshot().project}
+  val f=fixture(name);val baselineGraph=initialGraph(f);val bus=CommandBus(initial(f),initialDependencyGraph=baselineGraph);val states=mutableListOf<Project>();var batches=0;var lastRejected:CommandResult.Rejected?=null
+  f.req("commands").array().a.forEach{c->val x=c.obj();val op=x.req("op").text();if(op=="batch")batches++;val r=when(op){"undo"->bus.undo();"redo"->bus.redo();"admitDependency"->bus.execute(object:ModelMutation{override val label="Fixture dependency admission";override fun apply(before:Project)=before;override fun stage(before:Project,context:TransactionContext):Project{context.admitDependency(DependencyEdge(depNode(x.req("source").text()),depNode(x.req("dependent").text())));return before}});"assertRejected"->{val rejected=lastRejected?:error("assertRejected without prior rejection");assertEquals(x.req("expectedCode").text(),rejected.code.name);assertEquals(baselineGraph,bus.snapshot().dependencyGraph);assertEquals(0L,bus.snapshot().number);assertEquals(0,bus.undoDepth());assertEquals(0,bus.redoDepth());CommandResult.Committed(bus.snapshot(),emptyList())};else->bus.execute(mutation(x))};if(name=="cycle_rollback"&&op=="admitDependency"){assertTrue("Expected cycle rejection: $r",r is CommandResult.Rejected);assertEquals(CommandFailureCode.DEPENDENCY_REJECTED,(r as CommandResult.Rejected).code);assertEquals(baselineGraph,bus.snapshot().dependencyGraph);assertEquals(0L,bus.snapshot().number);assertEquals(0,bus.undoDepth());lastRejected=r}else{assertTrue("Rejected $op in $name: $r",r is CommandResult.Committed)};states+=bus.snapshot().project}
   val final=bus.snapshot().project;val a=f.req("assertions").obj()
   when(name){
    "crud_batch"->{assertEquals(a.req("batchCommitCount").long().toInt(),batches);assertEquals(a.req("finalLevelIds").array().a.map{it.text()}.sorted(),final.levels.map{it.id.value}.sorted());assertEquals(a.req("finalWallIds").array().a.map{it.text()}.sorted(),states[4].walls.map{it.id.value}.sorted());assertEquals(listOf("wall-1"),final.walls.map{it.id.value}.sorted());assertEquals(5.0,final.walls.single{it.id.value=="wall-1"}.axis.lengthMeters,1e-6)
