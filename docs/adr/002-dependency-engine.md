@@ -124,7 +124,7 @@ MainActivity is not yet connected to CommandBus or ProjectRepository. It owns a 
 
 ## 10. Decision and staged delivery
 
-This ADR authorizes design review only. Stage E implementation is split into atomic deliverables:
+This ADR is owner-approved and authorizes staged implementation. Stage E implementation is split into atomic deliverables:
 - E1 graph data model and typed dependency keys/edges, deterministic graph admission/cycle checks and tests.
 - E2 transaction-local graph staging and rollback integration.
 - E3 dirty propagation, deterministic scheduler, budget limits and evaluator contract.
@@ -137,3 +137,10 @@ This ADR authorizes design review only. Stage E implementation is split into ato
 **Positive:** deterministic incremental evaluation, clear ownership, bounded resource behavior, atomic model/derived state, testable contract and future C++20 parity.
 
 **Costs/risks:** graph bookkeeping and memory overhead; correctness depends on accurate changed-property declarations and dependency edges; cache fingerprints and invalidation require careful testing; initial single-thread scheduling may constrain throughput; limits require profiling/tuning. The current Android UI remains temporary legacy debt until its planned migration.
+
+## 11. Implementation status (2026-11-23)
+
+- **E1 — ACCEPTED / CLOSED:** typed immutable graph, edge admission, deterministic cycle-path diagnostics, max-depth rejection and graph cleanup. Owner-confirmed CI green on `b879e8f` (`:core:test`, `testDebugUnitTest`, `assembleDebug`).
+- **E2 — IN PROGRESS:** `ModelRevision` includes Project, DependencyGraph and derived values. `TransactionContext` stages graph mutations, dirty seeds and evaluators. CommandBus recomputes a deduplicated dirty closure in deterministic topological order and publishes state atomically; Undo/Redo restores graph and derived values. Failure/cancellation rejects before publication.
+- E2 regression tests cover grouped rollback, graph+model synchronization through Undo/Redo, diamond DAG recompute once after both parents, untouched-branch isolation, evaluator failure and cycle admission rejection. CI verification is pending.
+- **E3–E5 — NOT STARTED:** hard resource budgets, cache fingerprint lifecycle, full-recompute oracle, fuzzing, profiling and acceptance remain later gates.
