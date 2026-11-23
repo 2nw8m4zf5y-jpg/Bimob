@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.1
+# BIMOB MASTER PROMPT v1.2
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -127,6 +127,17 @@ Versioned model schema; deterministic migrations; atomic save; journal/recovery;
 
 Separate IFC mapping/import/export layer. Explicit unit/coordinate mapping, identity mapping, property sets, levels, classifications, openings and relationships. Validate export and round-trip. Never silently reinterpret units or axes.
 
+### 18.1 Store distribution and native build compatibility
+
+Design for publication to Google Play and alternative stores (RuStore, AppGallery) without store-specific architecture forks:
+- Release build supports Android App Bundle (`.aab`) for Google Play and signed APKs as needed for alternative stores/testing. Debug APK remains a development artifact, not the sole release format.
+- Native C++ builds target **arm64-v8a** at minimum; add other ABIs only with verified support and testing. Use current stable Android NDK/CMake toolchains and keep ABI/toolchain settings reproducible.
+- Native libraries and packaging must support **16 KB memory page sizes** on Android 15+ devices. Configure linker alignment where applicable (including `-Wl,-z,max-page-size=16384`), inspect ELF segment alignment and APK/AAB packaging, and validate every third-party `.so`; linker flags alone do not prove compliance.
+- Maintain an up-to-date `targetSdkVersion` meeting current Google Play requirements and test compatibility against current Android releases. Treat target API and store policy as release gates; verify official requirements at release time rather than hardcoding stale assumptions.
+- File access follows Scoped Storage. Native project files (`.bimob`), IFC, DXF and other user documents use Storage Access Framework (document picker/create document, persisted URI permissions where appropriate) or MediaStore for applicable media. Do not request `MANAGE_EXTERNAL_STORAGE` unless a documented, store-policy-approved core use case genuinely qualifies; default is prohibited.
+- Avoid store-specific services in core. Store billing, distribution, updates, signing, analytics and platform capabilities are adapters behind interfaces; comply separately with each store's policies.
+- Release gates include signed artifacts, reproducible build metadata, crash/permission review, privacy disclosures, data safety, content-rating and store listing requirements, and install/upgrade testing on representative Android versions/devices. No release claim until artifacts and checks are verified.
+
 ## 19. Rendering
 
 Rendering is a consumer of immutable revision snapshots, never a model writer. Render API/backend abstraction, scene cache revision, LOD, culling, picking, camera-relative transforms, GPU float boundary. Handle device loss and low memory. Render fidelity can degrade under budget, canonical data cannot.
@@ -158,6 +169,18 @@ Validate all inputs, imports, file sizes, decompression, parser limits, path tra
 - ABI compatibility and plugin/API compatibility.
 - CI must build and run tests before advancing. Verify actual status and logs.
 
+### 24.1 Android release and native compliance CI
+
+CI should continuously validate distribution readiness, not only debug builds:
+- build debug APK and release AAB; verify signing configuration uses protected secrets and never commit signing keys.
+- enforce 64-bit `arm64-v8a` native output and inspect packaged native libraries.
+- run 16 KB page-size ELF/packaging validation for all native `.so` files (including third-party dependencies); include Android 15+ compatible test coverage where available.
+- verify target SDK against current Play policy using a controlled version/configuration check.
+- lint permissions and reject `MANAGE_EXTERNAL_STORAGE` by default; test SAF URI workflows for open/save/import/export of `.bimob`, IFC and DXF.
+- generate dependency SBOM and license report; fail on GPL/AGPL, unapproved LGPL, unknown license, or missing notices/attribution.
+- keep store-specific signing/export jobs separate, with release credentials protected and artifacts uploaded only after all gates pass.
+- test install, upgrade, document access, offline project opening, and crash-free smoke test on emulator/device matrix. A green debug CI alone is not release approval.
+
 ## 25. Kotlin Prototype → C++20 Core
 
 Current prototype under `app/src/main/java/com/bimob/app/core/model/` is a contract laboratory, not the production kernel.
@@ -171,6 +194,8 @@ Current prototype under `app/src/main/java/com/bimob/app/core/model/` is a contr
 - No premature UI expansion while core gates fail.
 
 ## 26. Repository state (verified 2026-11-23)
+
+Master prompt updated to **v1.2** with license policy and Google Play/RuStore/AppGallery compatibility requirements. This is architecture guidance; verify current official store policies and dependency license texts before release.
 
 Repo: `2nw8m4zf5y-jpg/Bimob`; working branch `feature/model-core-v1`; draft PR #1 targets main (do not merge without approval). Branch exists and is writable.
 
