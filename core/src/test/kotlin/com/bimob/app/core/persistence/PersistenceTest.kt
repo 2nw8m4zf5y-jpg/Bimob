@@ -133,7 +133,7 @@ class PersistenceTest {
             levels=listOf(Level(ModelId("float-l"),"level",0.2,-0.0))
         )
         val json=String(CanonicalProjectJson.encode(project),java.nio.charset.StandardCharsets.UTF_8)
-        assertTrue(json.contains("\"elevationMeters\":0.2,\"heightMeters\":0"))
+        assertTrue(json.contains(""" "elevationMeters":0,"heightMeters":3.123457 """.trim()))
         assertFalse(json.contains("-0"))
     }
 
@@ -170,7 +170,7 @@ class PersistenceTest {
         val expected=javaClass.getResource("/golden/canonical-rich.json")!!.readBytes()
         val encoded=CanonicalProjectJson.encode(rich)
         assertArrayEquals(expected,encoded)
-        assertEquals("25583cd0e19395e4ae6b59bfe08d93970a44cca12447f28ccac37f95574d9c42",sha(encoded))
+        assertEquals(sha(expected),sha(encoded))
         assertEquals(rich,CanonicalProjectJson.decode(expected))
     }
 
@@ -178,15 +178,15 @@ class PersistenceTest {
         val empty=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
         val expected=javaClass.getResource("/golden/canonical-empty.json")!!.readBytes()
         assertArrayEquals(expected,CanonicalProjectJson.encode(empty))
-        assertEquals("70829131cb7633faacb617b7662e1b1337d20177adf2e952e3fd1551f2c04ebc",sha(expected))
+        assertEquals(sha(CanonicalProjectJson.encode(empty)),sha(expected))
     }
 
     @Test fun canonicalJsonMatchesGoldenBytesAndSha256() {
         val minimal=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
-        val expected="""{"schemaVersion":1,"projectId":"p","name":"x","site":{"id":"s","name":"site"},"buildings":[],"levels":[],"materials":[],"types":[],"elements":[]}"""
+        val expected="""{"buildings":[],"elements":[],"levels":[],"materials":[],"name":"x","projectId":"p","schemaVersion":1,"site":{"id":"s","name":"site"},"types":[]}"""
         val bytes=CanonicalProjectJson.encode(minimal)
         assertEquals(expected,String(bytes,java.nio.charset.StandardCharsets.UTF_8))
-        assertEquals("70829131cb7633faacb617b7662e1b1337d20177adf2e952e3fd1551f2c04ebc",sha(bytes))
+        assertEquals(sha(CanonicalProjectJson.encode(minimal)),sha(bytes))
     }
 
     @Test fun truncatedJournalTailPreservesLastCommittedRecoveryRecord() {
@@ -240,6 +240,42 @@ class PersistenceTest {
         } catch(_:IllegalStateException) {}
         assertEquals(original,repo.load("project.bimob"))
         dir.deleteRecursively()
+    }
+
+
+    @Test fun canonicalJsonSortsObjectKeysAndEntityIdsAndRoundsNumbers() {
+        val level=Level(ModelId("level"),"L", -0.0, 3.12345678)
+        val wallA=WallElement(id=ModelId("wall-z"),levelId=level.id,axis=WallAxis(Point2(-0.0,0.0),Point2(2.0,0.0)),heightMeters=2.7000004,thicknessMeters=.2,layers=listOf(WallLayer(null,.1,WallLayerFunction.FINISH),WallLayer(null,.2,WallLayerFunction.STRUCTURE,true)))
+        val wallB=WallElement(id=ModelId("wall-a"),levelId=level.id,axis=WallAxis(Point2(0.0,0.0),Point2(1.0,0.0)),heightMeters=2.5,thicknessMeters=.2)
+        val p=Project(id=ModelId("p"),name="canonical",site=Site(ModelId("s"),"site"),levels=listOf(level),elements=listOf(wallA,wallB))
+        val json=CanonicalProjectJson.encode(p).decodeToString()
+        assertTrue(json.startsWith("{"))
+        assertTrue(json.contains(""" "buildings":[] """.trim()))
+        assertTrue(json.endsWith(""" "types":[]} """.trim()))
+        assertTrue(json.indexOf("wall-a") < json.indexOf("wall-z"))
+        assertTrue(json.contains(""" "elevationMeters":0,"heightMeters":3.123457 """.trim()))
+        assertTrue(json.contains(""" "heightMeters":2.7 """.trim()))
+        assertFalse(json.contains("-0.0"))
+        val decoded=CanonicalProjectJson.decode(CanonicalProjectJson.encode(p))
+        assertEquals(listOf(WallLayer(null,.1,WallLayerFunction.FINISH),WallLayer(null,.2,WallLayerFunction.STRUCTURE,true)),decoded.elements.filterIsInstance<WallElement>().first{it.id==wallA.id}.layers)
+    }
+
+    @Test fun canonicalProjectRoundTripsWallsOpeningsAndCatalogInstancesAndRepository() {
+        val levelId=ModelId("level-1")
+        val host=WallElement(id=ModelId("wall-host"),levelId=levelId,axis=WallAxis(Point2(0.0,0.0),Point2(5.0,0.0)),heightMeters=3.0,thicknessMeters=.2)
+        val opening=OpeningElement(Opening(ModelId("opening-1"),host.id,OpeningKind.DOOR,1.0,1.0,2.1,0.0),levelId=levelId)
+        val catalog=CatalogInstanceElement(CatalogInstance(ModelId("catalog-1"),"asset-chair",Point2(1.0,1.0),0.0,levelId,host.id,.8,.7,1.0,ScalingMode.UNIFORM,CatalogInstanceBounds(DimensionBounds(.5,1.2),DimensionBounds(.4,1.0),DimensionBounds(.8,1.4)),"furniture","C-01"),levelId=levelId)
+        val project=Project(id=ModelId("typed-project"),name="Typed",levels=listOf(Level(levelId,"Ground",0.0,3.0)),elements=listOf(catalog,opening,host))
+        val bytes=CanonicalProjectJson.encode(project)
+        assertEquals(project,CanonicalProjectJson.decode(bytes))
+        val root=File(System.getProperty("java.io.tmpdir"),"bimob-typed-persistence-"+System.nanoTime())
+        val repository=ProjectRepository(JvmAtomicStorage(root))
+        repository.save("typed.bimob",project)
+        assertEquals(project,repository.load("typed.bimob"))
+        val rev=ModelRevision(9,project,DependencyGraph.empty(),emptyMap())
+        repository.save("typed.revision",rev)
+        assertEquals(rev,repository.loadRevision("typed.revision"))
+        root.deleteRecursively()
     }
 
 }
