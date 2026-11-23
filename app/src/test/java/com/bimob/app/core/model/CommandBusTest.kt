@@ -4,6 +4,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CommandBusTest {
+    @Test fun revisionCounterNeverWraps() {
+        assertEquals(1L, nextRevisionNumber(0L))
+        assertEquals(Long.MAX_VALUE, nextRevisionNumber(Long.MAX_VALUE - 1))
+        assertNull(nextRevisionNumber(Long.MAX_VALUE))
+    }
     private fun project() = Project(name = "Initial")
     private fun rename() = object : ModelMutation {
         override val label = "Rename project"
