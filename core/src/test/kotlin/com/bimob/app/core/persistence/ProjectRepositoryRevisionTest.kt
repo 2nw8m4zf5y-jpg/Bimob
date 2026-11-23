@@ -37,7 +37,7 @@ class ProjectRepositoryRevisionTest {
         val root = File(System.getProperty("java.io.tmpdir"), "bimob-session-save-" + System.nanoTime())
         val repository = ProjectRepository(JvmAtomicStorage(root))
         val session = ModelSession.newProject("Save test")
-        assertTrue(session.hasUnsavedChanges())
+        assertTrue(session.snapshot().hasUnsavedChanges)
         session.addWall("wall-1", 0.0, 0.0, 4.0, 0.0)
         session.save(repository, "projects/save.revision")
         assertFalse(session.snapshot().hasUnsavedChanges)
