@@ -56,6 +56,8 @@ class MainActivity : Activity() {
                         try {
                             val project = BimobArchiveReader().read(saf.read(uri))
                             activeSession = ModelSession(project, initiallySaved = true)
+                            privateRepository.save(revisionPath(project), activeSession!!.snapshot().revision)
+                            prefs.edit().putString(project.name, "revision:${safeId(project.id.value)}").apply()
                             ToastMessage("Файл импортирован")
                         } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка импорта") }
                     },
@@ -80,15 +82,17 @@ class MainActivity : Activity() {
 
     private fun openProject(name: String) {
         try {
-            val legacy = prefs.getString(name, null) ?: return
-            val migrated = LegacySketchMigrator.migrateJson(legacy)
-            val path = revisionPath(migrated)
-            val session = if (privateRepository.run { privateRepositoryStorageExists(path) }) {
-                ModelSession(privateRepository.loadRevision(path), initiallySaved = true)
+            val stored = prefs.getString(name, null) ?: return
+            val session = if (stored.startsWith("revision:")) {
+                val id = stored.removePrefix("revision:")
+                ModelSession(privateRepository.loadRevision("projects/$id.revision"), initiallySaved = true)
             } else {
+                val migrated = LegacySketchMigrator.migrateJson(stored)
+                val path = revisionPath(migrated)
                 ModelSession(migrated, initiallySaved = true).also { first ->
                     privateRepository.save(path, first.snapshot().revision)
                     first.markSaved(first.snapshot().revision)
+                    prefs.edit().putString(name, "revision:${safeId(migrated.id.value)}").apply()
                 }
             }
             activeSession = session
@@ -102,7 +106,7 @@ class MainActivity : Activity() {
             privateRepository.save(revisionPath(snapshot.revision.project), snapshot.revision)
             session.markSaved(snapshot.revision)
             val name = snapshot.revision.project.name
-            prefs.edit().putString(name, prefs.getString(name, "{}")).apply()
+            prefs.edit().putString(name, "revision:${safeId(snapshot.revision.project.id.value)}").apply()
             ToastMessage("Сохранено в приватное хранилище")
         } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка сохранения") }
     }
