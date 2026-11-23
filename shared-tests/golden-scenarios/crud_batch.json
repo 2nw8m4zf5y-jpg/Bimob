@@ -1,0 +1,100 @@
+{
+  "schema": "bimob.golden.v1",
+  "scenarioId": "crud_batch",
+  "description": "CRUD and one atomic batch with a deterministic revision/history contract.",
+  "initialState": {
+    "project": {
+      "id": "project-1",
+      "name": "CRUD"
+    },
+    "levels": [],
+    "walls": [
+      {
+        "id": "wall-1",
+        "start": [
+          0,
+          0
+        ],
+        "end": [
+          4,
+          0
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      }
+    ],
+    "joins": [],
+    "openings": [],
+    "catalogInstances": [],
+    "dependencies": []
+  },
+  "commands": [
+    {
+      "op": "moveWall",
+      "id": "wall-1",
+      "delta": [
+        1,
+        2
+      ]
+    },
+    {
+      "op": "resizeWall",
+      "id": "wall-1",
+      "length": 5
+    },
+    {
+      "op": "batch",
+      "commands": [
+        {
+          "op": "createLevel",
+          "level": {
+            "id": "level-1",
+            "name": "L1",
+            "elevation": 0,
+            "height": 3
+          }
+        },
+        {
+          "op": "createWall",
+          "wall": {
+            "id": "wall-2",
+            "start": [
+              0,
+              3
+            ],
+            "end": [
+              3,
+              3
+            ],
+            "height": 2.7,
+            "thickness": 0.2,
+            "levelId": "level-1"
+          }
+        }
+      ]
+    },
+    {
+      "op": "deleteWall",
+      "id": "wall-2"
+    },
+    {
+      "op": "undo"
+    },
+    {
+      "op": "redo"
+    }
+  ],
+  "assertions": {
+    "batchCommitCount": 1,
+    "atomicFailureLeavesStateAndHistoryUnchanged": true,
+    "finalWallIds": [
+      "wall-1",
+      "wall-2"
+    ],
+    "finalLevelIds": [
+      "level-1"
+    ],
+    "undoRedoGraphIntegrity": true
+  }
+}

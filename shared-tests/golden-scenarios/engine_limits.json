@@ -1,0 +1,66 @@
+{
+  "schema": "bimob.golden.v1",
+  "scenarioId": "engine_limits",
+  "description": "Each configured engine budget is exceeded independently; exact diagnostics and rollback are compared.",
+  "initialState": {
+    "project": {
+      "id": "project-limits",
+      "name": "Limits"
+    },
+    "levels": [],
+    "walls": [],
+    "joins": [],
+    "openings": [],
+    "catalogInstances": [],
+    "dependencies": []
+  },
+  "commands": [
+    {
+      "op": "limitCase",
+      "budget": "dirty_nodes",
+      "maximum": 1,
+      "actual": 2
+    },
+    {
+      "op": "limitCase",
+      "budget": "evaluations",
+      "maximum": 0,
+      "actual": 1
+    },
+    {
+      "op": "limitCase",
+      "budget": "fan_out",
+      "maximum": 1,
+      "actual": 2
+    },
+    {
+      "op": "limitCase",
+      "budget": "graph_nodes",
+      "maximum": 1,
+      "actual": 2
+    },
+    {
+      "op": "limitCase",
+      "budget": "graph_edges",
+      "maximum": 0,
+      "actual": 1
+    },
+    {
+      "op": "limitCase",
+      "budget": "dependency_depth",
+      "maximum": 1,
+      "actual": 2
+    }
+  ],
+  "assertions": {
+    "eachCaseRejected": true,
+    "diagnosticFields": [
+      "code",
+      "budget",
+      "actual",
+      "limit",
+      "nodeId"
+    ],
+    "rollbackAll": true
+  }
+}
