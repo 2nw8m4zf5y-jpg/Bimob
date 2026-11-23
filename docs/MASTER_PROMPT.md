@@ -243,6 +243,7 @@ Latest commits in this work session:
 - `92b703e53920e66d6c8fd5c0ea3ad37dac0a9263` — transaction staging API, BatchCommand/CompositeCommand and cooperative cancellation checkpoints.
 - `f5b97594cfe4622ecdf3b41720241a1f2e1cd684` — tests for third-step batch failure rollback, cancellation between stages, and concurrent snapshot readers during Undo/Redo.
 - `a08e28973fe6c6fcc6a127d1f862ccc0caf888ae` — freeze the staged batch command list.
+- `475a82cca25952af8915b594e0eebc2e01a82739` — ADR 001 persistence container, atomic save, integrity, versioning and recovery architecture.
 
 Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `CommandBus.kt`, `ModelValidator.kt` and validator tests. Legacy `ModelCommands.kt`/`ModelStore` was removed; CommandBus is the only canonical model mutation boundary. Always re-check current HEAD and files before future work.
 
@@ -255,14 +256,15 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 - **Listener error policy:** ordinary `Exception`s from command code/listeners are isolated; fatal JVM errors are not swallowed.
 - **CI verified:** Run #64 for commit `540b0510988250bd0a7c8c42f6d4b4d7b6521dca` completed successfully. Logs show `:app:assembleDebug`, `:app:testDebugUnitTest`, and artifact upload all successful (`BUILD SUCCESSFUL`). This verifies the memory-budget tests on that commit, not the later staging changes.
 - **New staging work:** commit `92b703e...` adds `TransactionContext`, checkpoints, `BatchCommand`, and `CompositeCommand`; commit `f5b9759...` adds rollback/cancellation/concurrent snapshot tests; commit `a08e289...` freezes the child command list. CI for these newer commits must be verified before claiming them green.
-- **Acceptance criteria status:** event FIFO/backpressure, bounded history and memory budget, staged batch rollback, cancellation checkpoints, concurrent command submission, parallel snapshot readers during Undo/Redo, and subscription disposal have tests. Remaining: confirm latest CI, review test log counts/results, inspect any failures, and then formally accept Phase C.
+- **Workflow dispatch:** `.github/workflows/build-apk.yml` already has `workflow_dispatch` and `push` triggers for `main` and `feature/model-core-v1`. Manual run is available in Actions UI; the GitHub connector available in this environment cannot dispatch workflows or read push-triggered runs. Run #64 is green for SHA `540b051`, but does not verify staging commits. PR #1 head was `331e5a734d27a0b6ea28ac1755ec28d6c0937037`; CI for that head is not available through this connector, so status remains unverified.
+- **Acceptance criteria status:** event FIFO/backpressure, bounded history and memory budget, staged batch rollback, cancellation checkpoints, concurrent command submission, parallel snapshot readers during Undo/Redo, and subscription disposal have tests. Phase C remains **not accepted** until CI for the staging changes is confirmed and logs reviewed.
 
 ## 28. Roadmap and next work
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. Still requires latest CI verification and final audit before Phase C acceptance.  
-D. Persistence/recovery.  
+C. **CommandBus + Transaction Engine — in progress, not complete; CI pending/unverified.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. Still requires latest CI verification and final audit before Phase C acceptance.  
+D. Persistence/recovery — architecture documented in `docs/adr/001-persistence-format.md`; implementation not started. Review ADR before coding.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
 G. Architectural families and constraints.  
@@ -272,4 +274,4 @@ J. IFC interop.
 K. Mobile rendering/performance.  
 L. Extension system and AI workflows.
 
-Do not advance to Phase D until Phase C acceptance gates and CI pass. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
+Phase D implementation must not begin until Phase C acceptance gates and CI pass. ADR 001 is architecture planning only. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
