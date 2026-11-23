@@ -60,7 +60,7 @@ class MainActivity : Activity() {
     }
 
     private fun launchSaveBimob() {
-        val safeName=projectName.trim().ifBlank{"BIMOB-project"}.replace(Regex("[/\\\\:*?\"<>|]"),"_")
+        val safeName=projectName.trim().ifBlank{"BIMOB-project"}.map { if(it in "/\\\\:*?\"<>|") "_" else it }.joinToString("")
         val intent=Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type=SafDocumentAdapter.BIMOB_MIME
