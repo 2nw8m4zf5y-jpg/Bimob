@@ -48,3 +48,14 @@ data class DeleteCatalogInstanceMutation(val instanceId:ModelId):ModelMutation {
  override val label="Delete catalog instance"
  override fun apply(before:Project):Project { require(before.catalogInstances.any{it.id==instanceId}){"Catalog instance does not exist: ${instanceId.value}"};return before.copy(elements=before.elements.filterNot{it is CatalogInstanceElement&&it.instance.id==instanceId}) }
 }
+
+/** Moves one wall endpoint through the transaction boundary; join solving is deliberately separate. */
+data class MoveWallEndpointMutation(val wallId:ModelId,val movedStart:Boolean,val point:Point2):ModelMutation {
+ override val label="Move wall endpoint"
+ override fun apply(before:Project):Project {
+  require(point.xMeters.isFinite()&&point.yMeters.isFinite()){"Endpoint coordinates must be finite."}
+  val wall=before.elements.filterIsInstance<WallElement>().firstOrNull{it.id==wallId}?:error("Wall does not exist: ${wallId.value}")
+  val axis=if(movedStart)wall.axis.copy(start=point)else wall.axis.copy(end=point)
+  return before.copy(elements=before.elements.map{if(it.id==wallId)wall.copy(axis=axis)else it})
+ }
+}
