@@ -36,12 +36,15 @@ class CrashRecoveryJournal(private val storage:AtomicStorage,private val path:St
         val payload=Json.bytes(JO(linkedMapOf("kind" to JS("snapshot"),"sequence" to JN(seq.toString()),"projectId" to JS(projectId),"snapshot" to JS(java.util.Base64.getEncoder().encodeToString(CanonicalProjectJson.encode(project))))))
         storage.appendDurably(path,frame(payload))
     }
-    fun recover(baseDigest:String,baseProject:Project):Project? {
+    fun recoverDetailed(baseDigest:String,baseProject:Project):Recovery? {
         if(!storage.exists(path))return null
         val s=scan(storage.read(path))
         if(s.headerProjectId!=baseProject.id.value||s.baseDigest!=baseDigest||s.schemaVersion!=baseProject.schemaVersion)return null
-        return s.latestProject?.also { require(ModelValidator.validate(it).none{issue->issue.severity==com.bimob.app.core.model.ValidationSeverity.ERROR}) }
+        val recovered=s.latestProject ?: return null
+        require(ModelValidator.validate(recovered).none{issue->issue.severity==com.bimob.app.core.model.ValidationSeverity.ERROR})
+        return Recovery(recovered,s.lastSequence,s.corrupt)
     }
+    fun recover(baseDigest:String,baseProject:Project):Project?=recoverDetailed(baseDigest,baseProject)?.project
     /** Rotate only after the primary file has been verified and made durable. AtomicStorage replaces the journal atomically. */
     fun compact(projectId:String,newBaseDigest:String,schemaVersion:Int) {
         storage.writeAtomically(path,frame(header(projectId,newBaseDigest,schemaVersion)))
