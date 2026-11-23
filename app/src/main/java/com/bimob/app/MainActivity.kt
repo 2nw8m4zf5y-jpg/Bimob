@@ -183,7 +183,7 @@ class MainActivity : Activity() {
             val my = ((height / 2f - py) / scale)
             return (round(mx * 10f) / 10f) to (round(my * 10f) / 10f)
         }
-        private fun screen(x: Float, y: Float): Pair<Float, Float> = (width / 2f + x * scale) to (height / 2f - y * scale
+        private fun screen(x: Float, y: Float): Pair<Float, Float> = (width / 2f + x * scale) to (height / 2f - y * scale)
 
         override fun onDraw(c: Canvas) {
             super.onDraw(c)
