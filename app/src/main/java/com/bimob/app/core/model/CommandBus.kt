@@ -7,6 +7,51 @@ package com.bimob.app.core.model
 interface ModelMutation {
     val label: String
     fun apply(before: Project): Project
+
+    /** Produces a private candidate. Implementations must not publish or mutate external state. */
+    fun stage(before: Project, context: TransactionContext): Project {
+        context.checkpoint()
+        val candidate = apply(before)
+        context.checkpoint()
+        return candidate
+    }
+}
+
+/** Cooperative cancellation checkpoints available to transactional and composite mutations. */
+class TransactionContext internal constructor(private val cancellation: CancellationCheck) {
+    fun checkpoint() {
+        if (cancellation.isCancelled()) throw TransactionCancelledException()
+    }
+}
+
+internal class TransactionCancelledException : RuntimeException("Transaction cancelled.")
+
+/** Runs child mutations against a private candidate; only the final result can be committed. */
+class BatchCommand(
+    override val label: String,
+    private val commands: List<ModelMutation>
+) : ModelMutation {
+    override fun apply(before: Project): Project = stage(before, TransactionContext(CancellationCheck.NEVER))
+
+    override fun stage(before: Project, context: TransactionContext): Project {
+        var candidate = before
+        commands.forEach { command ->
+            context.checkpoint()
+            candidate = command.stage(candidate, context)
+        }
+        context.checkpoint()
+        return candidate
+    }
+}
+
+/** Semantic alias for a grouped transaction with the same atomic staging contract. */
+class CompositeCommand(
+    override val label: String,
+    commands: List<ModelMutation>
+) : ModelMutation {
+    private val batch = BatchCommand(label, commands)
+    override fun apply(before: Project): Project = batch.apply(before)
+    override fun stage(before: Project, context: TransactionContext): Project = batch.stage(before, context)
 }
 
 data class ModelRevision(val number: Long, val project: Project)
@@ -99,8 +144,12 @@ class CommandBus(
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before staging.")
 
             val before = current
+            val context = TransactionContext(cancellation)
             val candidate = try {
-                freezeProject(mutation.apply(before.project))
+                context.checkpoint()
+                freezeProject(mutation.stage(before.project, context))
+            } catch (_: TransactionCancelledException) {
+                return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled during staging.")
             } catch (e: Exception) {
                 return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, e.message ?: e::class.java.simpleName)
             }
@@ -115,6 +164,8 @@ class CommandBus(
                     issues
                 )
             }
+            if (cancellation.isCancelled())
+                return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled after validation.")
             if (candidate == before.project) return CommandResult.Committed(before, issues)
 
             val nextRevision = nextRevisionNumber(before.number)
