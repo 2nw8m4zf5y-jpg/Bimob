@@ -299,7 +299,7 @@ class DependencyTransactionTest {
         val admitted = DependencyGraph.empty(DependencyGraphLimits(maxDependencyDepth = n + 1)).admitEdges(edges) as EdgeAdmission.Accepted
         val graph = admitted.graph
         assertEquals(n, graph.nodeCount)
-        val limits = EngineLimits(maxDirtyNodesPerTransaction = n, maxEvaluationsPerTransaction = n, maxFanOutPerNode = edges.size)
+        val limits = EngineLimits(maxDirtyNodesPerTransaction = n, maxEvaluationsPerTransaction = n, maxFanOutPerNode = edges.size, maxDependencyDepth = n + 1)
         val plan = RecomputeEngine.plan(graph, setOf(nodes.first()), limits)
         assertEquals(n, plan.order.size)
         assertEquals(n, plan.order.toSet().size)
