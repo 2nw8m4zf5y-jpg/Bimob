@@ -55,7 +55,7 @@ internal object Json {
         fun string():String { require(take('"'));val b=StringBuilder();while(i<s.length){val c=s[i++];if(c=='"')return b.toString();if(c=='\\'){require(i<s.length);when(val e=s[i++]){'"'->b.append('"');'\\'->b.append('\\');'/'->b.append('/');'b'->b.append('\b');'f'->b.append('\u000c');'n'->b.append('\n');'r'->b.append('\r');'t'->b.append('\t');'u'->{require(i+4<=s.length);b.append(s.substring(i,i+4).toInt(16).toChar());i+=4};else->error("Bad escape")}}else{require(c.code>=32);b.append(c)}};error("Unclosed string") }
         fun num():JN { val st=i;if(take('-')){};if(take('0')){require(i==s.length||s[i] !in '0'..'9')}else{require(i<s.length&&s[i] in '1'..'9');while(i<s.length&&s[i] in '0'..'9'){i++}};if(take('.')){require(i<s.length&&s[i] in '0'..'9');while(i<s.length&&s[i] in '0'..'9'){i++}};if(i<s.length&&(s[i]=='e'||s[i]=='E')){i++;if(i<s.length&&(s[i]=='+'||s[i]=='-'))i++;require(i<s.length&&s[i] in '0'..'9');while(i<s.length&&s[i] in '0'..'9'){i++}};return JN(s.substring(st,i)) }
         fun lit(x:String){require(s.startsWith(x,i));i+=x.length}
-        fun ws(){while(i<s.length&&s[i] in " \\n\\r\\t")i++}
+        fun ws(){while(i<s.length&&s[i] in " \n\r\t")i++}
         fun take(c:Char)=if(i<s.length&&s[i]==c){i++;true}else false
     }
 }

@@ -134,7 +134,7 @@ class PersistenceTest {
             levels=listOf(Level(ModelId("float-l"),"level",0.2,-0.0))
         )
         val json=String(CanonicalProjectJson.encode(project),java.nio.charset.StandardCharsets.UTF_8)
-        assertTrue(json.contains(""" "elevationMeters":0,"heightMeters":3.123457 """.trim()))
+        assertTrue(json.contains(""" "elevationMeters":0.2,"heightMeters":0 """.trim()))
         assertFalse(json.contains("-0"))
     }
 
