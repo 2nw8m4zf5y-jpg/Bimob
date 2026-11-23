@@ -1,6 +1,6 @@
 # ADR 001: BIMOB Project Container, Persistence and Crash Recovery
 
-- **Status:** Proposed; architecture decision for implementation planning only
+- **Status:** Approved for implementation
 - **Date:** 2026-11-23
 - **Phase:** D — Persistence & Crash Recovery
 
@@ -12,6 +12,7 @@ Adopt a versioned ZIP-based `.bimob` container. The canonical model payload is U
 
 ### Layout
 Required:
+- `chunks/`: reserved directory namespace for future binary geometry/data chunks. Manifest declares it (empty in v1 until chunk payloads are implemented); each future chunk will have a stable ID, type/version, size and digest. Chunks are immutable/content-addressed where practical and referenced from model metadata, never treated as canonical model JSON.
 - `manifest.json`: containerVersion, schemaVersion, minimumReaderVersion, writerVersion, projectId, feature flags, payload entry paths, sizes and digests.
 - `model/model.json`: canonical model data, stable IDs, explicit units, finite numbers and deterministic serialization rules.
 - `integrity/sha256.json`: SHA-256 digest list for canonical payloads/assets. ZIP CRC32 is also verified, but SHA-256 is authoritative.
@@ -39,17 +40,17 @@ The platform-independent storage contract must support same-directory temporary 
 4. Reopen temp and verify structure, lengths, checksums and model validity.
 5. Atomically rename/replace temp over destination using platform primitive.
 6. Sync parent directory where supported.
-7. Mark R saved only after confirmed replacement; clean temp/backup conservatively.
+7. Mark R saved only after confirmed replacement; clean temp/backup conservatively. After the new primary file is durable and independently verified, journal compaction/rotation may begin. It must be crash-safe: write and fsync a replacement journal/snapshot first, then atomically switch it; never truncate the only recoverable journal before the verified primary and replacement recovery state are durable. If compaction fails, keep the valid old journal and report a warning.
 
 Cancellation is allowed before replacement. Once replace starts, finish the durability sequence and report actual outcome. Failure before replace leaves prior project intact. If atomic replace is unsupported, fail safely or use a documented backup/replace fallback without claiming atomicity.
 
 ## Autosave and crash recovery
 Use a separate append-only journal in app-managed local workspace, not inside the live project container. It is recovery metadata, never canonical project data. Records include journal version, project ID, base-save digest, schema version, sequence, transaction ID, operation/payload, length, checksum and commit marker.
 
-Durability order must be selected and documented: journal record append -> flush/fsync -> publish model, or a clearly identified weaker mode. Periodically atomically persist and verify a recovery snapshot, then checkpoint/rotate journal only after snapshot durability. Startup scans from snapshot, stops at first incomplete/invalid record, verifies base digest and sequence, replays committed records into a staging model, validates it, and offers a recovered copy. Preserve original file and journal until acceptance/retention expiry. Replay is idempotent using transaction IDs and sequence numbers. Initial implementation may journal bounded full snapshots rather than deltas; optimize only after measurement.
+Durability order must be selected and documented: journal record append -> flush/fsync -> publish model, or a clearly identified weaker mode. Periodically atomically persist and verify a recovery snapshot, then checkpoint/rotate journal only after snapshot durability. A successful primary-project save triggers safe journal checkpoint/rotation against the new base digest; journal growth is bounded by compaction policy, and interrupted rotation must leave either the old complete journal or the new complete journal/snapshot. Startup scans from snapshot, stops at first incomplete/invalid record, verifies base digest and sequence, replays committed records into a staging model, validates it, and offers a recovered copy. Preserve original file and journal until acceptance/retention expiry. Replay is idempotent using transaction IDs and sequence numbers. Initial implementation may journal bounded full snapshots rather than deltas; optimize only after measurement.
 
 ## Pure Kotlin / native-core boundary
-Canonical serialization, schema migrations, integrity checks, and validation contracts must have no Android imports. Android file/document-provider adapters stay outside core. Future C++20 must consume the same format with golden fixtures; define JSON canonicalization, UTF-8, float/integer encoding, digest coverage, paths, and migrations to avoid cross-language drift. Model identity must not be a platform URI; use stable asset IDs and relative paths.
+Canonical serialization, schema migrations, integrity checks, and validation contracts must have no Android imports. Android file/document-provider adapters stay outside core. Future C++20 must consume the same format with golden fixtures. Canonical JSON rules: UTF-8 without BOM; object keys and schema fields emitted in a fixed documented order; no insignificant whitespace; strings escaped consistently; integers emitted in base-10 without leading zeros; floating-point values must be finite and emitted using a single locale-independent shortest-round-trip representation, normalize negative zero to `0`, and never emit exponent differences across implementations unless the canonical exponent grammar is fixed. SHA-256 is calculated over the exact canonical UTF-8 bytes. Golden fixtures assert byte-for-byte JSON and digest equality across Kotlin and future C++20. Define paths, digest coverage and migrations precisely. Model identity must not be a platform URI; use stable asset IDs and relative paths.
 
 ## Alternatives
 - SQLite as project file: transactional and queryable, but ties interchange to database implementation and complicates packaging/cross-language contract; rejected as canonical v1. May be local working store.
@@ -73,4 +74,4 @@ Costs: secure ZIP parsing, deterministic JSON, varying filesystem durability gua
 9. Android adapter and document-provider limitation tests; core tests remain Android-free.
 10. CI round-trip, migration, corruption, atomic-save failure matrix, recovery and APK tests.
 
-**This ADR is a proposal for architecture and gates, not implementation or acceptance of Phase D.**
+**Approved clarifications:** deterministic canonical JSON and cross-language digest fixtures; crash-safe journal compaction after verified atomic primary save; manifest-declared `chunks/` namespace reserved for future binary geometry/data. Implementation remains subject to Phase D gates.
