@@ -139,3 +139,9 @@ Partial G2 progress only. Implemented and tested in CI: collection-level COW, bo
 ### Latest native test coverage extension
 
 - Typed Move and Resize gesture coalescing is now covered for Wall, Opening and CatalogInstance (commit `d8c74f2`). This remains **unverified locally/remotely** until CMake/CTest succeeds; no PASS claim is made.
+
+
+### Red-flag follow-up (2026-11-23)
+
+- Review of the unverified native changes found a compile-time risk: `CatalogInstance` defaulted equality depends on `DimensionBounds` equality, but that operator was absent. Added default value equality to `DimensionBounds` in commit `355c7eb`.
+- This is a confirmed source-level defect found by review, **not a confirmed explanation of the visible GitHub red check**, because workflow run/job logs are unavailable through the current GitHub connector. Latest status still requires CI verification.
