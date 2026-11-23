@@ -250,7 +250,7 @@ class CommandBusTest {
 
         assertTrue(bus.redo() is CommandResult.Committed)
         assertEquals(secondLargeName, bus.snapshot().project.name)
-        assertEquals(1L, bus.historyMemoryUsageBytes().let { if (it <= budget) 1L else 0L })
+        assertTrue(bus.historyMemoryUsageBytes() <= budget)
         assertEquals(0, bus.redoDepth())
     }
 
