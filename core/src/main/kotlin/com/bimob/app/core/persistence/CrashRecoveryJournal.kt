@@ -1,6 +1,7 @@
 package com.bimob.app.core.persistence
 
 import com.bimob.app.core.model.Project
+import com.bimob.app.core.model.ModelValidator
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.RandomAccessFile
@@ -25,9 +26,12 @@ class CrashRecoveryJournal(private val storage:AtomicStorage,private val path:St
     )))
     fun append(projectId:String,baseDigest:String,project:Project) {
         require(project.id.value==projectId){"Journal project identity mismatch"}
+        require(ModelValidator.validate(project).none{it.severity==com.bimob.app.core.model.ValidationSeverity.ERROR}){"Journal snapshot failed model validation."}
         if(!storage.exists(path))storage.writeAtomically(path,frame(header(projectId,baseDigest,project.schemaVersion)))
         val state=scan(storage.read(path))
+        require(!state.corrupt){"Journal has an incomplete/corrupt tail; compact it before appending."}
         require(state.headerProjectId==projectId&&state.baseDigest==baseDigest){"Journal base does not match current saved project; compact first."}
+        require(state.lastSequence<Long.MAX_VALUE){"Journal sequence exhausted."}
         val seq=state.lastSequence+1
         val payload=Json.bytes(JO(linkedMapOf("kind" to JS("snapshot"),"sequence" to JN(seq.toString()),"projectId" to JS(projectId),"snapshot" to JS(java.util.Base64.getEncoder().encodeToString(CanonicalProjectJson.encode(project))))))
         storage.appendDurably(path,frame(payload))
@@ -36,7 +40,7 @@ class CrashRecoveryJournal(private val storage:AtomicStorage,private val path:St
         if(!storage.exists(path))return null
         val s=scan(storage.read(path))
         if(s.headerProjectId!=baseProject.id.value||s.baseDigest!=baseDigest||s.schemaVersion!=baseProject.schemaVersion)return null
-        return s.latestProject
+        return s.latestProject?.also { require(ModelValidator.validate(it).none{issue->issue.severity==com.bimob.app.core.model.ValidationSeverity.ERROR}) }
     }
     /** Rotate only after the primary file has been verified and made durable. AtomicStorage replaces the journal atomically. */
     fun compact(projectId:String,newBaseDigest:String,schemaVersion:Int) {
