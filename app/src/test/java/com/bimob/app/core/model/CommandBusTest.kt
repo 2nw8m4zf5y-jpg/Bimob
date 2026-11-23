@@ -222,4 +222,54 @@ class CommandBusTest {
         assertEquals(listOf("first:1", "second:1", "first:2", "second:2"), observed)
     }
 
+    @Test fun memoryBudgetEvictsOldestUndoSnapshotAndKeepsCurrentRedoValid() {
+        val firstLargeName = "A".repeat(2_000)
+        val secondLargeName = "B".repeat(2_000)
+        val budget = MemoryEstimator.estimateProjectBytes(project().copy(name = firstLargeName))
+        val bus = CommandBus(project(), historyLimit = 10, historyMemoryBudgetBytes = budget)
+
+        bus.execute(object : ModelMutation {
+            override val label = "First large state"
+            override fun apply(before: Project) = before.copy(name = firstLargeName)
+        })
+        bus.execute(object : ModelMutation {
+            override val label = "Second large state"
+            override fun apply(before: Project) = before.copy(name = secondLargeName)
+        })
+
+        // The budget fits one large snapshot. The older initial snapshot must be evicted.
+        assertEquals(1, bus.undoDepth())
+        assertEquals(0, bus.redoDepth())
+        assertTrue(bus.historyMemoryUsageBytes() <= budget)
+
+        assertTrue(bus.undo() is CommandResult.Committed)
+        assertEquals(firstLargeName, bus.snapshot().project.name)
+        assertEquals(0, bus.undoDepth())
+        assertEquals(1, bus.redoDepth())
+        assertEquals(CommandFailureCode.HISTORY_EMPTY, (bus.undo() as CommandResult.Rejected).code)
+
+        assertTrue(bus.redo() is CommandResult.Committed)
+        assertEquals(secondLargeName, bus.snapshot().project.name)
+        assertEquals(1L, bus.historyMemoryUsageBytes().let { if (it <= budget) 1L else 0L })
+        assertEquals(0, bus.redoDepth())
+    }
+
+    @Test fun memoryEstimatorIsDeterministicAndAccountsForEntitiesAndParameterPayloads() {
+        val simple = project()
+        val withEntities = simple.copy(
+            buildings = listOf(Building(name = "Building")),
+            levels = listOf(Level(name = "Level", elevationMeters = 0.0)),
+            elements = listOf(WallElement(
+                axis = WallAxis(Point2(0.0, 0.0), Point2(5.0, 0.0)),
+                heightMeters = 3.0,
+                thicknessMeters = 0.2,
+                parameters = listOf(Parameter(ModelId("definition"), ParameterValue.Text("payload".repeat(100))))
+            ))
+        )
+        val estimate = MemoryEstimator.estimateProjectBytes(withEntities)
+        assertEquals(estimate, MemoryEstimator.estimateProjectBytes(withEntities))
+        assertTrue(estimate > MemoryEstimator.estimateProjectBytes(simple))
+    }
+
+
 }
