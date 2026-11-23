@@ -32,8 +32,23 @@ class PersistenceTest {
         assertEquals(p,BimobArchiveReader().read(archive))
     }
 
-        @Test fun canonicalJoinTopologyRoundTripsAndSortsDeterministically(){val p=fixture().copy(elements=fixture().elements+WallElement(id=ModelId("wall-2"),axis=WallAxis(Point2(5.0,0.0),Point2(7.0,0.0)),heightMeters=3.0,thicknessMeters=.2),joins=listOf(WallJoin(ModelId("j2"),ModelId("wall-1"),true,ModelId("wall-2"),false,Point2(4.75,2.5)),WallJoin(ModelId("j1"),ModelId("wall-2"),false,ModelId("wall-1"),true,Point2(5.0,0.0))));val bytes=CanonicalProjectJson.encode(p);assertEquals(p,CanonicalProjectJson.decode(bytes));val ids=Json.parse(bytes).obj().req("joins").array().a.map{it.obj().req("id").text()};assertEquals(listOf("j1","j2"),ids);assertArrayEquals(bytes,CanonicalProjectJson.encode(CanonicalProjectJson.decode(bytes)))}
- @Test fun damagedArchiveFailsIntegrityWithoutThrowingUncontrolledException() {
+    @Test fun canonicalJoinTopologyRoundTripsAndSortsDeterministically() {
+        val firstWall = WallElement(id=ModelId("wall-2"), axis=WallAxis(Point2(5.0,0.0),Point2(7.0,0.0)), heightMeters=3.0, thicknessMeters=.2)
+        val p = fixture().copy(
+            elements = fixture().elements + firstWall,
+            joins = listOf(
+                WallJoin(ModelId("j2"),ModelId("wall-1"),true,ModelId("wall-2"),false,Point2(4.75,2.5)),
+                WallJoin(ModelId("j1"),ModelId("wall-2"),false,ModelId("wall-1"),true,Point2(5.0,0.0))
+            )
+        )
+        val bytes = CanonicalProjectJson.encode(p)
+        assertEquals(p,CanonicalProjectJson.decode(bytes))
+        val ids = Json.parse(bytes).obj().req("joins").array().a.map{it.obj().req("id").text()}
+        assertEquals(listOf("j1","j2"),ids)
+        assertArrayEquals(bytes,CanonicalProjectJson.encode(CanonicalProjectJson.decode(bytes)))
+    }
+
+    @Test fun damagedArchiveFailsIntegrityWithoutThrowingUncontrolledException() {
         val bytes=BimobArchiveWriter().write(fixture())
         val damagedOut=java.io.ByteArrayOutputStream()
         java.util.zip.ZipInputStream(bytes.inputStream()).use { zin ->
@@ -147,8 +162,7 @@ class PersistenceTest {
             Parameter(ModelId("int-g"),ParameterValue.IntNumber(7)),
             Parameter(ModelId("real-g"),ParameterValue.Real(0.5)),
             Parameter(ModelId("ref-g"),ParameterValue.Reference(material.id)),
-            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка
-вторая"))
+            Parameter(ModelId("text-g"),ParameterValue.Text("Кавычки: \"тест\"; строка\nвторая"))
         ))
         val firstWall=WallElement(
             id=ModelId("wall-a"),typeId=type.id,levelId=ModelId("level-g"),
@@ -165,8 +179,7 @@ class PersistenceTest {
             parameters=listOf(Parameter(ModelId("instance-text"),ParameterValue.Text("UTF-8: ё, 漢字, 🏔️")))
         )
         val rich=Project(
-            id=ModelId("golden-rich"),name="BIMOB \"Кавказ\"
-🌄",schemaVersion=1,
+            id=ModelId("golden-rich"),name="BIMOB \"Кавказ\"\n🌄",schemaVersion=1,
             site=Site(ModelId("site-g"),"Дом 🏡"),buildings=listOf(Building(ModelId("building-g"),"Корпус")),
             levels=listOf(Level(ModelId("level-g"),"Этаж 1",0.5,3.0)),
             elements=listOf(firstWall,secondWall),materials=listOf(material),types=listOf(type)
