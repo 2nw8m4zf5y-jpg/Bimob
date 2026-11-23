@@ -329,7 +329,7 @@ class DependencyTransactionTest {
             null
         } catch (e: EngineBudgetExceeded) { e }
         assertEquals(EngineBudget.EVALUATIONS, evalLimit?.budget)
-        assertEquals(c, evalLimit?.node)
+        assertEquals(b, evalLimit?.node)
     }
 
 }
