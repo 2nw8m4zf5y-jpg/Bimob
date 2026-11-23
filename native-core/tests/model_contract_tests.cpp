@@ -30,21 +30,69 @@ void typedGestureCoalescingAcrossEntityKinds(){
  p.catalogInstances.push_back(CatalogInstance{ModelId{"G2"},"asset",Point2{Meters{0},Meters{0}},0,ModelId{},ModelId{},Meters{.5},Meters{.5},Meters{.5},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},"furniture",""});
  CommandBus bus(p);
  const auto initial=bus.snapshot();
+
+ // Wall move: multiple updates coalesce; Undo/Redo restores exact states.
  for(int i=1;i<=5;++i)assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag").ok());
  assert(bus.undoDepth()==1);
  assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==0);
- auto redone=bus.redo();assert(redone.ok());assert(bus.snapshot()->project->walls[0].axis.start.x.value==5);
+ assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==5);
+
+ // Opening move: one history item for the gesture.
+ const auto openingBeforeMove=bus.snapshot()->project->openings[0];
  assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.3},Meters{.8}),{}, "opening-drag").ok());
  assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.4},Meters{.8}),{}, "opening-drag").ok());
+ assert(bus.undoDepth()==2);
+ assert(bus.undo().ok()&&bus.snapshot()->project->openings[0]==openingBeforeMove);
+ assert(bus.redo().ok()&&bus.snapshot()->project->openings[0].offsetAlongWall.value==.4);
+
+ // Catalog move: Undo/Redo must restore the position, not just stack depth.
+ const auto catalogBeforeMove=bus.snapshot()->project->catalogInstances[0];
  assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{1},Meters{1}}),{}, "catalog-drag").ok());
  assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{2},Meters{2}}),{}, "catalog-drag").ok());
+ assert(bus.undoDepth()==3);
+ assert(bus.undo().ok()&&bus.snapshot()->project->catalogInstances[0]==catalogBeforeMove);
+ assert(bus.redo().ok()&&bus.snapshot()->project->catalogInstances[0].position==Point2{Meters{2},Meters{2}});
+
+ // Wall resize coalesces; Undo restores original length and Redo the final length.
+ const double wallLengthBefore=bus.snapshot()->project->walls[0].axis.length().value;
  for(double length:{1.6,1.7,1.8})assert(bus.execute(commands::resizeWall(ModelId{"w1"},Meters{length}),{}, "wall-resize-gesture").ok());
+ assert(bus.undoDepth()==4);
+ assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.length().value==wallLengthBefore);
+ assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.length().value==1.8);
+
+ // Opening resize coalesces independently and restores exact width.
+ const double openingWidthBefore=bus.snapshot()->project->openings[0].width.value;
  for(double width:{.6,.65,.7})assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{width},Meters{1}),{}, "opening-resize-gesture").ok());
+ assert(bus.undoDepth()==5);
+ assert(bus.undo().ok()&&bus.snapshot()->project->openings[0].width.value==openingWidthBefore);
+ assert(bus.redo().ok()&&bus.snapshot()->project->openings[0].width.value==.7);
+
+ // Catalog resize coalesces independently and restores all target dimensions.
+ const auto catalogBeforeResize=bus.snapshot()->project->catalogInstances[0];
  for(double width:{.6,.65,.7})assert(bus.execute(commands::resizeCatalogInstance(ModelId{"G2"},Meters{width},Meters{.5},Meters{.5}),{}, "catalog-resize-gesture").ok());
  assert(bus.undoDepth()==6);
+ assert(bus.undo().ok()&&bus.snapshot()->project->catalogInstances[0]==catalogBeforeResize);
+ assert(bus.redo().ok()&&bus.snapshot()->project->catalogInstances[0].targetWidth.value==.7);
+
+ // Two separate gestures on the same entity must remain two Undo entries.
+ const auto beforeSeparate=bus.snapshot()->project->walls[0];
+ assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag-2").ok());
+ assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag-3").ok());
+ assert(bus.undoDepth()==8);
+ assert(bus.undo().ok());
+ assert(bus.snapshot()->project->walls[0].axis.start.x.value==beforeSeparate.axis.start.x.value+1);
+ assert(bus.undo().ok());
+ assert(bus.snapshot()->project->walls[0].axis.start.x.value==beforeSeparate.axis.start.x.value);
+
+ // Rejected operation in the middle/end of a gesture must not alter state/history.
+ const auto beforeInvalid=bus.snapshot();
+ const auto undoBeforeInvalid=bus.undoDepth();
+ const auto redoBeforeInvalid=bus.redoDepth();
+ auto rejected=bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{99},Meters{1}),{}, "opening-invalid-gesture");
+ assert(!rejected.ok());
+ assert(bus.snapshot()==beforeInvalid&&bus.undoDepth()==undoBeforeInvalid&&bus.redoDepth()==redoBeforeInvalid);
  (void)initial;
 }
-
 void typedCommandsAndBatchAtomicity(){
  Project p=fixture();
  CommandBus bus(p);
