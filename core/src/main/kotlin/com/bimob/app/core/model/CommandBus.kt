@@ -298,7 +298,7 @@ class CommandBus(
     private fun historyEntry(state: ModelRevision): HistoryEntry {
         val order = nextHistoryOrder
         if (nextHistoryOrder < Long.MAX_VALUE) nextHistoryOrder++
-        return HistoryEntry(state, MemoryEstimator.estimateProjectBytes(state.project), order)
+        return HistoryEntry(state, estimateRevisionBytes(state), order)
     }
 
     /** Evicts the globally oldest stack-bottom entry until both limits are satisfied. */
@@ -389,4 +389,31 @@ private fun freezeDerivedValues(values: Map<DependencyNodeKey, DerivedValue>): M
         }
     }
     return java.util.Collections.unmodifiableMap(frozen)
+}
+
+/** Conservative logical history cost including dependency topology and derived payloads. */
+private fun estimateRevisionBytes(state: ModelRevision): Long {
+    var total = MemoryEstimator.estimateProjectBytes(state.project)
+    fun add(bytes: Long) { total = if (bytes > Long.MAX_VALUE - total) Long.MAX_VALUE else total + bytes }
+    state.dependencyGraph.nodes.forEach { node ->
+        val keyBytes = node.stableKey().length.toLong() * 2L
+        add(if (keyBytes > Long.MAX_VALUE - 64L) Long.MAX_VALUE else 64L + keyBytes)
+    }
+    state.dependencyGraph.edges.forEach { edge ->
+        val keyBytes = (edge.source.stableKey().length.toLong() + edge.dependent.stableKey().length.toLong()) * 2L
+        add(if (keyBytes > Long.MAX_VALUE - 48L) Long.MAX_VALUE else 48L + keyBytes)
+    }
+    state.derivedValues.forEach { (key, value) ->
+        val keyBytes = key.stableKey().length.toLong() * 2L
+        val payloadBytes = when (value) {
+            is DerivedValue.NumberValue -> 16L
+            is DerivedValue.BooleanValue -> 8L
+            is DerivedValue.TextValue -> 40L + value.value.length.toLong() * 2L
+            is DerivedValue.IdValue -> 32L + value.value.length.toLong() * 2L
+            is DerivedValue.NumberList -> 24L + value.values.size.toLong() * 8L
+        }
+        val itemBytes = if (payloadBytes > Long.MAX_VALUE - keyBytes - 48L) Long.MAX_VALUE else payloadBytes + keyBytes + 48L
+        add(itemBytes)
+    }
+    return total
 }
