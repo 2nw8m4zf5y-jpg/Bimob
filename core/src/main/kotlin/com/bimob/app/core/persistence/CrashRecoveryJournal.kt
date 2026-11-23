@@ -25,8 +25,8 @@ class CrashRecoveryJournal(private val storage:AtomicStorage,private val path:St
     )))
     fun append(projectId:String,baseDigest:String,project:Project) {
         require(project.id.value==projectId){"Journal project identity mismatch"}
-        val bytes=if(storage.exists(path))storage.read(path) else frame(header(projectId,baseDigest,project.schemaVersion))
-        val state=scan(bytes)
+        if(!storage.exists(path))storage.writeAtomically(path,frame(header(projectId,baseDigest,project.schemaVersion)))
+        val state=scan(storage.read(path))
         require(state.headerProjectId==projectId&&state.baseDigest==baseDigest){"Journal base does not match current saved project; compact first."}
         val seq=state.lastSequence+1
         val payload=Json.bytes(JO(linkedMapOf("kind" to JS("snapshot"),"sequence" to JN(seq.toString()),"projectId" to JS(projectId),"snapshot" to JS(java.util.Base64.getEncoder().encodeToString(CanonicalProjectJson.encode(project))))))
