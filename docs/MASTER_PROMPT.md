@@ -1,4 +1,4 @@
-# BIMOB MASTER PROMPT v1.4
+# BIMOB MASTER PROMPT v1.5
 
 **Статус:** основной инженерный паспорт проекта. Обновлять после завершения этапов и значимых архитектурных решений.  
 **Репозиторий:** https://github.com/2nw8m4zf5y-jpg/Bimob  
@@ -250,21 +250,21 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 ## 27. Progress tracking (verified state at 2026-11-23)
 
 - **Phase B — Canonical Model:** prototype exists with typed IDs/entities, wall geometry fields and validation; this is not yet production complete.
-- **Phase C — CommandBus/Transaction Engine:** first prototype commit landed. Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
+- **Phase C — CommandBus/Transaction Engine: ACCEPTED / CLOSED.** CI for the completed staging implementation was confirmed successful by the project owner; Phase C acceptance is now official. The prototype Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
 - **Snapshot note:** model collections are defensively copied and wrapped as unmodifiable lists; current nested model collections are copied too. This guards collection mutation and source-list aliasing, but review new mutable model fields whenever the domain expands.
 - **Revision safety:** commit and history restore reject counter overflow instead of wrapping. A pure boundary test covers `Long.MAX_VALUE`.
 - **Listener error policy:** ordinary `Exception`s from command code/listeners are isolated; fatal JVM errors are not swallowed.
-- **CI verified:** Run #64 for commit `540b0510988250bd0a7c8c42f6d4b4d7b6521dca` completed successfully. Logs show `:app:assembleDebug`, `:app:testDebugUnitTest`, and artifact upload all successful (`BUILD SUCCESSFUL`). This verifies the memory-budget tests on that commit, not the later staging changes.
+- ****CI:** Earlier Run #64 was independently verified for commit `540b051...`; the project owner subsequently confirmed CI passed for the completed Phase C staging changes. This is the owner's confirmation; no newer run ID/log URL was supplied in this session.
 - **New staging work:** commit `92b703e...` adds `TransactionContext`, checkpoints, `BatchCommand`, and `CompositeCommand`; commit `f5b9759...` adds rollback/cancellation/concurrent snapshot tests; commit `a08e289...` freezes the child command list. CI for these newer commits must be verified before claiming them green.
 - **Workflow dispatch:** `.github/workflows/build-apk.yml` already has `workflow_dispatch` and `push` triggers for `main` and `feature/model-core-v1`. Manual run is available in Actions UI; the GitHub connector available in this environment cannot dispatch workflows or read push-triggered runs. Run #64 is green for SHA `540b051`, but does not verify staging commits. PR #1 head was `331e5a734d27a0b6ea28ac1755ec28d6c0937037`; CI for that head is not available through this connector, so status remains unverified.
-- **Acceptance criteria status:** event FIFO/backpressure, bounded history and memory budget, staged batch rollback, cancellation checkpoints, concurrent command submission, parallel snapshot readers during Undo/Redo, and subscription disposal have tests. Phase C remains **not accepted** until CI for the staging changes is confirmed and logs reviewed.
+- **Acceptance criteria status:** event FIFO/backpressure, bounded history and memory budget, staged batch rollback, cancellation checkpoints, concurrent command submission, parallel snapshot readers during Undo/Redo, and subscription disposal have tests. Phase C is **accepted and closed** following owner-confirmed successful CI.
 
 ## 28. Roadmap and next work
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete; CI pending/unverified.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. Still requires latest CI verification and final audit before Phase C acceptance.  
-D. Persistence/recovery — architecture documented in `docs/adr/001-persistence-format.md`; implementation not started. Review ADR before coding.  
+C. **CommandBus + Transaction Engine — ACCEPTED / CLOSED.** Staging candidates are private to a transaction. `BatchCommand` and `CompositeCommand` apply children sequentially to a candidate and checkpoint cancellation between children; candidate publication happens only after validation and final cancellation checks. A thrown child or cancellation discards the candidate without touching current revision/history/events. Added failure-at-step-3-of-5 rollback, cancellation-between-stages, and concurrent snapshot-reader stress tests. Command list is copied into an unmodifiable list. CI success for the completed Phase C changes was confirmed by the project owner; acceptance is recorded.  
+D. **Persistence & Crash Recovery — IN PROGRESS.** ADR 001 approved. Clarifications: deterministic canonical JSON/floating-point formatting and SHA-256 golden fixtures; safe journal compaction/rotation only after verified durable primary save and replacement recovery state; `chunks/` reserved and declared for future binary geometry/data. Implement pure Kotlin persistence contracts, archive reader/writer, repository, migration framework, atomic storage and crash-recovery journal with tests.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
 G. Architectural families and constraints.  
@@ -274,4 +274,10 @@ J. IFC interop.
 K. Mobile rendering/performance.  
 L. Extension system and AI workflows.
 
-Phase D implementation must not begin until Phase C acceptance gates and CI pass. ADR 001 is architecture planning only. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
+Phase D may proceed because Phase C is accepted. Phase D implementation is active; do not mark it complete until all gates, CI and review are verified. Include an offline smoke test proving core modeling and project open/save/export do not require network access.
+
+## 29. Phase D approved implementation clarifications
+- Canonical JSON is deterministic: fixed schema/key order, UTF-8 without BOM, stable escaping, no insignificant whitespace, locale-independent finite numeric format, negative zero normalized, and exact-byte SHA-256. Kotlin and C++20 must match golden byte/hash fixtures.
+- Manifest declares `chunks/` reserved for future binary geometry/data; chunks remain unimplemented until explicit design.
+- After successful atomic primary save, journal compaction is safe and bounded. Rotation writes/fsyncs and verifies the replacement recovery state before switching; never destroy the only valid journal early.
+- Persistence core has no Android SDK imports; filesystem/document-provider integration stays in adapters.
