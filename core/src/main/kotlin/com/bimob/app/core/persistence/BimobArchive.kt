@@ -89,8 +89,14 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
             if(m.minimumReaderVersion>1)throw ArchiveFormatException("Reader version too old.")
             if(m.schemaVersion>migrations.currentVersion)throw UnsupportedSchemaException(m.schemaVersion,migrations.currentVersion)
             if(m.reservedDirectories.none{it=="chunks/"})throw ArchiveFormatException("Manifest does not declare chunks/ reservation.")
+            require(m.entries.map{it.path}.distinct().size==m.entries.size){"Duplicate manifest payload path"}
+            m.entries.forEach{validatePath(it.path);require(it.sha256.matches(Regex("[0-9a-f]{64}")))}
+            if(m.entries.none{it.path=="model/model.json"})throw IntegrityException("Manifest omits canonical model payload.")
+            if(m.features.isNotEmpty())throw ArchiveFormatException("Unsupported required feature flags: "+m.features.joinToString())
             val index=entries["integrity/sha256.json"]?:throw IntegrityException("Integrity index missing.")
-            val hashes=Json.parse(index).obj().req("sha256").array().a.associate{val x=it.obj();x.req("path").text() to x.req("digest").text()}
+            val hashRecords=Json.parse(index).obj().req("sha256").array().a
+            val hashes=hashRecords.associate{val x=it.obj();x.req("path").text() to x.req("digest").text()}
+            if(hashes.size!=hashRecords.size||hashes.keys!=m.entries.map{it.path}.toSet())throw IntegrityException("Integrity index does not match manifest payload set.")
             m.entries.forEach{decl->
                 val data=entries[decl.path]?:throw IntegrityException("Required payload missing: "+decl.path)
                 if(data.size.toLong()!=decl.size)throw IntegrityException("Payload size mismatch: "+decl.path)
@@ -99,7 +105,10 @@ class BimobArchiveReader(private val limits:ArchiveLimits=ArchiveLimits(),privat
             val model=entries["model/model.json"]?:throw IntegrityException("Canonical model missing.")
             val project=CanonicalProjectJson.decode(model)
             if(project.id.value!=m.projectId||project.schemaVersion!=m.schemaVersion)throw IntegrityException("Manifest/model identity or schema mismatch.")
-            return migrations.migrate(project)
+            val migrated=migrations.migrate(project)
+            val issues=ModelValidator.validate(migrated).filter{it.severity==com.bimob.app.core.model.ValidationSeverity.ERROR}
+            if(issues.isNotEmpty())throw ArchiveFormatException("Model invariants failed: "+issues.joinToString{it.code})
+            return migrated
         }catch(e:PersistenceException){throw e}catch(e:Exception){throw ArchiveFormatException("Invalid or damaged BIMOB archive.",e)}
     }
     private fun validatePath(p:String){if(p.startsWith("/")||p.contains("\\")||p.split('/').any{it==".."||it=="."}||p.contains(":"))throw ArchiveFormatException("Unsafe ZIP path.")}
@@ -131,7 +140,8 @@ class JvmAtomicStorage(private val root:File):AtomicStorage {
     override fun writeAtomically(path:String,bytes:ByteArray){
         val target=resolve(path);target.parentFile?.mkdirs()
         val temp=File(target.parentFile,target.name+".tmp-"+System.nanoTime())
-        FileOutputStream(temp).use{it.write(bytes);it.flush();it.fd.sync()}
+        try{FileOutputStream(temp).use{it.write(bytes);it.flush();it.fd.sync()}}
+        catch(e:Exception){temp.delete();throw PersistenceException("Temporary write or fsync failed.",e)}
         try{Files.move(temp.toPath(),target.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING)}
         catch(e:Exception){temp.delete();throw PersistenceException("Atomic replacement unsupported or failed; destination retained.",e)}
         try{FileInputStream(target.parentFile).use{it.fd.sync()}}catch(_:Exception){/* best-effort directory sync */}
