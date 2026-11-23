@@ -20,9 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bimob.app.core.model.*
+import com.bimob.app.core.model.ModelSession
+import com.bimob.app.core.model.SessionSnapshot
+import com.bimob.app.core.model.WallCanvasSnapshot
 import com.bimob.app.core.persistence.BimobArchiveReader
-import com.bimob.app.core.persistence.BimobArchiveWriter
 import com.bimob.app.core.persistence.LegacySketchMigrator
 import com.bimob.app.core.persistence.ProjectRepository
 import com.bimob.app.persistence.PrivateFileAtomicStorage
@@ -45,7 +46,7 @@ class MainActivity : ComponentActivity() {
                     session = activeSession,
                     projectNames = prefs.all.keys.sorted(),
                     onNewProject = { name ->
-                        activeSession = ModelSession(Project(name = name.ifBlank { "Новый проект" }))
+                        activeSession = ModelSession.newProject(name)
                     },
                     onOpenProject = ::openProject,
                     onSave = ::saveCurrent,
@@ -53,8 +54,8 @@ class MainActivity : ComponentActivity() {
                     onImport = { uri ->
                         try {
                             val project = BimobArchiveReader().read(saf.read(uri))
-                            activeSession = ModelSession(project, initiallySaved = true)
-                            privateRepository.save(revisionPath(project), activeSession!!.snapshot().revision)
+                            activeSession = ModelSession.importedProject(project)
+                            activeSession!!.save(privateRepository, revisionPath(activeSession!!.snapshot().projectId))
                             prefs.edit().putString(project.name, "revision:${safeId(project.id.value)}").apply()
                             ToastMessage("Файл импортирован")
                         } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка импорта") }
@@ -62,7 +63,7 @@ class MainActivity : ComponentActivity() {
                     onExport = { uri ->
                         try {
                             activeSession?.snapshot()?.revision?.let { revision ->
-                                val bytes = BimobArchiveWriter().write(revision.project)
+                                val bytes = activeSession?.exportArchive() ?: return@onExport
                                 val digest = saf.writeNewDocument(uri, bytes)
                                 ToastMessage("Экспорт проверен • SHA-256 ${digest.take(12)}")
                             } ?: ToastMessage("Нет активного проекта")
@@ -84,16 +85,13 @@ class MainActivity : ComponentActivity() {
             val stored = prefs.getString(name, null) ?: return
             val session = if (stored.startsWith("revision:")) {
                 val id = stored.removePrefix("revision:")
-                ModelSession(privateRepository.loadRevision("projects/$id.revision"), initiallySaved = true)
+                ModelSession.load(privateRepository, "projects/$id.revision")
             } else {
                 val migrated = LegacySketchMigrator.migrateJson(stored)
                 val path = revisionPath(migrated)
-                ModelSession(Project(name = migrated.name), initiallySaved = false).also { first ->
-                    val migration = first.execute(ReplaceProjectMutation("Migrate legacy sketch", migrated))
-                    require(migration is CommandResult.Committed) { "Legacy migration command rejected: $migration" }
-                    privateRepository.save(path, first.snapshot().revision)
-                    first.markSaved(first.snapshot().revision)
-                    prefs.edit().putString(name, "revision:${safeId(migrated.id.value)}").apply()
+                ModelSession.migrateLegacyProject(migrated).also { first ->
+                    first.save(privateRepository, path)
+                    prefs.edit().putString(name, "revision:${safeId(first.snapshot().projectId)}").apply()
                 }
             }
             activeSession = session
@@ -104,10 +102,8 @@ class MainActivity : ComponentActivity() {
         val session = activeSession ?: return
         try {
             val snapshot = session.snapshot()
-            privateRepository.save(revisionPath(snapshot.revision.project), snapshot.revision)
-            session.markSaved(snapshot.revision)
-            val name = snapshot.revision.project.name
-            prefs.edit().putString(name, "revision:${safeId(snapshot.revision.project.id.value)}").apply()
+            session.save(privateRepository, revisionPath(snapshot.projectId))
+            prefs.edit().putString(snapshot.projectName, "revision:${safeId(snapshot.projectId)}").apply()
             ToastMessage("Сохранено в приватное хранилище")
         } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка сохранения") }
     }
@@ -151,16 +147,16 @@ private fun BimobRoot(
         Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
-                    Text(snapshot.revision.project.name, style = MaterialTheme.typography.titleMedium)
+                    Text(snapshot.projectName, style = MaterialTheme.typography.titleMedium)
                     Text(if (snapshot.hasUnsavedChanges) "● Не сохранено" else "✓ Сохранено", color = if (snapshot.hasUnsavedChanges) Color(0xFFB26A00) else Color(0xFF287A45), fontSize = 12.sp)
                 }
                 TextButton(onClick = onSave) { Text("Сохранить") }
                 TextButton(onClick = onHome) { Text("Проекты") }
             }
             var tool by remember { mutableStateOf(CanvasTool.WALL) }
-            var selectedWallId by remember { mutableStateOf<ModelId?>(null) }
+            var selectedWallId by remember { mutableStateOf<String?>(null) }
             var thicknessText by remember(selectedWallId) {
-                mutableStateOf(snapshot.revision.project.elements.filterIsInstance<WallElement>().firstOrNull { it.id == selectedWallId }?.thicknessMeters?.toString() ?: "0.2")
+                mutableStateOf(snapshot.walls.firstOrNull { it.id == selectedWallId }?.thicknessMeters?.toString() ?: "0.2")
             }
             Row {
                 FilterChip(selected = tool == CanvasTool.WALL, onClick = { tool = CanvasTool.WALL }, label = { Text("Стена") })
@@ -171,7 +167,7 @@ private fun BimobRoot(
                 Spacer(Modifier.width(4.dp))
                 Button(onClick = { session.redo() }, enabled = snapshot.canRedo) { Text("↷") }
                 Spacer(Modifier.width(4.dp))
-                Button(onClick = { selectedWallId?.let { session.execute(DeleteWallCommand(it)); selectedWallId = null } }, enabled = selectedWallId != null) { Text("Удалить") }
+                Button(onClick = { selectedWallId?.let { session.deleteWall(it); selectedWallId = null } }, enabled = selectedWallId != null) { Text("Удалить") }
             }
             PlanCanvas(session, snapshot, tool, selectedWallId, { selectedWallId = it }, Modifier.weight(1f).fillMaxWidth())
             if (selectedWallId != null) {
@@ -180,16 +176,16 @@ private fun BimobRoot(
                     Button(onClick = {
                         val id = selectedWallId
                         val thickness = thicknessText.toDoubleOrNull()
-                        if (id != null && thickness != null && thickness > 0.0) session.execute(SetWallThicknessCommand(id, thickness))
+                        if (id != null && thickness != null && thickness > 0.0) session.setWallThickness(id, thickness)
                     }) { Text("Применить") }
                 }
             }
-            Text("Узлы: метр • шаг привязки: 0,1 м • Стен: ${snapshot.displayedProject.elements.count { it.category == ElementCategory.WALL }}", fontSize = 12.sp, color = Color.Gray)
+            Text("Узлы: метр • шаг привязки: 0,1 м • Стен: ${snapshot.walls.size}", fontSize = 12.sp, color = Color.Gray)
             snapshot.diagnostic?.let { error ->
                 Text("${error.code}: ${error.message}", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.padding(4.dp))
             }
             if (snapshot.gestureActive) Text("Редактирование жеста…", fontSize = 12.sp, color = Color(0xFF1565C0))
-            Button(onClick = { exportLauncher.launch("${snapshot.revision.project.name}.bimob") }, modifier = Modifier.fillMaxWidth()) { Text("Экспорт BIMOB через SAF") }
+            Button(onClick = { exportLauncher.launch("${snapshot.projectName}.bimob") }, modifier = Modifier.fillMaxWidth()) { Text("Экспорт BIMOB через SAF") }
         }
     }
     if (newProjectDialog) {
@@ -206,105 +202,87 @@ private fun BimobRoot(
 private enum class CanvasTool { WALL, SELECT }
 
 @Composable
-private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: CanvasTool, selectedWallId: ModelId?, onSelectWall: (ModelId?) -> Unit, modifier: Modifier = Modifier) {
+private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: CanvasTool, selectedWallId: String?, onSelectWall: (String?) -> Unit, modifier: Modifier = Modifier) {
     val scale = 80f
-    Canvas(
-        modifier = modifier.background(Color.White).pointerInput(session, tool, snapshot.revision.number) { detectTapGestures { point -> onSelectWall(nearestWall(snapshot.displayedProject, snapWorld(point, size, scale), 0.25)) } }.pointerInput(session, tool) {
-            var base: Project? = null
-            var startWorld: Point2? = null
-            var previewId: ModelId? = null
-            var dragWallId: ModelId? = null
-            var lastWorld: Point2? = null
+    Canvas(modifier = modifier.background(Color.White)
+        .pointerInput(session, tool, snapshot.revisionNumber) {
+            detectTapGestures { point -> onSelectWall(nearestWall(snapshot.walls, snapWorld(point, size, scale), 0.25)) }
+        }
+        .pointerInput(session, tool) {
+            var startWorld: CanvasPoint? = null
+            var previewId: String? = null
+            var dragWallId: String? = null
+            var lastWorld: CanvasPoint? = null
             detectDragGestures(
                 onDragStart = { screen ->
-                    val world = snapWorld(screen, size, scale)
-                    base = session.snapshot().revision.project
-                    startWorld = world
-                    lastWorld = world
+                    val world = snapWorld(screen, size, scale); startWorld = world; lastWorld = world
                     if (tool == CanvasTool.WALL) {
-                        previewId = ModelId.newId()
-                        session.beginGesture("Draw wall")
+                        previewId = java.util.UUID.randomUUID().toString(); session.beginGesture("Draw wall")
                     } else {
-                        dragWallId = nearestWall(base!!, world, 0.25)
+                        dragWallId = nearestWall(session.snapshot().walls, world, 0.25)
                         onSelectWall(dragWallId)
                         if (dragWallId != null) session.beginGesture("Move wall")
                     }
                 },
                 onDrag = { change, _ ->
                     change.consume()
-                    val original = base ?: return@detectDragGestures
                     val first = startWorld ?: return@detectDragGestures
-                    val current = snapWorld(change.position, size, scale)
-                    lastWorld = current
+                    val current = snapWorld(change.position, size, scale); lastWorld = current
                     if (tool == CanvasTool.WALL) {
                         val id = previewId ?: return@detectDragGestures
-                        val newWall = wallFrom(id, first, current)
-                        session.updateGesture { project -> project.copy(elements = project.elements.filterNot { it.id == id } + newWall) }
+                        session.previewDrawWall(id, first.x, first.y, current.x, current.y)
                     } else {
                         val id = dragWallId ?: return@detectDragGestures
-                        val dx = current.xMeters - first.xMeters
-                        val dy = current.yMeters - first.yMeters
-                        session.updateGesture { project ->
-                            project.copy(elements = original.elements.map { e ->
-                                if (e.id == id && e is WallElement) e.copy(axis = WallAxis(Point2(e.axis.start.xMeters+dx,e.axis.start.yMeters+dy),Point2(e.axis.end.xMeters+dx,e.axis.end.yMeters+dy))) else e
-                            })
-                        }
+                        session.previewMoveWall(id, current.x - first.x, current.y - first.y)
                     }
                 },
                 onDragEnd = {
                     val a = startWorld; val b = lastWorld
-                    val valid = a != null && b != null && (a.xMeters != b.xMeters || a.yMeters != b.yMeters)
-                    if (session.snapshot().gestureActive && valid) {
-                        val id = previewId
-                        val wallId = dragWallId
-                        if (tool == CanvasTool.WALL && id != null && a != null && b != null) session.endGesture(AddWallCommand(wallFrom(id, a, b)))
-                        else if (tool == CanvasTool.SELECT && wallId != null && a != null && b != null) session.endGesture(MoveWallCommand(wallId, b.xMeters-a.xMeters, b.yMeters-a.yMeters))
-                        else session.cancelGesture()
-                    } else session.cancelGesture()
-                    base = null; startWorld = null; previewId = null; dragWallId = null; lastWorld = null
+                    val valid = a != null && b != null && (a.x != b.x || a.y != b.y)
+                    if (session.snapshot().gestureActive && valid &&
+                        ((tool == CanvasTool.WALL && previewId != null) || (tool == CanvasTool.SELECT && dragWallId != null))) session.endGesture()
+                    else session.cancelGesture()
+                    startWorld = null; previewId = null; dragWallId = null; lastWorld = null
                 },
                 onDragCancel = {
                     session.cancelGesture()
-                    base = null; startWorld = null; previewId = null; dragWallId = null; lastWorld = null
+                    startWorld = null; previewId = null; dragWallId = null; lastWorld = null
                 }
             )
         }
     ) {
-        val origin = Offset(size.width/2,size.height/2)
-        val step = scale * .5f
+        val origin = Offset(size.width / 2, size.height / 2); val step = scale * .5f
         var x = origin.x % step
-        while (x < size.width) { drawLine(Color(0xFFE5E9EE),Offset(x,0f),Offset(x,size.height),1f); x += step }
+        while (x < size.width) { drawLine(Color(0xFFE5E9EE), Offset(x, 0f), Offset(x, size.height), 1f); x += step }
         var y = origin.y % step
-        while (y < size.height) { drawLine(Color(0xFFE5E9EE),Offset(0f,y),Offset(size.width,y),1f); y += step }
-        drawLine(Color(0xFFCCD4DD),Offset(origin.x,0f),Offset(origin.x,size.height),2f)
-        drawLine(Color(0xFFCCD4DD),Offset(0f,origin.y),Offset(size.width,origin.y),2f)
-        snapshot.displayedProject.elements.filterIsInstance<WallElement>().forEach { wall ->
-            val start = worldScreen(wall.axis.start, size, scale)
-            val end = worldScreen(wall.axis.end, size, scale)
-            drawLine(if (wall.id == selectedWallId) Color(0xFF1976D2) else Color(0xFF26394E),start,end,5f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
-            drawCircle(Color(0xFF26394E),3f,start); drawCircle(Color(0xFF26394E),3f,end)
+        while (y < size.height) { drawLine(Color(0xFFE5E9EE), Offset(0f, y), Offset(size.width, y), 1f); y += step }
+        drawLine(Color(0xFFCCD4DD), Offset(origin.x, 0f), Offset(origin.x, size.height), 2f)
+        drawLine(Color(0xFFCCD4DD), Offset(0f, origin.y), Offset(size.width, origin.y), 2f)
+        snapshot.walls.forEach { wall ->
+            val start = worldScreen(CanvasPoint(wall.startX, wall.startY), size, scale)
+            val end = worldScreen(CanvasPoint(wall.endX, wall.endY), size, scale)
+            drawLine(if (wall.id == selectedWallId) Color(0xFF1976D2) else Color(0xFF26394E), start, end, 5f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            drawCircle(Color(0xFF26394E), 3f, start); drawCircle(Color(0xFF26394E), 3f, end)
         }
     }
 }
-
-private fun snapWorld(screen: Offset, size: androidx.compose.ui.unit.IntSize, scale: Float): Point2 {
-    val x = (screen.x - size.width.toFloat()/2f)/scale
-    val y = (size.height.toFloat()/2f - screen.y)/scale
-    return Point2((round(x*10f)/10f).toDouble(), (round(y*10f)/10f).toDouble())
+private data class CanvasPoint(val x: Double, val y: Double)
+private fun snapWorld(screen: Offset, size: androidx.compose.ui.unit.IntSize, scale: Float): CanvasPoint {
+    val x = (screen.x - size.width.toFloat() / 2f) / scale
+    val y = (size.height.toFloat() / 2f - screen.y) / scale
+    return CanvasPoint((round(x * 10f) / 10f).toDouble(), (round(y * 10f) / 10f).toDouble())
 }
-private fun worldScreen(point: Point2, size: androidx.compose.ui.geometry.Size, scale: Float) =
-    Offset((size.width/2f + point.xMeters*scale).toFloat(),(size.height/2f-point.yMeters*scale).toFloat())
-private fun wallFrom(id: ModelId, a: Point2, b: Point2) = WallElement(id=id,axis=WallAxis(a,b),heightMeters=2.7,thicknessMeters=.2)
-private fun nearestWall(project: Project, point: Point2, tolerance: Double): ModelId? {
-    return project.elements.filterIsInstance<WallElement>().minByOrNull { w ->
-        val ax=w.axis.start.xMeters;val ay=w.axis.start.yMeters;val bx=w.axis.end.xMeters;val by=w.axis.end.yMeters
-        val dx=bx-ax;val dy=by-ay;val len2=dx*dx+dy*dy
-        val t=if(len2==0.0)0.0 else ((point.xMeters-ax)*dx+(point.yMeters-ay)*dy)/len2
-        val u=t.coerceIn(0.0,1.0);sqrt((point.xMeters-(ax+u*dx)).let{it*it}+(point.yMeters-(ay+u*dy)).let{it*it})
-    }?.takeIf { w ->
-        val ax=w.axis.start.xMeters;val ay=w.axis.start.yMeters;val bx=w.axis.end.xMeters;val by=w.axis.end.yMeters
-        val dx=bx-ax;val dy=by-ay;val len2=dx*dx+dy*dy
-        val t=if(len2==0.0)0.0 else ((point.xMeters-ax)*dx+(point.yMeters-ay)*dy)/len2
-        val u=t.coerceIn(0.0,1.0);sqrt((point.xMeters-(ax+u*dx)).let{it*it}+(point.yMeters-(ay+u*dy)).let{it*it}) <= tolerance
+private fun worldScreen(point: CanvasPoint, size: androidx.compose.ui.geometry.Size, scale: Float) =
+    Offset((size.width / 2f + point.x * scale).toFloat(), (size.height / 2f - point.y * scale).toFloat())
+private fun nearestWall(walls: List<WallCanvasSnapshot>, point: CanvasPoint, tolerance: Double): String? =
+    walls.minByOrNull { wall ->
+        val dx = wall.endX - wall.startX; val dy = wall.endY - wall.startY; val len2 = dx * dx + dy * dy
+        val t = if (len2 == 0.0) 0.0 else ((point.x - wall.startX) * dx + (point.y - wall.startY) * dy) / len2
+        val u = t.coerceIn(0.0, 1.0); val px = wall.startX + u * dx; val py = wall.startY + u * dy
+        sqrt((point.x - px) * (point.x - px) + (point.y - py) * (point.y - py))
+    }?.takeIf { wall ->
+        val dx = wall.endX - wall.startX; val dy = wall.endY - wall.startY; val len2 = dx * dx + dy * dy
+        val t = if (len2 == 0.0) 0.0 else ((point.x - wall.startX) * dx + (point.y - wall.startY) * dy) / len2
+        val u = t.coerceIn(0.0, 1.0); val px = wall.startX + u * dx; val py = wall.startY + u * dy
+        sqrt((point.x - px) * (point.x - px) + (point.y - py) * (point.y - py)) <= tolerance
     }?.id
-}
