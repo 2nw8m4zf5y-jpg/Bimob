@@ -24,8 +24,8 @@ class JvmAtomicStorage(private val root:File):AtomicStorage {
     override fun writeAtomically(path:String,bytes:ByteArray){
         val target=resolve(path);target.parentFile?.mkdirs()
         val temp=File(target.parentFile,target.name+".tmp-"+System.nanoTime())
-        try{FileOutputStream(temp).use{it.write(bytes);it.flush();it.fd.sync()}}
-        catch(e:Exception){temp.delete();throw PersistenceException("Temporary write/fsync failed.",e)}
+        try{FileOutputStream(temp).use{it.write(bytes);it.flush();it.fd.sync()};require(temp.readBytes().contentEquals(bytes)){"Staged-file verification failed."}}
+        catch(e:Exception){temp.delete();throw PersistenceException("Temporary write/fsync/verify failed.",e)}
         try{Files.move(temp.toPath(),target.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING)}
         catch(e:Exception){temp.delete();throw PersistenceException("Atomic replacement failed; old destination must remain.",e)}
         try{FileInputStream(target.parentFile).use{it.fd.sync()}}catch(_:Exception){/* JVM/platform may not expose directory fsync */}
