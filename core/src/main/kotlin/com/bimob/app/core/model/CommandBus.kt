@@ -1,5 +1,14 @@
 package com.bimob.app.core.model
 
+import com.bimob.app.core.dependency.DependencyEdge
+import com.bimob.app.core.dependency.DependencyGraph
+import com.bimob.app.core.dependency.DependencyNodeKey
+import com.bimob.app.core.dependency.DependencyEvaluator
+import com.bimob.app.core.dependency.DerivedValue
+import com.bimob.app.core.dependency.EdgeAdmission
+import com.bimob.app.core.dependency.RecomputeEngine
+import com.bimob.app.core.dependency.EvaluationResult
+
 /**
  * Pure-Kotlin transaction boundary. Commands calculate a candidate immutable Project;
  * CommandBus validates and publishes it atomically. No Android APIs are permitted here.
@@ -17,12 +26,50 @@ interface ModelMutation {
     }
 }
 
-/** Cooperative cancellation checkpoints available to transactional and composite mutations. */
-class TransactionContext internal constructor(private val cancellation: CancellationCheck) {
+/** Transaction-local staging for model, graph and derived values. */
+class TransactionContext internal constructor(
+    private val cancellation: CancellationCheck,
+    initialGraph: DependencyGraph,
+    initialValues: Map<DependencyNodeKey, DerivedValue>
+) {
+    private var stagedGraph = initialGraph
+    private val dirtySeeds = linkedSetOf<DependencyNodeKey>()
+    private val evaluators = mutableMapOf<DependencyNodeKey, DependencyEvaluator>()
+    private var stagedValues = initialValues.toMap()
+
+    val dependencyGraph: DependencyGraph get() = stagedGraph
+    val derivedValues: Map<DependencyNodeKey, DerivedValue> get() = stagedValues
+    internal val dirtyNodes: Set<DependencyNodeKey> get() = dirtySeeds
+    internal val registeredEvaluators: Map<DependencyNodeKey, DependencyEvaluator> get() = evaluators
+
     fun checkpoint() {
         if (cancellation.isCancelled()) throw TransactionCancelledException()
     }
+    fun admitDependency(edge: DependencyEdge) {
+        checkpoint()
+        when (val result = stagedGraph.admitEdge(edge)) {
+            is EdgeAdmission.Accepted -> stagedGraph = result.graph
+            is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
+        }
+    }
+    fun admitDependencies(edges: Collection<DependencyEdge>) {
+        checkpoint()
+        when (val result = stagedGraph.admitEdges(edges)) {
+            is EdgeAdmission.Accepted -> stagedGraph = result.graph
+            is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
+        }
+    }
+    fun removeDependency(edge: DependencyEdge) { checkpoint(); stagedGraph = stagedGraph.withoutEdge(edge) }
+    fun removeDependencyNode(node: DependencyNodeKey) { checkpoint(); stagedGraph = stagedGraph.withoutNode(node) }
+    fun markDirty(node: DependencyNodeKey) { checkpoint(); dirtySeeds += node }
+    fun registerEvaluator(node: DependencyNodeKey, evaluator: DependencyEvaluator) {
+        checkpoint(); evaluators[node] = evaluator
+    }
+    internal fun publishEvaluated(values: Map<DependencyNodeKey, DerivedValue>) { stagedValues = values.toMap() }
 }
+internal class DependencyAdmissionException(
+    val diagnostic: com.bimob.app.core.dependency.GraphDiagnostic
+) : RuntimeException("Dependency graph admission rejected: ${diagnostic.failure}.")
 
 internal class TransactionCancelledException : RuntimeException("Transaction cancelled.")
 
@@ -32,7 +79,7 @@ class BatchCommand(
     commands: List<ModelMutation>
 ) : ModelMutation {
     private val commands = java.util.Collections.unmodifiableList(ArrayList(commands))
-    override fun apply(before: Project): Project = stage(before, TransactionContext(CancellationCheck.NEVER))
+    override fun apply(before: Project): Project = stage(before, TransactionContext(CancellationCheck.NEVER, DependencyGraph.empty(), emptyMap()))
 
     override fun stage(before: Project, context: TransactionContext): Project {
         var candidate = before
@@ -55,10 +102,15 @@ class CompositeCommand(
     override fun stage(before: Project, context: TransactionContext): Project = batch.stage(before, context)
 }
 
-data class ModelRevision(\n    val number: Long,\n    val project: Project,\n    val dependencyGraph: DependencyGraph = DependencyGraph.empty(),\n    val derivedValues: Map<DependencyNodeKey, DerivedValue> = emptyMap()\n)
+data class ModelRevision(
+    val number: Long,
+    val project: Project,
+    val dependencyGraph: DependencyGraph = DependencyGraph.empty(),
+    val derivedValues: Map<DependencyNodeKey, DerivedValue> = emptyMap()
+)
 
 enum class CommandFailureCode {
-    STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED,
+    STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED, DEPENDENCY_REJECTED, EVALUATION_FAILED,
     HISTORY_EMPTY, REVISION_OVERFLOW, EVENT_QUEUE_FULL
 }
 
@@ -102,7 +154,7 @@ class CommandBus(
     private val dispatchMonitor = Any()
     private var dispatching = false
     private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
-    private var current = ModelRevision(0L, freezeProject(initialProject), DependencyGraph.empty(), emptyMap())
+    private var current = ModelRevision(0L, freezeProject(initialProject))
     private val undoStack = ArrayDeque<HistoryEntry>()
     private val redoStack = ArrayDeque<HistoryEntry>()
     private var nextHistoryOrder = 0L
@@ -145,12 +197,32 @@ class CommandBus(
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before staging.")
 
             val before = current
-            val context = TransactionContext(cancellation)
-            val candidate = try {
+            val context = TransactionContext(cancellation, before.dependencyGraph, before.derivedValues)
+            val candidate: Project
+            val candidateValues: Map<DependencyNodeKey, DerivedValue>
+            try {
                 context.checkpoint()
-                freezeProject(mutation.stage(before.project, context))
+                candidate = freezeProject(mutation.stage(before.project, context))
+                context.checkpoint()
+                val plan = RecomputeEngine.plan(context.dependencyGraph, context.dirtyNodes)
+                when (val evaluated = RecomputeEngine.execute(plan, candidate, context.derivedValues, context.registeredEvaluators)) {
+                    is EvaluationResult.Success -> {
+                        context.publishEvaluated(evaluated.values)
+                        candidateValues = evaluated.values
+                    }
+                    is EvaluationResult.Failure -> return CommandResult.Rejected(
+                        CommandFailureCode.EVALUATION_FAILED,
+                        "Evaluator failed at ${evaluated.failure.node.stableKey()}: ${evaluated.failure.message}"
+                    )
+                }
+                context.checkpoint()
             } catch (_: TransactionCancelledException) {
-                return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled during staging.")
+                return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled during staging or recompute.")
+            } catch (e: DependencyAdmissionException) {
+                return CommandResult.Rejected(
+                    CommandFailureCode.DEPENDENCY_REJECTED,
+                    "${e.diagnostic.failure}: ${e.diagnostic.path.joinToString(" -> ") { it.stableKey() }}"
+                )
             } catch (e: Exception) {
                 return CommandResult.Rejected(CommandFailureCode.COMMAND_FAILED, e.message ?: e::class.java.simpleName)
             }
@@ -222,10 +294,10 @@ class CommandBus(
         return CommandResult.Committed(restored, ModelValidator.validate(restored.project))
     }
 
-    private fun historyEntry(project: Project): HistoryEntry {
+    private fun historyEntry(state: ModelRevision): HistoryEntry {
         val order = nextHistoryOrder
         if (nextHistoryOrder < Long.MAX_VALUE) nextHistoryOrder++
-        return HistoryEntry(project, MemoryEstimator.estimateProjectBytes(project), order)
+        return HistoryEntry(state, MemoryEstimator.estimateProjectBytes(state.project), order)
     }
 
     /** Evicts the globally oldest stack-bottom entry until both limits are satisfied. */
