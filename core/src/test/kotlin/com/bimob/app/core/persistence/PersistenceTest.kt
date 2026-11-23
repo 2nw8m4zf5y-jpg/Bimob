@@ -94,6 +94,39 @@ class PersistenceTest {
         assertNull(journal.recover(sha(BimobArchiveWriter().write(next)),next))
         dir.deleteRecursively()
     }
+    @Test fun compactionFailureBeforeJournalSwitchPreservesOldRecoveryRecords() {
+        val dir=File(System.getProperty("java.io.tmpdir"),"bimob-compact-crash-"+System.nanoTime())
+        val real=JvmAtomicStorage(dir)
+        val base=fixture()
+        val journalPath="workspace/journal.bin"
+        val journal=CrashRecoveryJournal(real,journalPath)
+        val saved=ProjectRepository(real,journal=journal).save("base.bimob",base)
+        val recovery=base.copy(name="Preserved recovery snapshot")
+        journal.append(base.id.value,saved.digest,recovery,transactionId="before-rotation")
+        val failingSwitch=object:AtomicStorage {
+            override val capabilities=real.capabilities
+            override fun read(path:String)=real.read(path)
+            override fun appendDurably(path:String,bytes:ByteArray)=real.appendDurably(path,bytes)
+            override fun exists(path:String)=real.exists(path)
+            override fun delete(path:String)=real.delete(path)
+            override fun writeAtomically(path:String,bytes:ByteArray) {
+                if(path==journalPath) throw IllegalStateException("Injected crash during journal switch")
+                real.writeAtomically(path,bytes)
+            }
+        }
+        try {
+            CrashRecoveryJournal(failingSwitch,journalPath).compact(base.id.value,sha("new-base".toByteArray()),base.schemaVersion)
+            fail("Injected compaction interruption must fail.")
+        } catch(e:IllegalStateException) {
+            assertEquals("Injected crash during journal switch",e.message)
+        }
+        val afterFailure=CrashRecoveryJournal(real,journalPath).recoverDetailed(saved.digest,base)
+        assertEquals("Old journal must remain recoverable after failed rotation.",recovery,afterFailure?.project)
+        assertEquals(1L,afterFailure?.appliedRecords)
+        assertFalse(real.exists("$journalPath.compact-stage"))
+        dir.deleteRecursively()
+    }
+
     @Test fun canonicalJsonMatchesGoldenBytesAndSha256() {
         val minimal=Project(id=ModelId("p"),name="x",schemaVersion=1,site=Site(ModelId("s"),"site"))
         val expected="""{"schemaVersion":1,"projectId":"p","name":"x","site":{"id":"s","name":"site"},"buildings":[],"levels":[],"materials":[],"types":[],"elements":[]}"""
