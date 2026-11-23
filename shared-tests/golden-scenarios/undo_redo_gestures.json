@@ -7,7 +7,9 @@
       "id": "project-gestures",
       "name": "Gestures"
     },
-    "levels": [],
+    "levels": [
+      { "id": "level-1", "name": "Level 1", "elevation": 0.0, "height": 3.0 }
+    ],
     "walls": [
       {
         "id": "wall-1",
