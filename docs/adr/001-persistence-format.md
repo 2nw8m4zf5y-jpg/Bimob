@@ -63,9 +63,9 @@ Canonical serialization, schema migrations, integrity checks, and validation con
 Phase D implementation is underway in the Android-SDK-free Gradle module `:core`:
 - Model, validator, memory estimator and CommandBus were moved into the JVM module without changing package names, preserving app/test imports.
 - Canonical JSON codec, ZIP writer/reader, SHA-256 integrity index, manifest/schema checks, migration registry, atomic repository contract and crash-recovery journal skeleton are implemented.
-- Test coverage added for deterministic canonical bytes/hash, model/archive round-trip, corrupted archive rejection, simulated restart recovery, truncated journal tail and future-schema rejection.
-- `JvmAtomicStorage` is a test adapter only. Android/SAF storage adapter is not yet implemented.
-- The new CI workflow runs `:core:test` alongside Android unit tests and APK build. CI for Phase D commits is not yet verified.
+- Test coverage added for deterministic canonical bytes/hash, model/archive round-trip, corrupted payload rejection, simulated restart recovery, truncated journal tail, idempotent transaction retry, atomic-save failure preserving the old project, journal compaction and future-schema rejection.
+- `AtomicStorage` now exposes durability capabilities. `JvmAtomicStorage` is a test adapter only; Android/SAF storage adapter is not yet implemented.
+- **CI verified green:** Run #115 for commit `eedf39b413a00bd68bed3686e3b9043159cd8199` ran `:core:test`, `:app:testDebugUnitTest`, `assembleDebug`, and artifact upload successfully.
 
 ## Consequences
 Benefits: Android-independent, cross-language potential, atomic replacement, explicit version/migration, integrity checks, separate canonical data/cache/assets, independent recovery.
