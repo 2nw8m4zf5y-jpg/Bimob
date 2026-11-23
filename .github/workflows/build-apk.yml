@@ -30,6 +30,15 @@ jobs:
         run: ctest --test-dir build/native-core --output-on-failure
       - name: Build and test Kotlin core and Android app
         run: gradle :core:test testDebugUnitTest assembleDebug
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bimob-test-reports
+          path: |
+            core/build/test-results/test/
+            core/build/reports/tests/test/
+          if-no-files-found: warn
       - name: Validate Kotlin parity snapshot outputs
         run: python3 scripts/validate_kotlin_parity_outputs.py
       - name: Upload APK
