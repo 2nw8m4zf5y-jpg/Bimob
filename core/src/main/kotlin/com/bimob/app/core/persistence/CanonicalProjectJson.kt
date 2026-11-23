@@ -53,19 +53,19 @@ internal object Json {
         fun take(c:Char)=if(i<s.length&&s[i]==c){i++;true}else false
     }
 }
-private fun jo(vararg p:Pair<String,J>)=JO(linkedMapOf(*p))
-private fun js(s:String)=JS(s)
-private fun nullable(s:String?)=s?.let(::JS)?:JNull
-private fun J.obj()=this as? JO?:error("Object expected")
-private fun J.array()=this as? JA?:error("Array expected")
-private fun J.text()=(this as? JS)?.s?:error("String expected")
-private fun J.long()=(this as? JN)?.n?.toLongOrNull()?:error("Integer expected")
-private fun J.double()=(this as? JN)?.n?.toDoubleOrNull()?.also{require(it.isFinite())}?:error("Finite number expected")
-private fun J.bool()=(this as? JB)?.b?:error("Boolean expected")
-private fun JO.req(k:String)=m[k]?:error("Missing field")
-private fun JO.opt(k:String)=m[k]?:JNull
-private fun J.strOrNull()=if(this==JNull)null else text()
-private fun J.dOrNull()=if(this==JNull)null else double()
+internal fun jo(vararg p:Pair<String,J>)=JO(linkedMapOf(*p))
+internal fun js(s:String)=JS(s)
+internal fun nullable(s:String?)=s?.let(::JS)?:JNull
+internal fun J.obj()=this as? JO?:error("Object expected")
+internal fun J.array()=this as? JA?:error("Array expected")
+internal fun J.text()=(this as? JS)?.s?:error("String expected")
+internal fun J.long()=(this as? JN)?.n?.toLongOrNull()?:error("Integer expected")
+internal fun J.double()=(this as? JN)?.n?.toDoubleOrNull()?.also{require(it.isFinite())}?:error("Finite number expected")
+internal fun J.bool()=(this as? JB)?.b?:error("Boolean expected")
+internal fun JO.req(k:String)=m[k]?:error("Missing field")
+internal fun JO.opt(k:String)=m[k]?:JNull
+internal fun J.strOrNull()=if(this==JNull)null else text()
+internal fun J.dOrNull()=if(this==JNull)null else double()
 
 /** Deterministic serializer: schema fields are emitted in this fixed order. */
 object CanonicalProjectJson {
