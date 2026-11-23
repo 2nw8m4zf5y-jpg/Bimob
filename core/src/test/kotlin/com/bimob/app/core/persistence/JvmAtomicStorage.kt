@@ -9,6 +9,7 @@ import java.nio.file.StandardCopyOption
 
 /** Test-only JVM adapter exercising fsync + same-filesystem atomic rename. */
 class JvmAtomicStorage(private val root:File):AtomicStorage {
+    override val capabilities=AtomicStorageCapabilities(atomicReplace=true,durableFileSync=true,stagedReadbackVerification=true,directorySync=false)
     init { root.mkdirs() }
     private fun resolve(path:String):File {
         require(!path.startsWith("/")&&!path.split('/').any{it==".."||it=="."})
