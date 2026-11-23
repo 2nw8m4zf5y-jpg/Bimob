@@ -55,7 +55,7 @@ class CompositeCommand(
     override fun stage(before: Project, context: TransactionContext): Project = batch.stage(before, context)
 }
 
-data class ModelRevision(val number: Long, val project: Project)
+data class ModelRevision(\n    val number: Long,\n    val project: Project,\n    val dependencyGraph: DependencyGraph = DependencyGraph.empty(),\n    val derivedValues: Map<DependencyNodeKey, DerivedValue> = emptyMap()\n)
 
 enum class CommandFailureCode {
     STALE_REVISION, CANCELLED, VALIDATION_FAILED, COMMAND_FAILED,
@@ -82,7 +82,7 @@ sealed interface ModelEvent {
 }
 enum class HistoryAction { UNDO, REDO }
 
-private data class HistoryEntry(val project: Project, val estimatedBytes: Long, val order: Long)
+private data class HistoryEntry(val state: ModelRevision, val estimatedBytes: Long, val order: Long)
 
 /**
  * Writers serialize state changes under a monitor. Events are queued in commit order
@@ -102,7 +102,7 @@ class CommandBus(
     private val dispatchMonitor = Any()
     private var dispatching = false
     private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
-    private var current = ModelRevision(0L, freezeProject(initialProject))
+    private var current = ModelRevision(0L, freezeProject(initialProject), DependencyGraph.empty(), emptyMap())
     private val undoStack = ArrayDeque<HistoryEntry>()
     private val redoStack = ArrayDeque<HistoryEntry>()
     private var nextHistoryOrder = 0L
@@ -167,7 +167,7 @@ class CommandBus(
             }
             if (cancellation.isCancelled())
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled after validation.")
-            if (candidate == before.project) return CommandResult.Committed(before, issues)
+            if (candidate == before.project && context.dependencyGraph == before.dependencyGraph && candidateValues == before.derivedValues) return CommandResult.Committed(before, issues)
 
             val nextRevision = nextRevisionNumber(before.number)
                 ?: return CommandResult.Rejected(CommandFailureCode.REVISION_OVERFLOW, "Revision counter exhausted.")
@@ -177,10 +177,10 @@ class CommandBus(
             // A new branch invalidates redo before budget accounting, freeing its retained snapshots.
             redoStack.clear()
             if (historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
-                undoStack.addLast(historyEntry(before.project))
+                undoStack.addLast(historyEntry(before))
                 trimHistory()
             }
-            current = ModelRevision(nextRevision, candidate)
+            current = ModelRevision(nextRevision, candidate, context.dependencyGraph, candidateValues)
             committed = current
             enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
         }
@@ -211,10 +211,10 @@ class CommandBus(
 
             val target = source.removeLast()
             if (historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
-                destination.addLast(historyEntry(current.project))
+                destination.addLast(historyEntry(current))
                 trimHistory()
             }
-            current = ModelRevision(nextRevision, target.project)
+            current = ModelRevision(nextRevision, target.state.project, target.state.dependencyGraph, target.state.derivedValues)
             restored = current
             enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
