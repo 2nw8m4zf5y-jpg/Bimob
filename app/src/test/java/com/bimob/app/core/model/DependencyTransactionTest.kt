@@ -133,6 +133,33 @@ class DependencyTransactionTest {
         assertEquals(0,bus.undoDepth())
     }
 
+    @Test fun cancellationDuringRecomputeDiscardsModelGraphAndDerivedCandidate() {
+        val bus = CommandBus(project())
+        val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
+        val a = key("A"); val b = key("B")
+        val mutation = object : ModelMutation {
+            override val label = "Cancel in recompute"
+            override fun apply(before: Project) = before.copy(name = "Candidate")
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.admitDependency(edge(a,b))
+                context.markDirty(a)
+                context.registerEvaluator(a) { p, _ ->
+                    cancelled.set(true)
+                    DerivedValue.TextValue(p.name)
+                }
+                context.registerEvaluator(b) { _, values -> values.getValue(a) }
+                return before.copy(name = "Candidate")
+            }
+        }
+        val result = bus.execute(mutation, cancellation = CancellationCheck { cancelled.get() })
+        assertEquals(CommandFailureCode.CANCELLED, (result as CommandResult.Rejected).code)
+        assertEquals(0L, bus.snapshot().number)
+        assertEquals("Initial", bus.snapshot().project.name)
+        assertEquals(0, bus.snapshot().dependencyGraph.edgeCount)
+        assertTrue(bus.snapshot().derivedValues.isEmpty())
+        assertEquals(0, bus.undoDepth())
+    }
+
     @Test fun cycleRejectedInTransactionBeforeRevisionPublication() {
         val bus=CommandBus(project())
         val a=key("A"); val b=key("B")
