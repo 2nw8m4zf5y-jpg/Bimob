@@ -3,7 +3,7 @@
 #include <cmath>
 #include <set>
 namespace bimob {
-bool ModelId::valid() const noexcept { return !value.empty() && value.find_first_of("\\r\\n\\t") == std::string::npos; }
+bool ModelId::valid() const noexcept { return !value.empty() && value.find_first_of("\r\n\t") == std::string::npos; }
 bool Point2::finite() const noexcept { return std::isfinite(x.value) && std::isfinite(y.value); }
 Meters WallAxis::length() const noexcept { return Meters{std::hypot(end.x.value-start.x.value,end.y.value-start.y.value)}; }
 bool WallAxis::valid() const noexcept { return start.finite()&&end.finite()&&std::isfinite(length().value)&&length().value>=kMinWallLength; }
