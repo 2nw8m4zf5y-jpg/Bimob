@@ -137,7 +137,7 @@ O. UI/tool expansion.
 Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–E. Native C++20 migration and test parity must be completed before Geometry Kernel stage H.
 
 ### MainActivity model-ownership debt (audited 2026-11-23)
-MainActivity still keeps a mutable local wall list; canvas gestures directly mutate it. Local sketches use SharedPreferences/JSON. SAF import/export maps between UI walls and canonical Project, but editing is not yet through CommandBus or ProjectRepository. Now that Dependency Engine is accepted, migrate to an app ModelSession backed by CommandBus + ProjectRepository; commands for create/edit/delete; canvas renders immutable snapshots; revision-aware save; migrate legacy data; delete duplicate mutable wall source. This UI migration is tracked after Stage E, not silently mixed into graph implementation.
+Post-F3 audit: the mutable wall list and direct Canvas mutation are removed. MainActivity uses ModelSession; wall mutations are commands, gesture previews are ephemeral, Compose observes immutable snapshots, and revision files are stored privately. SharedPreferences holds project-index/legacy data only. SAF is confined to archive import/export.
 ## 20. GitHub workflow
 
 Work only in `feature/model-core-v1`. Never directly change `main`; do not merge PR without explicit user approval. Use GitHub API/tools for real repository changes. Each logical change: inspect diff, validate paths and content, commit, verify SHA, run CI and confirm outcome. Do not claim a file/commit/test changed unless verified. Avoid fake commits, unsubstantiated success claims or unnecessary edits.
@@ -174,3 +174,15 @@ Separate confirmed facts from assumptions.
 Build BIMOB as a long-lived extensible engineering platform for architecture, interior design, construction, structural systems, plumbing, electrical, furniture, parametric design, documentation, 2D CAD, 3D BIM, IFC, visualization, AR/VR and AI-assisted workflows.
 
 New capabilities must not destabilize old ones. The core should evolve without repeatedly rebuilding its foundation. Begin by auditing the real repository state and the most critical unfinished architecture gates.
+## Stage F progress and acceptance gate
+
+F1/F2/F3 code is implemented on `feature/model-core-v1`; do not call Stage F formally closed until F4 docs and CI pass on final HEAD.
+
+- F1: ModelSession lock/serialized commands, immutable StateFlow snapshots, revision flags, gesture coalescing/cancel, semantic command commit, Undo/Redo and diagnostic propagation.
+- F2: private AtomicStorage + revision codec round-trip (Project, dependency graph nodes/edges, derived values, revision number); deterministic legacy JSON migration; initialization through a validated command.
+- F3: MainActivity migrated to Compose; no local mutable wall geometry; Canvas previews are Session snapshots; create/move/delete/thickness are ModelMutations; SAF only for external archive exchange.
+- Verified F3 CI at `0340fd1`: run #45184281677 green. Subsequent tests and saved-state equality refinements must also pass final CI.
+- F4: update MASTER_PROMPT, ENGINEERING_AGENT_PROMPT and ADR 003; final acceptance report.
+- YELLOW: device-level touch cancellation, storage directory fsync and crash recovery tests are not yet proven.
+
+Native C++20 port remains deferred until Stage F is accepted and ModelSession/UI boundary is stable.
