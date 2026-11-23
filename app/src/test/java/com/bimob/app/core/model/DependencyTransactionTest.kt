@@ -332,4 +332,24 @@ class DependencyTransactionTest {
         assertEquals(b, evalLimit?.node)
     }
 
+    @Test fun graphNodeAndEdgeBudgetsRejectWithoutPublishingCandidate() {
+        val a = key("limit-A"); val b = key("limit-B"); val c = key("limit-C")
+        val bus = CommandBus(project(), engineLimits = EngineLimits(maxGraphNodes = 2, maxGraphEdges = 1))
+        val mutation = object : ModelMutation {
+            override val label = "Over graph limits"
+            override fun apply(before: Project) = before.copy(name = "not committed")
+            override fun stage(before: Project, context: TransactionContext): Project {
+                context.admitDependencies(listOf(edge(a,b), edge(b,c)))
+                return before.copy(name = "not committed")
+            }
+        }
+        val rejected = bus.execute(mutation) as CommandResult.Rejected
+        assertEquals(CommandFailureCode.ENGINE_LIMIT_EXCEEDED, rejected.code)
+        assertTrue(rejected.message.contains("GRAPH_NODES"))
+        assertEquals(0L, bus.snapshot().number)
+        assertEquals("Initial", bus.snapshot().project.name)
+        assertEquals(0, bus.snapshot().dependencyGraph.nodeCount)
+        assertEquals(0, bus.snapshot().dependencyGraph.edgeCount)
+    }
+
 }
