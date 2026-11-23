@@ -29,7 +29,8 @@ fun interface RecomputeCancellation {
 }
 
 fun interface DependencyEvaluator {
-    /** Receives only direct dependency inputs; map is immutable and valid for this call. */\n    fun evaluate(project: Project, currentValues: Map<DependencyNodeKey, DerivedValue>): DerivedValue
+    /** Receives only direct dependency inputs; map is immutable and valid for this call. */
+    fun evaluate(project: Project, currentValues: Map<DependencyNodeKey, DerivedValue>): DerivedValue
 }
 
 data class RecomputePlan(val dirtyNodes: List<DependencyNodeKey>, val order: List<DependencyNodeKey>, val inputSources: Map<DependencyNodeKey, List<DependencyNodeKey>> = emptyMap())
@@ -83,7 +84,8 @@ object RecomputeEngine {
                 }
         }
         check(order.size == dirty.size) { "Dirty subgraph contains a cycle; graph admission invariant was violated." }
-        val inputSources = dirty.associateWith { node -> graph.incomingEdges(node).map { it.source }.distinct() }\n        return RecomputePlan(dirty.sortedBy { it.stableKey() }, order, inputSources)
+        val inputSources = dirty.associateWith { node -> graph.incomingEdges(node).map { it.source }.distinct() }
+        return RecomputePlan(dirty.sortedBy { it.stableKey() }, order, inputSources)
     }
 
     fun execute(
@@ -103,7 +105,8 @@ object RecomputeEngine {
             evaluations++
             if (evaluations > limits.maxEvaluationsPerTransaction) throw EngineBudgetExceeded(EngineBudget.EVALUATIONS, node, evaluations, limits.maxEvaluationsPerTransaction)
             try {
-                val inputs = plan.inputSources[node].orEmpty().mapNotNull { source -> staged[source]?.let { source to it } }.toMap()\n                staged[node] = evaluator.evaluate(project, java.util.Collections.unmodifiableMap(inputs))
+                val inputs = plan.inputSources[node].orEmpty().mapNotNull { source -> staged[source]?.let { source to it } }.toMap()
+                staged[node] = evaluator.evaluate(project, java.util.Collections.unmodifiableMap(inputs))
                 completed += node
                 if (cancellation.isCancelled()) return EvaluationResult.Cancelled(completed.toList())
             } catch (e: Exception) {
