@@ -34,7 +34,7 @@ internal object Json {
     fun l(v:Long)=JN(v.toString())
     private fun canon(s:String):String { val n=BigDecimal(s); return if(n.compareTo(BigDecimal.ZERO)==0)"0" else n.stripTrailingZeros().toPlainString() }
     fun parse(bytes:ByteArray):J {
-        require(bytes.size<=16*1024*1024){"JSON size limit exceeded"}
+        require(bytes.size<=64*1024*1024){"JSON size limit exceeded"}
         val text=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
         return P(text).read()
     }
