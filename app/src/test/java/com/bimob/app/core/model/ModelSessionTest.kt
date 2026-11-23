@@ -35,6 +35,17 @@ class ModelSessionTest {
         assertEquals(29.0, (session.snapshot().revision.project.elements.single() as WallElement).axis.start.xMeters, 0.0)
     }
 
+    @Test fun gesturePreviewFreezesCallerOwnedCollections() {
+        val session=ModelSession(project())
+        assertTrue(session.beginGesture())
+        val mutableElements=mutableListOf(wall("preview"))
+        assertTrue(session.updateGesture { it.copy(elements=mutableElements) })
+        mutableElements.clear()
+        assertEquals(1,session.snapshot().displayedProject.elements.size)
+        assertEquals("preview",session.snapshot().displayedProject.elements.single().id.value)
+        session.cancelGesture()
+    }
+
     @Test fun gestureCancelRestoresRevisionAndDoesNotCreateHistory() {
         val session = ModelSession(project(), initiallySaved = true)
         assertTrue(session.beginGesture("Draw wall"))
