@@ -37,6 +37,7 @@ enum class HistoryAction { UNDO, REDO }
 class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
     private val monitor = Any()
     private val dispatchMonitor = Any()
+    private var dispatching = false
     private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
     private var current = ModelRevision(0L, freezeProject(initialProject))
     private val undoStack = ArrayDeque<Project>()
@@ -123,11 +124,17 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
     /** One dispatcher drains FIFO. Reentrant commits append and are delivered by this drain. */
     private fun drainEvents() {
         synchronized(dispatchMonitor) {
-            while (true) {
-                val delivery = synchronized(monitor) {
-                    if (pendingEvents.isEmpty()) null else pendingEvents.removeFirst()
-                } ?: return
-                delivery.second.forEach { listener -> runCatching { listener(delivery.first) } }
+            if (dispatching) return
+            dispatching = true
+            try {
+                while (true) {
+                    val delivery = synchronized(monitor) {
+                        if (pendingEvents.isEmpty()) null else pendingEvents.removeFirst()
+                    } ?: return
+                    delivery.second.forEach { listener -> runCatching { listener(delivery.first) } }
+                }
+            } finally {
+                dispatching = false
             }
         }
     }
