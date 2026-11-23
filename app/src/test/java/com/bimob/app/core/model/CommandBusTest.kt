@@ -53,6 +53,21 @@ class CommandBusTest {
         val bus=CommandBus(project()); bus.subscribe{error("listener")}
         assertTrue(bus.execute(rename()) is CommandResult.Committed); assertEquals(1L,bus.snapshot().number)
     }
+    @Test fun historyLimitBoundsUndoDepth() {
+        val bus = CommandBus(project(), historyLimit = 1)
+        val changeA = object : ModelMutation { override val label="A"; override fun apply(before:Project)=before.copy(name="A") }
+        val changeB = object : ModelMutation { override val label="B"; override fun apply(before:Project)=before.copy(name="B") }
+        bus.execute(changeA); bus.execute(changeB)
+        assertTrue(bus.undo() is CommandResult.Committed)
+        assertEquals("A", bus.snapshot().project.name)
+        assertEquals(CommandFailureCode.HISTORY_EMPTY, (bus.undo() as CommandResult.Rejected).code)
+        assertTrue(bus.redo() is CommandResult.Committed)
+        assertEquals("B", bus.snapshot().project.name)
+    }
+    @Test fun invalidInitialModelIsRejected() {
+        val invalid = Project(name="bad", schemaVersion=0)
+        assertThrows(IllegalArgumentException::class.java) { CommandBus(invalid) }
+    }
     @Test fun staleUndoRejected() {
         val bus=CommandBus(project()); bus.execute(rename())
         val r=bus.undo(0); assertEquals(CommandFailureCode.STALE_REVISION,(r as CommandResult.Rejected).code)
