@@ -69,17 +69,17 @@ object RecomputeEngine {
         val indegree = dirty.associateWith { node ->
             graph.incomingEdges(node).map { it.source }.distinct().count { it in dirty }
         }.toMutableMap()
-        val ready = java.util.PriorityQueue<DependencyNodeKey>(compareBy { it.stableKey() })
-        indegree.filterValues { it == 0 }.keys.forEach(ready::add)
+        val ready = ArrayDeque<DependencyNodeKey>()
+        indegree.filterValues { it == 0 }.keys.sortedBy { it.stableKey() }.forEach(ready::addLast)
         val order = mutableListOf<DependencyNodeKey>()
         while (ready.isNotEmpty()) {
-            val node = ready.remove()
+            val node = ready.removeFirst()
             order += node
             graph.outgoingEdges(node).map { it.dependent }.distinct().filter { it in dirty }
                 .sortedBy { it.stableKey() }.forEach { child ->
                     val next = indegree.getValue(child) - 1
                     indegree[child] = next
-                    if (next == 0) ready.add(child)
+                    if (next == 0) ready.addLast(child)
                 }
         }
         check(order.size == dirty.size) { "Dirty subgraph contains a cycle; graph admission invariant was violated." }
