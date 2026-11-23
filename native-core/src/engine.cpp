@@ -106,4 +106,49 @@ Result<Project> solveWallJoin(const Project&source,const ModelId&movedWall,bool 
  for(auto&join:candidate.joins){bool isA=join.wallA==movedWall&&join.endA==movedStart;bool isB=join.wallB==movedWall&&join.endB==movedStart;if(!isA&&!isB)continue;join.joint=newJoint;ModelId otherId=isA?join.wallB:join.wallA;bool otherStart=isA?join.endB:join.endA;auto other=std::find_if(candidate.walls.begin(),candidate.walls.end(),[&](const Wall&w){return w.id==otherId;});if(other==candidate.walls.end())return Result<Project>::failure({ErrorCode::ValidationFailed,"WallJoin references missing adjacent wall",otherId.value,{},0,0});(otherStart?other->axis.start:other->axis.end)=newJoint;}
  auto issues=validate(candidate);if(!issues.empty())return Result<Project>::failure({ErrorCode::ValidationFailed,issues.front().message,issues.front().elementId,{},0,0});return Result<Project>::success(std::move(candidate));
 }
+
+namespace commands {
+namespace {
+template<class T, class Find, class Insert>
+Mutation createEntity(T value, Find find, Insert insert, const char* label) {
+ return [value=std::move(value),find=std::move(find),insert=std::move(insert),label](const Project& source) mutable {
+  Project candidate=source;
+  if(find(candidate,value.id)) return Result<Project>::failure({ErrorCode::InvalidArgument,std::string(label)+" already exists",value.id.value,{},0,0});
+  insert(candidate,value);
+  return Result<Project>::success(std::move(candidate));
+ };
+}
+template<class Find, class Update>
+Mutation updateEntity(ModelId id, Find find, Update update, const char* label) {
+ return [id=std::move(id),find=std::move(find),update=std::move(update),label](const Project& source) {
+  Project candidate=source;
+  auto it=find(candidate,id);
+  if(it==find(candidate,id) && it==candidate.walls.end()) { /* intentionally unused sentinel */ }
+  update(candidate,id);
+  return Result<Project>::success(std::move(candidate));
+ };
+}
+template<class T> Error missing(const ModelId& id,const char* kind){return{ErrorCode::InvalidArgument,std::string(kind)+" not found",id.value,{},0,0};}
+Point2 add(Point2 a,Point2 b){return Point2{Meters{a.x.value+b.x.value},Meters{a.y.value+b.y.value}};}
+}
+Mutation createLevel(Level value){return [value=std::move(value)](const Project&p){auto c=p;if(std::any_of(c.levels.begin(),c.levels.end(),[&](const Level&x){return x.id==value.id;}))return Result<Project>::failure({ErrorCode::InvalidArgument,"Level already exists",value.id.value,{},0,0});c.levels.push_back(value);return Result<Project>::success(std::move(c));};}
+Mutation moveLevel(ModelId id,Meters elevation){return [id=std::move(id),elevation](const Project&p){auto c=p;auto it=std::find_if(c.levels.begin(),c.levels.end(),[&](const Level&x){return x.id==id;});if(it==c.levels.end())return Result<Project>::failure(missing(id,"Level"));it->elevation=elevation;return Result<Project>::success(std::move(c));};}
+Mutation resizeLevel(ModelId id,Meters height){return [id=std::move(id),height](const Project&p){auto c=p;auto it=std::find_if(c.levels.begin(),c.levels.end(),[&](const Level&x){return x.id==id;});if(it==c.levels.end())return Result<Project>::failure(missing(id,"Level"));it->height=height;return Result<Project>::success(std::move(c));};}
+Mutation deleteLevel(ModelId id){return [id=std::move(id)](const Project&p){return deleteLevelCascade(p,id);};}
+Mutation createWall(Wall value){return [value=std::move(value)](const Project&p){auto c=p;if(std::any_of(c.walls.begin(),c.walls.end(),[&](const Wall&x){return x.id==value.id;}))return Result<Project>::failure({ErrorCode::InvalidArgument,"Wall already exists",value.id.value,{},0,0});c.walls.push_back(value);return Result<Project>::success(std::move(c));};}
+Mutation moveWall(ModelId id,Point2 delta){return [id=std::move(id),delta](const Project&p){if(!delta.finite())return Result<Project>::failure({ErrorCode::InvalidArgument,"Move delta must be finite",id.value,{},0,0});auto c=p;auto it=std::find_if(c.walls.begin(),c.walls.end(),[&](const Wall&w){return w.id==id;});if(it==c.walls.end())return Result<Project>::failure(missing(id,"Wall"));it->axis.start=add(it->axis.start,delta);it->axis.end=add(it->axis.end,delta);auto a=solveWallJoin(c,id,true,it->axis.start);if(!a.ok())return a;return solveWallJoin(*a.value(),id,false,it->axis.end);};}
+Mutation moveWallEndpoint(ModelId id,bool movedStart,Point2 joint){return [id=std::move(id),movedStart,joint](const Project&p){return solveWallJoin(p,id,movedStart,joint);};}
+Mutation resizeWall(ModelId id,Meters length){return [id=std::move(id),length](const Project&p){if(!std::isfinite(length.value)||length.value<kMinWallLength)return Result<Project>::failure({ErrorCode::InvalidArgument,"Wall length must be finite and >= kMinWallLength",id.value,{},0,0});auto it=std::find_if(p.walls.begin(),p.walls.end(),[&](const Wall&w){return w.id==id;});if(it==p.walls.end())return Result<Project>::failure(missing(id,"Wall"));const auto dx=it->axis.end.x.value-it->axis.start.x.value,dy=it->axis.end.y.value-it->axis.start.y.value;const auto current=it->axis.length().value;if(current<kMinWallLength)return Result<Project>::failure({ErrorCode::ValidationFailed,"Cannot resize invalid wall",id.value,{},0,0});Point2 end{Meters{it->axis.start.x.value+dx/current*length.value},Meters{it->axis.start.y.value+dy/current*length.value}};return solveWallJoin(p,id,false,end);};}
+Mutation deleteWall(ModelId id){return [id=std::move(id)](const Project&p){return deleteWallCascade(p,id);};}
+Mutation createOpening(Opening value){return [value=std::move(value)](const Project&p){auto c=p;if(std::any_of(c.openings.begin(),c.openings.end(),[&](const Opening&x){return x.id==value.id;}))return Result<Project>::failure({ErrorCode::InvalidArgument,"Opening already exists",value.id.value,{},0,0});c.openings.push_back(value);return Result<Project>::success(std::move(c));};}
+Mutation moveOpening(ModelId id,Meters offset,Meters sill){return [id=std::move(id),offset,sill](const Project&p){auto c=p;auto it=std::find_if(c.openings.begin(),c.openings.end(),[&](const Opening&o){return o.id==id;});if(it==c.openings.end())return Result<Project>::failure(missing(id,"Opening"));it->offsetAlongWall=offset;it->sillHeight=sill;return Result<Project>::success(std::move(c));};}
+Mutation resizeOpening(ModelId id,Meters width,Meters height){return [id=std::move(id),width,height](const Project&p){auto c=p;auto it=std::find_if(c.openings.begin(),c.openings.end(),[&](const Opening&o){return o.id==id;});if(it==c.openings.end())return Result<Project>::failure(missing(id,"Opening"));it->width=width;it->height=height;return Result<Project>::success(std::move(c));};}
+Mutation deleteOpening(ModelId id){return [id=std::move(id)](const Project&p){auto c=p;auto it=std::find_if(c.openings.begin(),c.openings.end(),[&](const Opening&o){return o.id==id;});if(it==c.openings.end())return Result<Project>::failure(missing(id,"Opening"));c.openings.erase(it);return Result<Project>::success(std::move(c));};}
+Mutation createCatalogInstance(CatalogInstance value){return [value=std::move(value)](const Project&p){auto c=p;if(std::any_of(c.catalogInstances.begin(),c.catalogInstances.end(),[&](const CatalogInstance&x){return x.id==value.id;}))return Result<Project>::failure({ErrorCode::InvalidArgument,"Catalog instance already exists",value.id.value,{},0,0});c.catalogInstances.push_back(value);return Result<Project>::success(std::move(c));};}
+Mutation moveCatalogInstance(ModelId id,Point2 position){return [id=std::move(id),position](const Project&p){if(!position.finite())return Result<Project>::failure({ErrorCode::InvalidArgument,"Catalog position must be finite",id.value,{},0,0});auto c=p;auto it=std::find_if(c.catalogInstances.begin(),c.catalogInstances.end(),[&](const CatalogInstance&x){return x.id==id;});if(it==c.catalogInstances.end())return Result<Project>::failure(missing(id,"Catalog instance"));it->position=position;return Result<Project>::success(std::move(c));};}
+Mutation resizeCatalogInstance(ModelId id,Meters width,Meters depth,Meters height){return [id=std::move(id),width,depth,height](const Project&p){auto c=p;auto it=std::find_if(c.catalogInstances.begin(),c.catalogInstances.end(),[&](const CatalogInstance&x){return x.id==id;});if(it==c.catalogInstances.end())return Result<Project>::failure(missing(id,"Catalog instance"));it->targetWidth=width;it->targetDepth=depth;it->targetHeight=height;return Result<Project>::success(std::move(c));};}
+Mutation deleteCatalogInstance(ModelId id){return [id=std::move(id)](const Project&p){auto c=p;auto it=std::find_if(c.catalogInstances.begin(),c.catalogInstances.end(),[&](const CatalogInstance&x){return x.id==id;});if(it==c.catalogInstances.end())return Result<Project>::failure(missing(id,"Catalog instance"));c.catalogInstances.erase(it);return Result<Project>::success(std::move(c));};}
+Mutation batch(std::vector<Mutation> mutations){return [mutations=std::move(mutations)](const Project&p){Project candidate=p;for(const auto&mutation:mutations){if(!mutation)return Result<Project>::failure({ErrorCode::InvalidArgument,"Batch contains an empty command",{}, {},0,0});auto staged=mutation(candidate);if(!staged.ok())return Result<Project>::failure(*staged.error());candidate=std::move(*staged.value());}return Result<Project>::success(std::move(candidate));};}
+} // namespace commands
+
 } // namespace bimob
