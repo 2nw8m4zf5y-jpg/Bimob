@@ -26,6 +26,8 @@ class MainActivity : Activity() {
     private lateinit var canvasView: PlanCanvas
     private lateinit var status: TextView
 
+    enum class DrawingTool { WALL, SELECT }
+
     data class Wall(val x1: Float, val y1: Float, val x2: Float, val y2: Float, val thickness: Float = 0.2f)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,8 +131,8 @@ class MainActivity : Activity() {
         root.addView(header)
 
         val tools = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        addTool(tools, "Стена") { canvasView.tool = PlanCanvas.Tool.WALL; status.text = "Проведи пальцем, чтобы поставить стену" }
-        addTool(tools, "Выбор") { canvasView.tool = PlanCanvas.Tool.SELECT; status.text = "Режим просмотра" }
+        addTool(tools, "Стена") { canvasView.tool = DrawingDrawingTool.WALL; status.text = "Проведи пальцем, чтобы поставить стену" }
+        addTool(tools, "Выбор") { canvasView.tool = DrawingTool.SELECT; status.text = "Режим просмотра" }
         addTool(tools, "Очистить") {
             AlertDialog.Builder(this).setMessage("Удалить все стены на плане?")
                 .setPositiveButton("Удалить") { _, _ -> walls.clear(); canvasView.invalidate(); status.text = "План очищен" }
@@ -166,8 +168,7 @@ class MainActivity : Activity() {
     }
 
     inner class PlanCanvas(activity: Activity, private val model: MutableList<Wall>) : View(activity) {
-        enum class Tool { WALL, SELECT }
-        var tool = Tool.WALL
+        var tool = DrawingTool.WALL
         private val gridPaint = Paint().apply { color = Color.rgb(229, 233, 238); strokeWidth = 1f }
         private val axisPaint = Paint().apply { color = Color.rgb(205, 212, 221); strokeWidth = 2f }
         private val wallPaint = Paint().apply { color = Color.rgb(38, 57, 78); strokeWidth = 5f; strokeCap = Paint.Cap.ROUND }
