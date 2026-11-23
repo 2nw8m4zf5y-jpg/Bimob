@@ -87,3 +87,8 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 - Added pure `solveWallJoin`: moves the selected endpoint and explicit connected endpoint(s), keeps opposite endpoints anchored, and validates candidate wall/opening bounds before returning.
 - Tests added for 3-entry history eviction, pre-cancel rollback, cancellation during recompute, and anchored endpoint geometry.
 - **Not G2 acceptance:** COW collections, host-delete cascades, typed entity commands/BatchCommand, wall solver integration into dependency transactions, comprehensive Kotlin golden fixtures, exact cycle path diagnostics and stress coverage across 10k BIM entities remain outstanding.
+
+
+### Project collection structural sharing
+- `Project` entity collections are now backed by `CowVector<T>` shared storage. Copying a project/revision shares each collection; the first write detaches only the modified collection. Read access does not detach. A contract test verifies wall collection detachment and opening collection independence.
+- This is collection-level COW, not yet per-entity persistent maps: modifying an entity within a collection clones that collection's vector. Unmodified sibling collections remain shared.
