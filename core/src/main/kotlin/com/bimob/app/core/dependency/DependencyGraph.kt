@@ -90,6 +90,9 @@ class DependencyGraph private constructor(
     val nodeCount: Int get() = nodeSet.size
     val edgeCount: Int get() = edgeSet.size
 
+    override fun equals(other: Any?): Boolean = other is DependencyGraph && nodeSet == other.nodeSet && edgeSet == other.edgeSet && limits == other.limits
+    override fun hashCode(): Int = 31 * (31 * nodeSet.hashCode() + edgeSet.hashCode()) + limits.hashCode()
+
     fun containsNode(key: DependencyNodeKey) = key in nodeSet
     fun containsEdge(edge: DependencyEdge) = edge in edgeSet
     fun outgoingEdges(key: DependencyNodeKey): List<DependencyEdge> = outgoing[key].orEmpty()

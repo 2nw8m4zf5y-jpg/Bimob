@@ -31,6 +31,7 @@ object ModelRevisionCodec {
         val number = root.req("revision").long()
         require(number >= 0L)
         val project = CanonicalProjectJson.decode(root.req("project").text().encodeToByteArray())
+        require(ModelValidator.validate(project).none { it.severity == ValidationSeverity.ERROR }) { "Stored project fails validation." }
         var graph = DependencyGraph.empty()
         root.req("nodes").array().a.forEach { graph = graph.withNode(nodeDecode(it.obj())) }
         val edges = root.req("edges").array().a.map { item ->

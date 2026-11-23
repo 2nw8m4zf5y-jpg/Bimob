@@ -1,319 +1,282 @@
 package com.bimob.app
 
 import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.app.AlertDialog
 import android.os.Bundle
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Path
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
-import org.json.JSONArray
-import org.json.JSONObject
+import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.bimob.app.core.model.*
+import com.bimob.app.core.persistence.BimobArchiveReader
+import com.bimob.app.core.persistence.BimobArchiveWriter
+import com.bimob.app.core.persistence.LegacySketchMigrator
+import com.bimob.app.core.persistence.ProjectRepository
+import com.bimob.app.persistence.PrivateFileAtomicStorage
+import com.bimob.app.persistence.SafDocumentAdapter
+import java.io.File
 import kotlin.math.round
 import kotlin.math.sqrt
-import com.bimob.app.persistence.SafDocumentAdapter
-import com.bimob.app.core.model.ModelId
-import com.bimob.app.core.model.Project
-import com.bimob.app.core.model.Site
-import com.bimob.app.core.model.WallElement
-import com.bimob.app.core.model.WallAxis
-import com.bimob.app.core.model.Point2
-import com.bimob.app.core.persistence.BimobArchiveWriter
-import com.bimob.app.core.persistence.BimobArchiveReader
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("bimob_projects", MODE_PRIVATE) }
-    private var projectName = "Новый проект"
-    private val walls = mutableListOf<Wall>()
-    private lateinit var canvasView: PlanCanvas
-    private lateinit var status: TextView
-    private var importedProject: Project? = null
-    private val safDocuments by lazy { SafDocumentAdapter(contentResolver, cacheDir) }
-    private val REQUEST_OPEN_BIMOB = 4101
-    private val REQUEST_SAVE_BIMOB = 4102
-
-    enum class DrawingTool { WALL, SELECT }
-
-    data class Wall(val x1: Float, val y1: Float, val x2: Float, val y2: Float, val thickness: Float = 0.2f)
+    private val privateRepository by lazy { ProjectRepository(PrivateFileAtomicStorage(File(filesDir, "model_repository"))) }
+    private val saf by lazy { SafDocumentAdapter(contentResolver, cacheDir) }
+    private var activeSession by mutableStateOf<ModelSession?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        showHome()
-    }
-
-    private fun launchOpenBimob() {
-        val intent=Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type="application/octet-stream"
-            putExtra(Intent.EXTRA_MIME_TYPES,arrayOf(SafDocumentAdapter.BIMOB_MIME,"application/zip"))
-        }
-        startActivityForResult(intent,REQUEST_OPEN_BIMOB)
-    }
-
-    private fun launchSaveBimob() {
-        val safeName=projectName.trim().ifBlank{"BIMOB-project"}.map { if(it in "/\\\\:*?\"<>|") "_" else it }.joinToString("")
-        val intent=Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type=SafDocumentAdapter.BIMOB_MIME
-            putExtra(Intent.EXTRA_TITLE,"$safeName.bimob")
-        }
-        startActivityForResult(intent,REQUEST_SAVE_BIMOB)
-    }
-
-    private fun projectForExport():Project {
-        val previous=importedProject
-        val oldWalls=previous?.elements?.filterIsInstance<WallElement>().orEmpty()
-        val exportedWalls=walls.mapIndexed { index,w ->
-            val old=oldWalls.getOrNull(index)
-            old?.copy(axis=WallAxis(Point2(w.x1.toDouble(),w.y1.toDouble()),Point2(w.x2.toDouble(),w.y2.toDouble())),thicknessMeters=w.thickness.toDouble())
-                ?:WallElement(id=ModelId.newId(),axis=WallAxis(Point2(w.x1.toDouble(),w.y1.toDouble()),Point2(w.x2.toDouble(),w.y2.toDouble())),heightMeters=2.7,thicknessMeters=w.thickness.toDouble())
-        }
-        return (previous ?: Project(name=projectName,site=Site(name="BIMOB site"))).copy(name=projectName,elements=exportedWalls,schemaVersion=1)
-    }
-
-    @Deprecated("Legacy picker callback retained for minSdk compatibility")
-    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
-        super.onActivityResult(requestCode,resultCode,data)
-        if(resultCode!=RESULT_OK)return
-        val uri=data?.data ?: return
-        try {
-            when(requestCode) {
-                REQUEST_OPEN_BIMOB -> {
-                    val project=BimobArchiveReader().read(safDocuments.read(uri))
-                    importedProject=project
-                    projectName=project.name
-                    walls.clear()
-                    project.elements.filterIsInstance<WallElement>().forEach { w ->
-                        walls.add(Wall(w.axis.start.xMeters.toFloat(),w.axis.start.yMeters.toFloat(),w.axis.end.xMeters.toFloat(),w.axis.end.yMeters.toFloat(),w.thicknessMeters.toFloat()))
+        setContent {
+            MaterialTheme {
+                BimobRoot(
+                    session = activeSession,
+                    projectNames = prefs.all.keys.sorted(),
+                    onNewProject = { name ->
+                        activeSession = ModelSession(Project(name = name.ifBlank { "Новый проект" }))
+                    },
+                    onOpenProject = ::openProject,
+                    onSave = ::saveCurrent,
+                    onHome = { activeSession = null },
+                    onImport = { uri ->
+                        try {
+                            val project = BimobArchiveReader().read(saf.read(uri))
+                            activeSession = ModelSession(project, initiallySaved = true)
+                            ToastMessage("Файл импортирован")
+                        } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка импорта") }
+                    },
+                    onExport = { uri ->
+                        try {
+                            val revision = activeSession?.snapshot()?.revision ?: return@BimobRoot
+                            val bytes = BimobArchiveWriter().write(revision.project)
+                            val digest = saf.writeNewDocument(uri, bytes)
+                            ToastMessage("Экспорт проверен • SHA-256 ${digest.take(12)}")
+                        } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка экспорта") }
                     }
-                    openEditor()
-                }
-                REQUEST_SAVE_BIMOB -> {
-                    val project=projectForExport()
-                    val archive=BimobArchiveWriter().write(project)
-                    val digest=safDocuments.writeNewDocument(uri,archive)
-                    importedProject=project
-                    statusOrToast("Экспорт подтверждён • SHA-256: "+digest.take(12))
-                }
+                )
             }
-        } catch(e:Exception) {
-            AlertDialog.Builder(this).setTitle("Ошибка работы с файлом").setMessage(e.message ?: "Не удалось открыть/сохранить BIMOB.").setPositiveButton("OK",null).show()
         }
     }
 
-    private fun statusOrToast(message:String) {
-        if(::status.isInitialized) status.text=message
-        else android.widget.Toast.makeText(this,message,android.widget.Toast.LENGTH_LONG).show()
+    private fun revisionPath(project: Project) = "projects/${safeId(project.id.value)}.revision"
+    private fun safeId(raw: String): String {
+        val safe = raw.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+        return safe.takeIf { it.isNotBlank() } ?: raw.hashCode().toString()
     }
 
-    private fun baseLayout(): LinearLayout {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 64, 24, 48)
-            setBackgroundColor(Color.rgb(247, 248, 250))
-        }
-        return root
-    }
-
-    private fun showHome() {
-        val root = baseLayout()
-        val title = TextView(this).apply {
-            text = "BIMOB"
-            textSize = 30f
-            setTextColor(Color.rgb(24, 39, 61))
-            gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 8)
-        }
-        root.addView(title)
-        root.addView(TextView(this).apply {
-            text = "Проектирование зданий • 2D / 3D"
-            textSize = 16f
-            setTextColor(Color.DKGRAY)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 28)
-        })
-        addButton(root, "＋  Создать проект") { promptNewProject() }
-        addButton(root, "Открыть проекты") { showProjects() }
-        addButton(root, "Открыть файл .bimob") { launchOpenBimob() }
-        root.addView(TextView(this).apply {
-            text = "Начинаем с точного 2D-плана. 3D-модуль, конструкции и расчёты будут добавляться поверх единой модели проекта."
-            textSize = 14f
-            setTextColor(Color.GRAY)
-            setPadding(4, 24, 4, 0)
-        })
-        setContentView(root)
-    }
-
-    private fun promptNewProject() {
-        val input = EditText(this).apply { hint = "Название проекта"; setText("Мой проект") }
-        AlertDialog.Builder(this).setTitle("Новый проект").setView(input)
-            .setPositiveButton("Создать") { _, _ ->
-                projectName = input.text.toString().trim().ifBlank { "Мой проект" }
-                walls.clear()
-                importedProject = null
-                openEditor()
-            }.setNegativeButton("Отмена", null).show()
-    }
-
-    private fun showProjects() {
-        val names = prefs.all.keys.sorted()
-        if (names.isEmpty()) {
-            AlertDialog.Builder(this).setMessage("Сохранённых проектов пока нет.")
-                .setPositiveButton("OK", null).show()
-            return
-        }
-        AlertDialog.Builder(this).setTitle("Проекты").setItems(names.toTypedArray()) { _, which ->
-            projectName = names[which]
-            loadProject(projectName)
-            openEditor()
-        }.setNegativeButton("Закрыть", null).show()
-    }
-
-    private fun saveProject() {
-        val json = JSONObject().put("name", projectName).put("walls", JSONArray().apply {
-            walls.forEach { w ->
-                put(JSONObject().put("x1", w.x1).put("y1", w.y1).put("x2", w.x2).put("y2", w.y2).put("thickness", w.thickness))
-            }
-        })
-        prefs.edit().putString(projectName, json.toString()).apply()
-        status.text = "Сохранено: ${walls.size} стен"
-    }
-
-    private fun loadProject(name: String) {
-        walls.clear()
-        importedProject = null
-        val raw = prefs.getString(name, null) ?: return
+    private fun openProject(name: String) {
         try {
-            val json = JSONObject(raw)
-            val arr = json.optJSONArray("walls") ?: JSONArray()
-            for (i in 0 until arr.length()) {
-                val w = arr.getJSONObject(i)
-                walls.add(Wall(w.getDouble("x1").toFloat(), w.getDouble("y1").toFloat(),
-                    w.getDouble("x2").toFloat(), w.getDouble("y2").toFloat(), w.optDouble("thickness", 0.2).toFloat()))
-            }
-        } catch (_: Exception) { }
-    }
-
-    private fun openEditor() {
-        val root = baseLayout()
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        header.addView(TextView(this).apply {
-            text = projectName; textSize = 20f; setTextColor(Color.rgb(25, 40, 60))
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        val save = Button(this).apply { text = "Сохранить"; setOnClickListener { saveProject() } }
-        header.addView(save)
-        root.addView(header)
-
-        val tools = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        addTool(tools, "Стена") { canvasView.tool = DrawingTool.WALL; status.text = "Проведи пальцем, чтобы поставить стену" }
-        addTool(tools, "Выбор") { canvasView.tool = DrawingTool.SELECT; status.text = "Режим просмотра" }
-        addTool(tools, "Очистить") {
-            AlertDialog.Builder(this).setMessage("Удалить все стены на плане?")
-                .setPositiveButton("Удалить") { _, _ -> walls.clear(); canvasView.invalidate(); status.text = "План очищен" }
-                .setNegativeButton("Отмена", null).show()
-        }
-        root.addView(tools)
-
-        canvasView = PlanCanvas(this, walls)
-        root.addView(canvasView, LinearLayout.LayoutParams(-1, 0, 1f))
-        status = TextView(this).apply {
-            text = "Сетка: 0,5 м • Привязка: 0,1 м • Стены: ${walls.size}"
-            textSize = 13f; setTextColor(Color.DKGRAY); setPadding(4, 12, 4, 4)
-        }
-        root.addView(status)
-        val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        addTool(bottom, "Экспорт .bimob") { launchSaveBimob() }
-        addTool(bottom, "← Проекты") { showHome() }
-        addTool(bottom, "Параметры") {
-            AlertDialog.Builder(this).setTitle("Параметры проекта")
-                .setMessage("Единицы: метры\nТолщина стены по умолчанию: 200 мм\nВысота помещения: 2,7 м (пока справочная)")
-                .setPositiveButton("OK", null).show()
-        }
-        root.addView(bottom)
-        setContentView(root)
-    }
-
-    private fun addButton(root: LinearLayout, label: String, action: () -> Unit) {
-        root.addView(Button(this).apply { text = label; setOnClickListener { action() } },
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12 })
-    }
-    private fun addTool(row: LinearLayout, label: String, action: () -> Unit) {
-        row.addView(Button(this).apply { text = label; setOnClickListener { action() } },
-            LinearLayout.LayoutParams(0, -2, 1f))
-    }
-
-    inner class PlanCanvas(activity: Activity, private val model: MutableList<Wall>) : View(activity) {
-        var tool = DrawingTool.WALL
-        private val gridPaint = Paint().apply { color = Color.rgb(229, 233, 238); strokeWidth = 1f }
-        private val axisPaint = Paint().apply { color = Color.rgb(205, 212, 221); strokeWidth = 2f }
-        private val wallPaint = Paint().apply { color = Color.rgb(38, 57, 78); strokeWidth = 5f; strokeCap = Paint.Cap.ROUND }
-        private val previewPaint = Paint().apply { color = Color.rgb(46, 125, 220); strokeWidth = 5f; strokeCap = Paint.Cap.ROUND }
-        private val labelPaint = Paint().apply { color = Color.rgb(55, 75, 95); textSize = 26f; isAntiAlias = true }
-        private val meterPaint = Paint().apply { color = Color.rgb(115, 130, 145); textSize = 20f; isAntiAlias = true }
-        private val scale = 100f // 100 px per meter
-        private var start: Pair<Float, Float>? = null
-        private var end: Pair<Float, Float>? = null
-
-        private fun snap(px: Float, py: Float): Pair<Float, Float> {
-            val mx = ((px - width / 2f) / scale)
-            val my = ((height / 2f - py) / scale)
-            return (round(mx * 10f) / 10f) to (round(my * 10f) / 10f)
-        }
-        private fun screen(x: Float, y: Float): Pair<Float, Float> = (width / 2f + x * scale) to (height / 2f - y * scale)
-
-        override fun onDraw(c: Canvas) {
-            super.onDraw(c)
-            c.drawColor(Color.WHITE)
-            val step = scale * 0.5f
-            var x = width / 2f % step
-            while (x < width) { c.drawLine(x, 0f, x, height.toFloat(), gridPaint); x += step }
-            var y = height / 2f % step
-            while (y < height) { c.drawLine(0f, y, width.toFloat(), y, gridPaint); y += step }
-            c.drawLine(width / 2f, 0f, width / 2f, height.toFloat(), axisPaint)
-            c.drawLine(0f, height / 2f, width.toFloat(), height / 2f, axisPaint)
-            c.drawText("0", width / 2f + 8, height / 2f - 8, meterPaint)
-            model.forEach { drawWall(c, it, wallPaint) }
-            if (start != null && end != null) {
-                val a = start!!; val b = end!!
-                val temporary = Wall(a.first, a.second, b.first, b.second)
-                drawWall(c, temporary, previewPaint)
-                val length = sqrt((b.first-a.first)*(b.first-a.first) + (b.second-a.second)*(b.second-a.second))
-                val p = screen(b.first, b.second)
-                c.drawText(String.format("%.2f м", length), p.first + 12, p.second - 12, labelPaint)
-            }
-        }
-
-        private fun drawWall(c: Canvas, w: Wall, p: Paint) {
-            val a = screen(w.x1, w.y1); val b = screen(w.x2, w.y2)
-            c.drawLine(a.first, a.second, b.first, b.second, p)
-            val length = sqrt((w.x2-w.x1)*(w.x2-w.x1) + (w.y2-w.y1)*(w.y2-w.y1))
-            c.drawText(String.format("%.2f", length), (a.first+b.first)/2 + 8, (a.second+b.second)/2 - 8, labelPaint)
-        }
-        override fun onTouchEvent(event: MotionEvent): Boolean {
-            if (tool != DrawingTool.WALL) return true
-            when(event.action) {
-                MotionEvent.ACTION_DOWN -> { start = snap(event.x, event.y); end = start; invalidate(); return true }
-                MotionEvent.ACTION_MOVE -> { end = snap(event.x, event.y); invalidate(); return true }
-                MotionEvent.ACTION_UP -> {
-                    end = snap(event.x, event.y)
-                    val a = start; val b = end
-                    if (a != null && b != null && (a.first != b.first || a.second != b.second)) {
-                        model.add(Wall(a.first, a.second, b.first, b.second))
-                        status.text = "Стена добавлена • ${model.size} стен • длина с привязкой 10 см"
-                    }
-                    start = null; end = null; invalidate(); return true
+            val legacy = prefs.getString(name, null) ?: return
+            val migrated = LegacySketchMigrator.migrateJson(legacy)
+            val path = revisionPath(migrated)
+            val session = if (privateRepository.run { privateRepositoryStorageExists(path) }) {
+                ModelSession(privateRepository.loadRevision(path), initiallySaved = true)
+            } else {
+                ModelSession(migrated, initiallySaved = true).also { first ->
+                    privateRepository.save(path, first.snapshot().revision)
+                    first.markSaved(first.snapshot().revision)
                 }
             }
-            return true
+            activeSession = session
+        } catch (e: Exception) { ToastMessage(e.message ?: "Не удалось открыть проект") }
+    }
+
+    private fun saveCurrent() {
+        val session = activeSession ?: return
+        try {
+            val snapshot = session.snapshot()
+            privateRepository.save(revisionPath(snapshot.revision.project), snapshot.revision)
+            session.markSaved(snapshot.revision)
+            val name = snapshot.revision.project.name
+            prefs.edit().putString(name, prefs.getString(name, "{}")).apply()
+            ToastMessage("Сохранено в приватное хранилище")
+        } catch (e: Exception) { ToastMessage(e.message ?: "Ошибка сохранения") }
+    }
+
+    private fun ToastMessage(message: String) = android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+}
+
+/** Thin Compose shell. Model mutations remain owned exclusively by ModelSession. */
+@Composable
+private fun BimobRoot(
+    session: ModelSession?,
+    projectNames: List<String>,
+    onNewProject: (String) -> Unit,
+    onOpenProject: (String) -> Unit,
+    onSave: () -> Unit,
+    onHome: () -> Unit,
+    onImport: (android.net.Uri) -> Unit,
+    onExport: (android.net.Uri) -> Unit
+) {
+    var newProjectDialog by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("Мой проект") }
+    val openLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(onImport) }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(SafDocumentAdapter.BIMOB_MIME)) { uri -> uri?.let(onExport) }
+
+    if (session == null) {
+        Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(24.dp).verticalScroll(rememberScrollState())) {
+            Text("BIMOB", fontSize = 32.sp, color = Color(0xFF18273D))
+            Text("Модель здания • единый источник истины", color = Color.Gray)
+            Spacer(Modifier.height(20.dp))
+            Button(onClick = { newProjectDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Создать проект") }
+            Button(onClick = { openLauncher.launch(arrayOf(SafDocumentAdapter.BIMOB_MIME, "application/zip")) }, modifier = Modifier.fillMaxWidth()) { Text("Импорт .bimob через SAF") }
+            Spacer(Modifier.height(20.dp))
+            Text("Проекты", style = MaterialTheme.typography.titleMedium)
+            projectNames.forEach { name ->
+                OutlinedButton(onClick = { onOpenProject(name) }, modifier = Modifier.fillMaxWidth()) { Text(name) }
+            }
+            Text("Сохранённые revision snapshots хранятся в приватной директории приложения. SAF используется только для обмена файлами.", fontSize = 12.sp, color = Color.Gray)
+        }
+    } else {
+        val snapshot by session.state.collectAsState()
+        Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(Modifier.weight(1f)) {
+                    Text(snapshot.revision.project.name, style = MaterialTheme.typography.titleMedium)
+                    Text(if (snapshot.hasUnsavedChanges) "● Не сохранено" else "✓ Сохранено", color = if (snapshot.hasUnsavedChanges) Color(0xFFB26A00) else Color(0xFF287A45), fontSize = 12.sp)
+                }
+                TextButton(onClick = onSave) { Text("Сохранить") }
+                TextButton(onClick = onHome) { Text("Проекты") }
+            }
+            var tool by remember { mutableStateOf(CanvasTool.WALL) }
+            Row {
+                FilterChip(selected = tool == CanvasTool.WALL, onClick = { tool = CanvasTool.WALL }, label = { Text("Стена") })
+                Spacer(Modifier.width(4.dp))
+                FilterChip(selected = tool == CanvasTool.SELECT, onClick = { tool = CanvasTool.SELECT }, label = { Text("Выбрать") })
+                Spacer(Modifier.width(4.dp))
+                Button(onClick = { if (snapshot.canUndo) session.undo() }, enabled = snapshot.canUndo) { Text("↶") }
+                Spacer(Modifier.width(4.dp))
+                Button(onClick = { if (snapshot.canRedo) session.redo() }, enabled = snapshot.canRedo) { Text("↷") }
+            }
+            PlanCanvas(session, snapshot, tool, Modifier.weight(1f).fillMaxWidth())
+            Text("Узлы: метр • шаг привязки: 0,1 м • Стен: ${snapshot.displayedProject.elements.count { it.category == ElementCategory.WALL }}", fontSize = 12.sp, color = Color.Gray)
+            snapshot.diagnostic?.let { error ->
+                Text("${error.code}: ${error.message}", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.padding(4.dp))
+            }
+            if (snapshot.gestureActive) Text("Редактирование жеста…", fontSize = 12.sp, color = Color(0xFF1565C0))
+            Button(onClick = { exportLauncher.launch("${snapshot.revision.project.name}.bimob") }, modifier = Modifier.fillMaxWidth()) { Text("Экспорт BIMOB через SAF") }
         }
     }
+    if (newProjectDialog) {
+        AlertDialog(
+            onDismissRequest = { newProjectDialog = false },
+            title = { Text("Новый проект") },
+            text = { OutlinedTextField(newName, { newName = it }, label = { Text("Название") }) },
+            confirmButton = { TextButton(onClick = { newProjectDialog = false; onNewProject(newName) }) { Text("Создать") } },
+            dismissButton = { TextButton(onClick = { newProjectDialog = false }) { Text("Отмена") } }
+        )
+    }
+}
+
+private enum class CanvasTool { WALL, SELECT }
+
+@Composable
+private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: CanvasTool, modifier: Modifier = Modifier) {
+    val scale = 80f
+    Canvas(
+        modifier = modifier.background(Color.White).pointerInput(session, tool) {
+            var base: Project? = null
+            var startWorld: Point2? = null
+            var previewId: ModelId? = null
+            var selectedWall: ModelId? = null
+            var lastWorld: Point2? = null
+            detectDragGestures(
+                onDragStart = { screen ->
+                    val world = snapWorld(screen, size, scale)
+                    base = session.snapshot().revision.project
+                    startWorld = world
+                    lastWorld = world
+                    if (tool == CanvasTool.WALL) {
+                        previewId = ModelId.newId()
+                        session.beginGesture("Draw wall")
+                    } else {
+                        selectedWall = nearestWall(base!!, world, 0.25)
+                        if (selectedWall != null) session.beginGesture("Move wall")
+                    }
+                },
+                onDrag = { change, _ ->
+                    change.consume()
+                    val original = base ?: return@detectDragGestures
+                    val first = startWorld ?: return@detectDragGestures
+                    val current = snapWorld(change.position, size, scale)
+                    lastWorld = current
+                    if (tool == CanvasTool.WALL) {
+                        val id = previewId ?: return@detectDragGestures
+                        val newWall = wallFrom(id, first, current)
+                        session.updateGesture { project -> project.copy(elements = project.elements.filterNot { it.id == id } + newWall) }
+                    } else {
+                        val id = selectedWall ?: return@detectDragGestures
+                        val dx = current.xMeters - first.xMeters
+                        val dy = current.yMeters - first.yMeters
+                        session.updateGesture { project ->
+                            project.copy(elements = original.elements.map { e ->
+                                if (e.id == id && e is WallElement) e.copy(axis = WallAxis(Point2(e.axis.start.xMeters+dx,e.axis.start.yMeters+dy),Point2(e.axis.end.xMeters+dx,e.axis.end.yMeters+dy))) else e
+                            })
+                        }
+                    }
+                },
+                onDragEnd = {
+                    val a = startWorld; val b = lastWorld
+                    val valid = a != null && b != null && (a.xMeters != b.xMeters || a.yMeters != b.yMeters)
+                    if (session.snapshot().gestureActive && valid) session.endGesture() else session.cancelGesture()
+                    base = null; startWorld = null; previewId = null; selectedWall = null; lastWorld = null
+                },
+                onDragCancel = {
+                    session.cancelGesture()
+                    base = null; startWorld = null; previewId = null; selectedWall = null; lastWorld = null
+                }
+            )
+        }
+    ) {
+        val origin = Offset(size.width/2,size.height/2)
+        val step = scale * .5f
+        var x = origin.x % step
+        while (x < size.width) { drawLine(Color(0xFFE5E9EE),Offset(x,0f),Offset(x,size.height),1f); x += step }
+        var y = origin.y % step
+        while (y < size.height) { drawLine(Color(0xFFE5E9EE),Offset(0f,y),Offset(size.width,y),1f); y += step }
+        drawLine(Color(0xFFCCD4DD),Offset(origin.x,0f),Offset(origin.x,size.height),2f)
+        drawLine(Color(0xFFCCD4DD),Offset(0f,origin.y),Offset(size.width,origin.y),2f)
+        snapshot.displayedProject.elements.filterIsInstance<WallElement>().forEach { wall ->
+            val start = worldScreen(wall.axis.start, size, scale)
+            val end = worldScreen(wall.axis.end, size, scale)
+            drawLine(Color(0xFF26394E),start,end,5f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+            drawCircle(Color(0xFF26394E),3f,start); drawCircle(Color(0xFF26394E),3f,end)
+        }
+    }
+}
+
+private fun snapWorld(screen: Offset, size: androidx.compose.ui.geometry.Size, scale: Float): Point2 {
+    val x = (screen.x - size.width/2f)/scale
+    val y = (size.height/2f - screen.y)/scale
+    return Point2(round(x*10f)/10f, round(y*10f)/10f)
+}
+private fun worldScreen(point: Point2, size: androidx.compose.ui.geometry.Size, scale: Float) =
+    Offset(size.width/2f + point.xMeters*scale,size.height/2f-point.yMeters*scale)
+private fun wallFrom(id: ModelId, a: Point2, b: Point2) = WallElement(id=id,axis=WallAxis(a,b),heightMeters=2.7,thicknessMeters=.2)
+private fun nearestWall(project: Project, point: Point2, tolerance: Double): ModelId? {
+    return project.elements.filterIsInstance<WallElement>().minByOrNull { w ->
+        val ax=w.axis.start.xMeters;val ay=w.axis.start.yMeters;val bx=w.axis.end.xMeters;val by=w.axis.end.yMeters
+        val dx=bx-ax;val dy=by-ay;val len2=dx*dx+dy*dy
+        val t=if(len2==0.0)0.0 else ((point.xMeters-ax)*dx+(point.yMeters-ay)*dy)/len2
+        val u=t.coerceIn(0.0,1.0);sqrt((point.xMeters-(ax+u*dx)).let{it*it}+(point.yMeters-(ay+u*dy)).let{it*it})
+    }?.takeIf { w ->
+        val ax=w.axis.start.xMeters;val ay=w.axis.start.yMeters;val bx=w.axis.end.xMeters;val by=w.axis.end.yMeters
+        val dx=bx-ax;val dy=by-ay;val len2=dx*dx+dy*dy
+        val t=if(len2==0.0)0.0 else ((point.xMeters-ax)*dx+(point.yMeters-ay)*dy)/len2
+        val u=t.coerceIn(0.0,1.0);sqrt((point.xMeters-(ax+u*dx)).let{it*it}+(point.yMeters-(ay+u*dy)).let{it*it}) <= tolerance
+    }?.id
 }

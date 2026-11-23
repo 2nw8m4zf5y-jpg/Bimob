@@ -3,6 +3,7 @@ package com.bimob.app.core.persistence
 import com.bimob.app.core.model.Project
 import com.bimob.app.core.model.ModelValidator
 import com.bimob.app.core.model.ModelRevision
+import com.bimob.app.core.model.ModelRevision
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
@@ -158,6 +159,7 @@ class ProjectRepository(private val storage:AtomicStorage,private val writer:Bim
         return SaveResult(digest)
     }
     fun loadRevision(path:String):ModelRevision = ModelRevisionCodec.decode(storage.read(path))
+    fun revisionExists(path:String):Boolean = storage.exists(path)
 
     fun recover(path:String,project:Project):Project? { val bytes=storage.read(path);val saved=reader.read(bytes);require(saved==project){"Recovery base project does not match saved file."};return journal?.recover(sha(bytes),saved) }
 }
