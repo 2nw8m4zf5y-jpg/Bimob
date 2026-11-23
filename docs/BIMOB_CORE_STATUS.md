@@ -69,3 +69,12 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 3. Add exact parity checks and remaining rollback/history/cancellation behavior.
 4. Expand model commands and persistent entity storage.
 5. Only after G2 acceptance, begin G3 persistence parity. Keep main and PR merge untouched.
+
+
+## Current G2 implementation increment (commit `6eca21643528`)
+
+- Added native BIM value contracts: `Level`, wall level references, explicit `WallJoin`, `Opening` hosted by wall, and `CatalogInstance` with typed `ScalingMode`, target dimensions, per-dimension min/max bounds, asset ID, level/host references, category and schedule tag.
+- Model validation now checks duplicate IDs, references, finite geometry/parameters, opening containment in host wall axis/height, catalog dimension bounds and host/level references.
+- Added CTest contract scenario for valid opening/catalog instance plus invalid opening bounds and invalid catalog dimension.
+- CI run #233 for commit `6eca21643528` is currently in progress. No acceptance claim until completion.
+- **This is an initial model-domain slice, not yet a complete BIM engine:** Project collections still use value vectors; wall-join geometry solving, dependency wiring/recomputation, entity commands, BatchCommand, COW, history limits, cancellation checkpoints and Kotlin-generated cross-language goldens remain outstanding.
