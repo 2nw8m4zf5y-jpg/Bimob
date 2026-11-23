@@ -33,4 +33,19 @@ class ProjectRepositoryRevisionTest {
         try { LegacySketchMigrator.migrateJson(json); fail("expected validation rejection") }
         catch (e: IllegalArgumentException) { assertTrue(e.message!!.contains("zero length")) }
     }
-}
+    @Test fun sessionSavePersistsOneRevisionAndTracksSavedContent() {
+        val root = File(System.getProperty("java.io.tmpdir"), "bimob-session-save-" + System.nanoTime())
+        val repository = ProjectRepository(JvmAtomicStorage(root))
+        val session = ModelSession.newProject("Save test")
+        assertTrue(session.hasUnsavedChanges())
+        session.addWall("wall-1", 0.0, 0.0, 4.0, 0.0)
+        session.save(repository, "projects/save.revision")
+        assertFalse(session.snapshot().hasUnsavedChanges)
+        assertEquals(1, repository.loadRevision("projects/save.revision").project.elements.size)
+        session.moveWall("wall-1", 1.0, 0.0)
+        assertTrue(session.snapshot().hasUnsavedChanges)
+        session.undo()
+        assertFalse(session.snapshot().hasUnsavedChanges)
+        root.deleteRecursively()
+    }
+
