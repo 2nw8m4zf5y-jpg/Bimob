@@ -1,28 +1,32 @@
 # Shared BIMOB Golden Scenarios (v1)
 
-These JSON files define language-neutral input scenarios for Kotlin and C++20 parity tests.
+These JSON files define language-neutral input scenarios intended for Kotlin and C++20 parity runners.
 
-**Important:** this directory is the fixture contract only. Until both runners consume the fixtures and emit canonical output, these files are not evidence of cross-language parity. Current Kotlin domain is Wall-centric and does not yet model the native Level/Opening/CatalogInstance/WallJoin types one-for-one. The parity implementation must explicitly close that model gap or report unsupported operations as a failing gate; it must never silently skip them.
+**Current limitation:** fixtures are not yet consumed by both engines. Until both runners emit canonical outputs and CI diffs them, this directory is only a test-contract definition, not proof of parity. The Kotlin model currently does not represent the native Level/Opening/CatalogInstance/WallJoin domain one-for-one. Unsupported commands must fail, never be silently skipped.
 
 ## Format
 
-Each fixture:
-- `schema`: exact fixture schema identifier;
-- `scenarioId`: stable identifier;
-- `description`: human-readable case;
-- `initialState`: explicit, deterministic model state (IDs are fixed; no generated UUIDs);
-- `commands`: ordered operations with stable IDs and explicit gesture IDs;
-- `assertions`: state/history/diagnostic expectations.
+Each fixture includes:
+- `schema`: exact schema identifier;
+- `scenarioId`: stable scenario identifier;
+- `description`;
+- `initialState`: explicit state with deterministic IDs;
+- `commands`: ordered commands, with explicit `gestureId` for gesture updates;
+- `assertions`: expected state/history/diagnostic behavior.
 
-All distances use metres; angles use radians. Canonical JSON output must sort object keys and collections by stable ID or explicit evaluation order. Floating-point values are rounded to 6 decimal places; negative zero must normalize to zero. Diagnostics and command results must be included in output.
+Distances are metres and angles radians. Canonical output must sort object keys and collections by stable ID or explicit evaluation order, round finite numbers to 6 decimal places, normalize negative zero, and include state, diagnostics, command results, history and dependency evaluation order.
 
 ## Coverage
 
-- `crud_batch.json`: create/move/resize/delete and atomic batch behavior.
+- `crud_batch.json`: CRUD and atomic BatchCommand.
 - `walljoin_topologies.json`: L/T/X, acute/obtuse and disconnect/edit cases.
-- `cascade_delete.json`: host wall with hosted opening and catalog instance, delete and undo.
+- `cascade_delete.json`: host wall with hosted opening and catalog instance, cascade delete and Undo/Redo.
 - `cycle_rollback.json`: dependency cycle rejection and transaction rollback.
-- `engine_limits.json`: each of six native/Kotlin engine budgets.
-- `undo_redo_gestures.json`: multi-step history and per-entity gesture coalescing expectations.
+- `engine_limits.json`: each of the six EngineLimits budgets.
+- `undo_redo_gestures.json`: multi-step Undo/Redo and per-entity gesture coalescing.
 
-A runner must fail when a command is unsupported, an assertion is unmet, or a fixture cannot be consumed. No runner may filter scenarios by language.\n\nGesture updates are individual commands carrying the same `gestureId`; they are not an implicit atomic batch. If a command is rejected, it must leave the state and history unchanged at the point of rejection. Earlier successful commands in that gesture remain committed/coalesced and must not be retroactively discarded.
+## Gesture failure semantics
+
+Gesture updates are individual commands with the same `gestureId`, not an implicit atomic batch. A rejected command must leave model state and history unchanged at the rejection point. Previously accepted updates in that gesture remain committed/coalesced and must not be retroactively discarded.
+
+A runner must fail on unsupported operations, unmet assertions, or an unconsumed fixture. No runner may filter scenarios by language.
