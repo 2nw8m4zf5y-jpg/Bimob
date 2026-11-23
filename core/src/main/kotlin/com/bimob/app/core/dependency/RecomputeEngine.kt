@@ -2,7 +2,6 @@ package com.bimob.app.core.dependency
 
 import com.bimob.app.core.model.Project
 import com.bimob.app.core.model.CancellationCheck
-import com.bimob.app.core.model.CancellationCheck
 
 /** Small portable value vocabulary for derived state; avoids arbitrary JVM object graphs. */
 sealed interface DerivedValue {
@@ -22,7 +21,6 @@ data class EvaluationFailure(val node: DependencyNodeKey, val message: String)
 sealed interface EvaluationResult {
     data class Success(val values: Map<DependencyNodeKey, DerivedValue>, val order: List<DependencyNodeKey>) : EvaluationResult
     data class Failure(val failure: EvaluationFailure, val completedOrder: List<DependencyNodeKey>) : EvaluationResult
-    data class Cancelled(val completedOrder: List<DependencyNodeKey>) : EvaluationResult
     data class Cancelled(val completedOrder: List<DependencyNodeKey>) : EvaluationResult
 }
 
