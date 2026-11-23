@@ -107,24 +107,22 @@ CI must actually build and run tests. Inspect logs on failure, fix and rerun. A 
 
 ## 19. Roadmap and gates
 
-A. Architecture contracts and blueprint audit.  
-B. Canonical Model prototype/contracts.  
-C. CommandBus / Transaction Engine prototype and acceptance gates.  
-C acceptance gates include memory-budgeted history and cancellation hardening.  
-E. **Dependency Graph / Incremental Recompute (DAG, cycle detection, dirty propagation, deterministic recompute).**  
-F. Kotlin prototype stabilization and migration to native-core C++20, including porting all tests and parity gates.  
-G. Geometry Kernel (only after native-core migration and test parity gates).  
-H. Parametric Model, families and constraints.  
-I. Architectural families and semantic elements.  
-J. Projection/drawing and spatial subsystem.  
-K. Quantities/schedules.  
-L. IFC interoperability.  
-M. Rendering/mobile performance.  
-N. Extensions and AI workflows.  
-O. UI/tool expansion.
+A. Architecture contracts and blueprint audit.
+B. Canonical Model pure-Kotlin reference prototype/contracts.
+C. CommandBus / Transaction Engine acceptance gates, including memory-budgeted history and cancellation hardening.
+D. Persistence/recovery contracts and Kotlin reference prototype (only after C gates pass).
+E. **Dependency Graph / Incremental Recompute:** DAG, cycle detection, dirty propagation and deterministic recompute.
+F. Kotlin prototype stabilization and migration to native-core C++20, including porting all test scenarios and parity gates.
+G. Geometry Kernel (only after native-core migration and test parity gates).
+H. Parametric Model, families and constraints.
+I. Projection/drawing and spatial subsystem.
+J. Quantities/schedules.
+K. IFC interoperability.
+L. Rendering/mobile performance.
+M. Extensions and AI workflows.
+N. UI/tool expansion.
 
-Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is used to stabilize contracts for A–D; before G, the native C++20 port and all test scenarios must be migrated and parity gates passed.
-
+Adjust roadmap only when evidence demonstrates a better order. The pure Kotlin prototype is the reference for contracts A–D; native C++20 migration and test parity must be completed before Geometry Kernel stage G.
 ## 20. GitHub workflow
 
 Work only in `feature/model-core-v1`. Never directly change `main`; do not merge PR without explicit user approval. Use GitHub API/tools for real repository changes. Each logical change: inspect diff, validate paths and content, commit, verify SHA, run CI and confirm outcome. Do not claim a file/commit/test changed unless verified. Avoid fake commits, unsubstantiated success claims or unnecessary edits.
