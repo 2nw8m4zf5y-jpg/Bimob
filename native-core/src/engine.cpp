@@ -135,7 +135,7 @@ std::vector<NodeId> dirtyForProjectChange(const Project&before,const Project&aft
 }
 std::vector<DependencyEdge> wallJoinDependencyEdges(const Project&p){
  std::vector<DependencyEdge> edges;
- for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id});for(const auto&i:p.catalogInstances)if(i.hostWallId==j.wallA||i.hostWallId==j.wallB)edges.push_back({joinNode,catalogNode(i.id,"HOST")});
+ for(const auto&j:p.joins){const auto joinNode="join:"+j.id.value+":geometry";edges.push_back({wallNode(j.wallA),joinNode});edges.push_back({wallNode(j.wallB),joinNode});for(const auto&o:p.openings)if(o.hostWallId==j.wallA||o.hostWallId==j.wallB)edges.push_back({joinNode,openingNode(o.id)});for(const auto&i:p.catalogInstances)if(i.hostWallId==j.wallA||i.hostWallId==j.wallB)edges.push_back({joinNode,catalogNode(i.id,"HOST")});}
  return edges;
 }
 Result<DependencyGraph> syncJoinGraph(const DependencyGraph&current,const Project&p,const EngineLimits&limits){
@@ -147,7 +147,7 @@ Result<DependencyGraph> syncJoinGraph(const DependencyGraph&current,const Projec
 
 namespace commands {
 namespace {
-template<class T> Error missing(const ModelId& id,const char* kind){return{ErrorCode::InvalidArgument,std::string(kind)+" not found",id.value,{},0,0};}
+Error missing(const ModelId& id,const char* kind){return{ErrorCode::InvalidArgument,std::string(kind)+" not found",id.value,{},0,0};}
 Point2 add(Point2 a,Point2 b){return Point2{Meters{a.x.value+b.x.value},Meters{a.y.value+b.y.value}};}
 }
 Mutation createLevel(Level value){return [value=std::move(value)](const Project&p){auto c=p;if(std::any_of(c.levels.begin(),c.levels.end(),[&](const Level&x){return x.id==value.id;}))return Result<Project>::failure({ErrorCode::InvalidArgument,"Level already exists",value.id.value,{},0,0});c.levels.push_back(value);return Result<Project>::success(std::move(c));};}
