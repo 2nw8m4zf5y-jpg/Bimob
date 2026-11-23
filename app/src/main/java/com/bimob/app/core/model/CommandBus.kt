@@ -30,11 +30,14 @@ sealed interface ModelEvent {
 enum class HistoryAction { UNDO, REDO }
 
 /**
- * Serializes writers under a short monitor; readers get immutable revision snapshots.
- * Observer callbacks are invoked after the lock and isolated from commit failures.
+ * Writers serialize state changes under a monitor. Listener deliveries are queued
+ * in commit order and dispatched outside the state lock, so callbacks cannot
+ * reorder revision events or block snapshot readers during model publication.
  */
 class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
     private val monitor = Any()
+    private val dispatchMonitor = Any()
+    private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
     private var current = ModelRevision(0L, freezeProject(initialProject))
     private val undoStack = ArrayDeque<Project>()
     private val redoStack = ArrayDeque<Project>()
@@ -56,8 +59,7 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
 
     fun execute(mutation: ModelMutation, expectedRevision: Long? = null,
                cancellation: CancellationCheck = CancellationCheck.NEVER): CommandResult {
-        val event: ModelEvent.RevisionCommitted
-        val subscribers: List<(ModelEvent) -> Unit>
+        val committed: ModelRevision
         synchronized(monitor) {
             if (expectedRevision != null && expectedRevision != current.number)
                 return CommandResult.Rejected(CommandFailureCode.STALE_REVISION,
@@ -84,19 +86,18 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
             }
             redoStack.clear()
             current = ModelRevision(before.number + 1, candidate)
-            event = ModelEvent.RevisionCommitted(current, mutation.label)
-            subscribers = listeners.toList()
+            committed = current
+            enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
         }
-        publish(event, subscribers)
-        return CommandResult.Committed(event.revision, ModelValidator.validate(event.revision.project))
+        drainEvents()
+        return CommandResult.Committed(committed, ModelValidator.validate(committed.project))
     }
 
     fun undo(expectedRevision: Long? = null): CommandResult = restore(HistoryAction.UNDO, expectedRevision)
     fun redo(expectedRevision: Long? = null): CommandResult = restore(HistoryAction.REDO, expectedRevision)
 
     private fun restore(action: HistoryAction, expectedRevision: Long?): CommandResult {
-        val event: ModelEvent.RevisionRestored
-        val subscribers: List<(ModelEvent) -> Unit>
+        val restored: ModelRevision
         synchronized(monitor) {
             if (expectedRevision != null && expectedRevision != current.number)
                 return CommandResult.Rejected(CommandFailureCode.STALE_REVISION,
@@ -108,15 +109,27 @@ class CommandBus(initialProject: Project, private val historyLimit: Int = 100) {
             destination.addLast(current.project)
             while (destination.size > historyLimit) destination.removeFirst()
             current = ModelRevision(current.number + 1, target)
-            event = ModelEvent.RevisionRestored(current, action)
-            subscribers = listeners.toList()
+            restored = current
+            enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
-        publish(event, subscribers)
-        return CommandResult.Committed(event.revision, ModelValidator.validate(event.revision.project))
+        drainEvents()
+        return CommandResult.Committed(restored, ModelValidator.validate(restored.project))
     }
 
-    private fun publish(event: ModelEvent, subscribers: List<(ModelEvent) -> Unit>) {
-        subscribers.forEach { listener -> runCatching { listener(event) } }
+    private fun enqueueEvent(event: ModelEvent) {
+        pendingEvents.addLast(event to listeners.toList())
+    }
+
+    /** One dispatcher drains FIFO. Reentrant commits append and are delivered by this drain. */
+    private fun drainEvents() {
+        synchronized(dispatchMonitor) {
+            while (true) {
+                val delivery = synchronized(monitor) {
+                    if (pendingEvents.isEmpty()) null else pendingEvents.removeFirst()
+                } ?: return
+                delivery.second.forEach { listener -> runCatching { listener(delivery.first) } }
+            }
+        }
     }
 }
 
