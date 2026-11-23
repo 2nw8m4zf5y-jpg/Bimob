@@ -97,3 +97,9 @@ The successive failed G2 runs were failure-driven fixes, not accepted builds. Ru
 ### Atomic Host -> Hosted deletion
 - Added mutation helpers `deleteWallCascade` and `deleteLevelCascade`. Wall deletion removes its hosted openings, hosted catalog instances and wall joins. Level deletion cascades through its walls and their hosted dependents, and removes level-bound catalog instances.
 - CommandBus transaction tests confirm Undo restores the complete host/dependent set.
+
+
+### Deterministic cycle diagnostics and limit contract tests
+- Cycle admission now computes an explicit closed cycle path using deterministic iterative DFS over sorted node/adjacency order; diagnostic includes path and starting node ID (example `A -> B -> C -> A`).
+- Native tests assert exact cycle message and exact `code/budget/actual/limit/nodeId` fields for all six EngineLimits failures.
+- This improves native diagnostic determinism. **Cross-language golden comparison against Kotlin-produced fixtures is still not completed.**

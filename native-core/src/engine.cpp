@@ -37,7 +37,7 @@ Result<DependencyGraph> admitEdges(const DependencyGraph&base,const std::vector<
  for(std::size_t i=0;i<nodes.size();++i){degree[i]=x.incoming[i].size();if(degree[i]==0)ready.push(i);}
  std::size_t processed=0,maxDepth=0,maxIndex=0;
  while(!ready.empty()){auto n=ready.front();ready.pop();++processed;if(depth[n]>maxDepth){maxDepth=depth[n];maxIndex=n;}for(auto child:x.outgoing[n]){depth[child]=std::max(depth[child],depth[n]+1);if(--degree[child]==0)ready.push(child);}}
- if(processed!=nodes.size())return Result<DependencyGraph>::failure({ErrorCode::DependencyCycle,"Dependency cycle detected (deterministic Kahn residual)",nodes.empty()?std::string{}:nodes.front(),{},0,0});
+ if(processed!=nodes.size()){auto path=deterministicCycle(x);return Result<DependencyGraph>::failure({ErrorCode::DependencyCycle,"Dependency cycle detected: "+cycleText(path),path.empty()?std::string{}:path.front(),{},0,0});}
  if(maxDepth>limits.dependency_depth)return Result<DependencyGraph>::failure(budgetError("dependency_depth",maxDepth,limits.dependency_depth,nodes[maxIndex]));
  return Result<DependencyGraph>::success(std::move(candidate));
 }
