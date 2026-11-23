@@ -207,6 +207,11 @@ Latest commits in this work session:
 - `2fd1eed9d781fa5f9ec7550b034830dc69220f8b` — ADR 001 transaction design.
 - `50cea7a92b4b2ff0a706d35741d42db843193f4a` — bound undo/redo history depth.
 - `65055351285f394b419d536c7c7187ca4e01180a` — tests for history limit and initial model validation.
+- `f12c54a415b67ebb8c978a766ef135347511b31b` — fixed Kotlin listener type syntax; CI verified green.
+- `11f81fcc4475c199f21894dcc41c0fa0ef344f5f` — master prompt v1.2: license policy and store/release constraints.
+- `10e45b67d1cee9ca8b5d55410ed6d7189145aa22` — FIFO event delivery across concurrent commits.
+- `bf0a415373cf1e7755b0bc144577331b4aef534c` — tests for multi-entity atomicity, concurrent event ordering, and subscription close.
+- `13bdac129fdfa5b190049fa85d742e33978f3572` — tightened atomic revision assertion.
 
 Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `ModelCommands.kt`, `ModelValidator.kt` and validator tests. Always re-check current HEAD and files before future work.
 
@@ -215,14 +220,14 @@ Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; proto
 - **Phase B — Canonical Model:** prototype exists with typed IDs/entities, wall geometry fields and validation; this is not yet production complete.
 - **Phase C — CommandBus/Transaction Engine:** first prototype commit landed. Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
 - **Snapshot note:** Kotlin collection defensive copies and initial model validation were added. Deep immutability and concurrent event ordering remain follow-up gaps, documented in ADR 001.
-- **CI:** GitHub API combined statuses returned an empty status list for the latest test commit; commit-associated workflow-run query also returned no runs. This means CI is **not verified**, not passing. The web Actions page was inaccessible from this session.
-- **Acceptance criteria not yet met:** multi-change atomicity tests, history disposal, concurrency and event ordering, comprehensive deep-copy guarantees, revision overflow, and successful CI run. History depth and initial-state validation now have tests.
+- **CI:** the Kotlin syntax fix commit `f12c54a415b67ebb8c978a766ef135347511b31b` has a verified successful GitHub Actions run. CI for the newer v1.2 docs and concurrent event changes is currently pending; do not assume green until checked.
+- **Acceptance criteria status:** tests for multi-entity atomic commit, concurrent writer event order, and subscription disposal have been added. Remaining gaps: deep immutability beyond defensive collection copies, event queue/backpressure policy under slow subscribers, history memory/disposal, revision overflow, richer transaction staging/cancellation semantics, and green CI for latest commits.
 
 ## 28. Roadmap and next work
 
 A. Architecture contracts and blueprint — documented; verify periodically.  
 B. Canonical Model — prototype; continue parity/contract tests.  
-C. **CommandBus + Transaction Engine — in progress, not complete.** Next tasks: improve staging/commit concurrency design; add tests for multi-element atomicity, listener disposal, event ordering/concurrent writers, defensive copies, and revision overflow; strengthen cancellation semantics; run and verify CI.  
+C. **CommandBus + Transaction Engine — in progress, not complete.** FIFO event delivery is now queued at commit time and dispatched outside the model monitor; concurrent commit events should retain revision order. Tests added for atomic multi-entity changes, concurrent writers/event ordering, and listener disposal. Next: verify CI, investigate event queue behavior/backpressure and reentrancy, deep snapshot guarantees, revision overflow, history retention, and cancellation semantics.  
 D. Persistence/recovery.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
