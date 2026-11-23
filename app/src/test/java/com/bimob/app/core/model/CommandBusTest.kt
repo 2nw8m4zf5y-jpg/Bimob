@@ -14,6 +14,20 @@ class CommandBusTest {
         override val label = "Rename project"
         override fun apply(before: Project) = before.copy(name = "Renamed")
     }
+
+    @Test fun snapshotsDetachAndExposeUnmodifiableCollections() {
+        val mutableBuildings = mutableListOf(Building(name = "Before"))
+        val mutableLevels = mutableListOf<Level>()
+        val source = Project(name = "P", buildings = mutableBuildings, levels = mutableLevels)
+        val bus = CommandBus(source)
+        mutableBuildings += Building(name = "After")
+        assertEquals(1, bus.snapshot().project.buildings.size)
+        assertEquals("Before", bus.snapshot().project.buildings.single().name)
+        assertThrows(UnsupportedOperationException::class.java) {
+            (bus.snapshot().project.buildings as MutableList<Building>).add(Building(name = "Injected"))
+        }
+    }
+
     @Test fun commitPublishesRevisionAndEvent() {
         val bus = CommandBus(project()); val events = mutableListOf<ModelEvent>()
         bus.subscribe { events.add(it) }
