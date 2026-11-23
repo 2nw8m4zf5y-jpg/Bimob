@@ -390,7 +390,7 @@ fun nextRevisionNumber(current: Long): Long? =
 private fun <T> immutableList(values: Collection<T>): List<T> =
     java.util.Collections.unmodifiableList(ArrayList(values))
 
-private fun freezeProject(project: Project): Project = project.copy(
+internal fun freezeProject(project: Project) = project.copy(
     buildings = immutableList(project.buildings),
     levels = immutableList(project.levels),
     elements = immutableList(project.elements.map { element ->
@@ -407,7 +407,7 @@ private fun freezeProject(project: Project): Project = project.copy(
 )
 
 /** Freeze heterogeneous derived-state payloads so revisions cannot be mutated by callers. */
-private fun freezeDerivedValues(values: Map<DependencyNodeKey, DerivedValue>): Map<DependencyNodeKey, DerivedValue> {
+internal fun freezeDerivedValues(values: Map<DependencyNodeKey, DerivedValue>): Map<DependencyNodeKey, DerivedValue> {
     val frozen = values.mapValues { (_, value) ->
         when (value) {
             is DerivedValue.NumberList -> value.copy(values = java.util.Collections.unmodifiableList(ArrayList(value.values)))

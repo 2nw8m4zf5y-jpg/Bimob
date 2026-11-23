@@ -144,5 +144,19 @@ class ProjectRepository(private val storage:AtomicStorage,private val writer:Bim
         return SaveResult(digest,warning)
     }
     fun load(path:String)=reader.read(storage.read(path))
+    /** Stores an exact immutable revision snapshot in app-private repository storage. */
+    fun save(path:String, revision:ModelRevision):SaveResult {
+        val caps=storage.capabilities
+        require(caps.atomicReplace&&caps.durableFileSync&&caps.stagedReadbackVerification){"Storage does not satisfy atomic-save durability requirements."}
+        val bytes=ModelRevisionCodec.encode(revision)
+        val staged=ModelRevisionCodec.decode(bytes)
+        require(staged==revision){"Revision round-trip mismatch."}
+        storage.writeAtomically(path,bytes)
+        val digest=sha(bytes)
+        require(sha(storage.read(path))==digest){"Revision read-back verification failed."}
+        return SaveResult(digest)
+    }
+    fun loadRevision(path:String):ModelRevision = ModelRevisionCodec.decode(storage.read(path))
+
     fun recover(path:String,project:Project):Project? { val bytes=storage.read(path);val saved=reader.read(bytes);require(saved==project){"Recovery base project does not match saved file."};return journal?.recover(sha(bytes),saved) }
 }
