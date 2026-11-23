@@ -170,55 +170,40 @@ Current prototype under `app/src/main/java/com/bimob/app/core/model/` is a contr
 - Port phases: contracts → native foundation/model → commands/transactions → persistence → parity tests → JNI integration → Kotlin prototype retired or retained only as test reference, according to documented ADR.
 - No premature UI expansion while core gates fail.
 
-## 26. Repository state (must be re-verified each session)
+## 26. Repository state (verified 2026-11-23)
 
-Repo: `2nw8m4zf5y-jpg/Bimob`; branch `feature/model-core-v1`; draft PR #1 to main.  
-Known earlier prototype includes DomainModel.kt, ModelCommands.kt, ModelValidator.kt and ModelValidator tests; kernel blueprint document exists at `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`. Historical commits are not proof of current HEAD. Verify remote state and all relevant files every session. No merge without explicit approval.
+Repo: `2nw8m4zf5y-jpg/Bimob`; working branch `feature/model-core-v1`; draft PR #1 targets main (do not merge without approval). Branch exists and is writable.
 
-## 27. Progress tracking / engineering reports
+Latest commits in this work session:
+- `8b41c09991b3077b8f76c50fc082cb97a2892c19` — add this master prompt v1.1.
+- `28f7ea79d67b4bb472f9466ec49190e9cadca261` — initial CommandBus implementation.
+- `38f0d01ec11f40d61ad4a97e46e77af69f19aa23` — CommandBus tests.
+- `d88fc22a7d65e0b4eb2f96921c24b345dc10a32e` — defensive snapshot collection copies and initial-state validation.
+- `2fd1eed9d781fa5f9ec7550b034830dc69220f8b` — ADR 001 transaction design.
 
-Keep this section factual and updated after verified milestones:
-- Current phase and precise completion criteria.
-- Implemented files and commit SHA.
-- Test commands and CI statuses with links.
-- Known gaps, risks, and next task.
-- Never mark a phase complete until its acceptance criteria and CI are satisfied.
-- Keep changelog concise; retain older milestone details in git history/ADR.
+Relevant existing files: `docs/architecture/BIMOB_KERNEL_BLUEPRINT_V1.md`; prototype `DomainModel.kt`, `ModelCommands.kt`, `ModelValidator.kt` and validator tests. Always re-check current HEAD and files before future work.
+
+## 27. Progress tracking (verified state at 2026-11-23)
+
+- **Phase B — Canonical Model:** prototype exists with typed IDs/entities, wall geometry fields and validation; this is not yet production complete.
+- **Phase C — CommandBus/Transaction Engine:** first prototype commit landed. Current `CommandBus.kt` implements mutation-to-candidate, validation gate, revision snapshots, expected-revision rejection, cancellation checkpoints, bounded snapshot undo/redo, no-op handling, and event notification. Tests cover commit/event, stale revision, validation rejection, thrown command, cancellation, undo/redo, no-op, and observer exception.
+- **Snapshot note:** Kotlin collection defensive copies and initial model validation were added. Deep immutability and concurrent event ordering remain follow-up gaps, documented in ADR 001.
+- **CI:** GitHub API combined statuses returned an empty status list for the latest test commit; commit-associated workflow-run query also returned no runs. This means CI is **not verified**, not passing. The web Actions page was inaccessible from this session.
+- **Acceptance criteria not yet met:** multi-change atomicity tests, history limit/disposal, concurrency and event ordering, freeze/deep-copy guarantees, revision overflow, and successful CI run.
 
 ## 28. Roadmap and next work
 
-A. Contracts and blueprint (in progress/verify).  
-B. Canonical model: typed IDs, entities, parameters, units, validation, pure Kotlin tests.  
-C. **CommandBus + Transaction Engine:** command contracts, preconditions, staging, validation, atomic commit/rollback, revision management, undo/redo, events, cache invalidation, cancellation and optimistic concurrency.  
-D. Persistence and recovery.  
+A. Architecture contracts and blueprint — documented; verify periodically.  
+B. Canonical Model — prototype; continue parity/contract tests.  
+C. **CommandBus + Transaction Engine — in progress, not complete.** Next tasks: improve staging/commit concurrency design; add tests for multi-element atomicity, history bounds, listener disposal, event ordering/concurrent writers, defensive copies, and revision overflow; ensure initial-state invariant behavior and cancellation semantics; run and verify CI.  
+D. Persistence/recovery.  
 E. Dependency DAG/incremental recompute.  
 F. Geometry APIs and backend adapters.  
-G. Architectural element families and constraints.  
+G. Architectural families and constraints.  
 H. Projection/drawing and spatial subsystem.  
-I. Quantities and schedules.  
+I. Quantities/schedules.  
 J. IFC interop.  
-K. Mobile rendering/performance and production integration.  
-L. Extensions/plugins and AI-assisted workflows.
+K. Mobile rendering/performance.  
+L. Extension system and AI workflows.
 
-Start with the earliest incomplete phase. The immediate next implementation is CommandBus + Transaction Engine. Keep changes scoped, add tests, run CI, then update this passport.
-
-## 29. GitHub API, ADR and CI protocol
-
-1. **Session start synchronization:** first verify via GitHub API latest HEAD of `feature/model-core-v1`, branch existence, file inventory/relevant files, open PR(s), and recent GitHub Actions runs/status. Do not base edits on stale conversation summaries.
-2. **Safe writes:** edit only the intended branch; check file SHA before update; avoid concurrent writes to same path. Commit with clear scoped messages.
-3. **CI after every push:** inspect workflow `.github/workflows/build-apk.yml`; verify run status. On failure, fetch job logs, diagnose and fix before moving on. If status is pending, report pending and wait/check later rather than claiming success. If API cannot expose status, disclose.
-4. **ADR:** for meaningful architecture decisions/compromises, create `docs/adr/NNN-short-title.md` containing status, context/problem, considered options, decision, rationale, consequences/tradeoffs, and validation. Number sequentially; inspect existing ADRs first.
-5. **Self-updating passport:** keep this file at `docs/MASTER_PROMPT.md`. Update §§26–28 after each completed stage; append/record verified commits, test outcomes, current gaps, next step. Update the passport in a separate commit if necessary to keep implementation commit focused.
-6. **PR discipline:** report branch, commit, PR, CI, and files. Never merge PR or push to main without explicit user permission.
-
-## 30. Completion report format
-
-At each work session report:
-- **Completed:** tangible code/docs/tests.
-- **Commit:** SHA and link.
-- **Verification:** exact tests/build/CI result; clearly distinguish local/API/CI.
-- **Status:** what is complete vs prototype/partial.
-- **Next:** single next engineering milestone.
-- **Blockers:** only actual blockers.
-
-The core goal is a trustworthy, extensible BIM kernel. Resist architectural drift, shortcuts that undermine canonical data, and feature additions that bypass contracts.
+Do not advance to Phase D until Phase C acceptance gates and CI pass.
