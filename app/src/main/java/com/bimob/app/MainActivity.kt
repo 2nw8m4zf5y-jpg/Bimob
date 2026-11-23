@@ -209,7 +209,7 @@ private enum class CanvasTool { WALL, SELECT }
 private fun PlanCanvas(session: ModelSession, snapshot: SessionSnapshot, tool: CanvasTool, selectedWallId: ModelId?, onSelectWall: (ModelId?) -> Unit, modifier: Modifier = Modifier) {
     val scale = 80f
     Canvas(
-        modifier = modifier.background(Color.White).pointerInput(session, tool) { detectTapGestures { point -> onSelectWall(nearestWall(snapshot.displayedProject, snapWorld(point, size, scale), 0.25)) } }.pointerInput(session, tool) {
+        modifier = modifier.background(Color.White).pointerInput(session, tool, snapshot.revision.number) { detectTapGestures { point -> onSelectWall(nearestWall(snapshot.displayedProject, snapWorld(point, size, scale), 0.25)) } }.pointerInput(session, tool) {
             var base: Project? = null
             var startWorld: Point2? = null
             var previewId: ModelId? = null

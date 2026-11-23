@@ -110,7 +110,7 @@ class ModelSessionTest {
             val results = pool.invokeAll(tasks).map { it.get() }
             assertTrue(results.all { it is CommandResult.Committed })
             assertEquals(40L, session.snapshot().revision.number)
-            assertEquals(40, session.snapshot().revision.number.toInt())
+            assertTrue(session.snapshot().canUndo)
         } finally { pool.shutdownNow() }
     }
 }
