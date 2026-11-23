@@ -36,33 +36,46 @@ sealed interface ModelEvent {
 }
 enum class HistoryAction { UNDO, REDO }
 
+private data class HistoryEntry(val project: Project, val estimatedBytes: Long, val order: Long)
+
 /**
  * Writers serialize state changes under a monitor. Events are queued in commit order
  * and dispatched outside the model lock. The queue limit excludes the callback in flight.
+ *
+ * History limits apply across Undo and Redo combined. Memory cost uses MemoryEstimator's
+ * deterministic logical-size estimate, not device-specific heap measurements. The current
+ * published snapshot is never evicted; only historical entries are eligible.
  */
 class CommandBus(
     initialProject: Project,
     private val historyLimit: Int = 100,
-    private val pendingEventLimit: Int = 1024
+    private val pendingEventLimit: Int = 1024,
+    private val historyMemoryBudgetBytes: Long = 64L * 1024L * 1024L
 ) {
     private val monitor = Any()
     private val dispatchMonitor = Any()
     private var dispatching = false
     private val pendingEvents = ArrayDeque<Pair<ModelEvent, List<(ModelEvent) -> Unit>>>()
     private var current = ModelRevision(0L, freezeProject(initialProject))
-    private val undoStack = ArrayDeque<Project>()
-    private val redoStack = ArrayDeque<Project>()
+    private val undoStack = ArrayDeque<HistoryEntry>()
+    private val redoStack = ArrayDeque<HistoryEntry>()
+    private var nextHistoryOrder = 0L
     private val listeners = mutableSetOf<(ModelEvent) -> Unit>()
 
     init {
         require(historyLimit >= 0) { "historyLimit must be non-negative" }
         require(pendingEventLimit > 0) { "pendingEventLimit must be positive" }
+        require(historyMemoryBudgetBytes >= 0L) { "historyMemoryBudgetBytes must be non-negative" }
         require(ModelValidator.validate(current.project).none { it.severity == ValidationSeverity.ERROR }) {
             "Initial project must satisfy model invariants."
         }
     }
 
     fun snapshot(): ModelRevision = synchronized(monitor) { current }
+
+    fun historyMemoryUsageBytes(): Long = synchronized(monitor) { historyBytes() }
+    fun undoDepth(): Int = synchronized(monitor) { undoStack.size }
+    fun redoDepth(): Int = synchronized(monitor) { redoStack.size }
 
     fun subscribe(listener: (ModelEvent) -> Unit): AutoCloseable {
         synchronized(monitor) { listeners += listener }
@@ -109,9 +122,9 @@ class CommandBus(
             if (!hasEventCapacity())
                 return CommandResult.Rejected(CommandFailureCode.EVENT_QUEUE_FULL, "Pending event queue is full.")
 
-            if (historyLimit > 0) {
-                undoStack.addLast(before.project)
-                while (undoStack.size > historyLimit) undoStack.removeFirst()
+            if (historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
+                undoStack.addLast(historyEntry(before.project))
+                trimHistory()
             }
             redoStack.clear()
             current = ModelRevision(nextRevision, candidate)
@@ -144,14 +157,48 @@ class CommandBus(
                 return CommandResult.Rejected(CommandFailureCode.EVENT_QUEUE_FULL, "Pending event queue is full.")
 
             val target = source.removeLast()
-            destination.addLast(current.project)
-            while (destination.size > historyLimit) destination.removeFirst()
-            current = ModelRevision(nextRevision, target)
+            if (historyLimit > 0 && historyMemoryBudgetBytes > 0L) {
+                destination.addLast(historyEntry(current.project))
+                trimHistory()
+            }
+            current = ModelRevision(nextRevision, target.project)
             restored = current
             enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
         drainEvents()
         return CommandResult.Committed(restored, ModelValidator.validate(restored.project))
+    }
+
+    private fun historyEntry(project: Project): HistoryEntry {
+        val order = nextHistoryOrder
+        if (nextHistoryOrder < Long.MAX_VALUE) nextHistoryOrder++
+        return HistoryEntry(project, MemoryEstimator.estimateProjectBytes(project), order)
+    }
+
+    /** Evicts the globally oldest stack-bottom entry until both limits are satisfied. */
+    private fun trimHistory() {
+        while (undoStack.size + redoStack.size > historyLimit ||
+            historyBytes() > historyMemoryBudgetBytes
+        ) {
+            val undoOldest = undoStack.firstOrNull()
+            val redoOldest = redoStack.firstOrNull()
+            when {
+                undoOldest == null && redoOldest == null -> return
+                redoOldest == null -> undoStack.removeFirst()
+                undoOldest == null -> redoStack.removeFirst()
+                undoOldest.order <= redoOldest.order -> undoStack.removeFirst()
+                else -> redoStack.removeFirst()
+            }
+        }
+    }
+
+    private fun historyBytes(): Long {
+        var total = 0L
+        (undoStack.asSequence() + redoStack.asSequence()).forEach { entry ->
+            total = if (entry.estimatedBytes > Long.MAX_VALUE - total) Long.MAX_VALUE
+            else total + entry.estimatedBytes
+        }
+        return total
     }
 
     /** Called only while monitor is held, before state/history publication. */
