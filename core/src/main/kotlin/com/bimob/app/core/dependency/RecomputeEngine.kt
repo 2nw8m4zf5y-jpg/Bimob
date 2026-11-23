@@ -1,7 +1,6 @@
 package com.bimob.app.core.dependency
 
 import com.bimob.app.core.model.Project
-import com.bimob.app.core.model.CancellationCheck
 
 /** Small portable value vocabulary for derived state; avoids arbitrary JVM object graphs. */
 sealed interface DerivedValue {
@@ -24,7 +23,7 @@ sealed interface EvaluationResult {
     data class Cancelled(val completedOrder: List<DependencyNodeKey>) : EvaluationResult
 }
 
-fun interface DependencyEvaluator {
+fun interface RecomputeCancellation {\n    fun isCancelled(): Boolean\n    companion object { val NEVER = RecomputeCancellation { false } }\n}\n\nfun interface DependencyEvaluator {
     fun evaluate(project: Project, currentValues: Map<DependencyNodeKey, DerivedValue>): DerivedValue
 }
 
@@ -70,7 +69,7 @@ object RecomputeEngine {
         project: Project,
         initialValues: Map<DependencyNodeKey, DerivedValue>,
         evaluators: Map<DependencyNodeKey, DependencyEvaluator>,
-        cancellation: CancellationCheck = CancellationCheck.NEVER
+        cancellation: RecomputeCancellation = RecomputeCancellation.NEVER
     ): EvaluationResult {
         val staged = initialValues.toMutableMap().apply { plan.dirtyNodes.forEach(::remove) }
         val completed = mutableListOf<DependencyNodeKey>()
