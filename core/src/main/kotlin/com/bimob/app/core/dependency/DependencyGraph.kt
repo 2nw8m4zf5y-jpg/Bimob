@@ -173,14 +173,14 @@ class DependencyGraph private constructor(
     private fun longestPath(): List<DependencyNodeKey> {
         if (nodeSet.isEmpty()) return emptyList()
         val indegree = nodeSet.associateWith { incoming[it].orEmpty().size }.toMutableMap()
-        val ready = java.util.PriorityQueue<DependencyNodeKey>(compareBy { it.stableKey() })
-        indegree.filterValues { it == 0 }.keys.forEach(ready::add)
+        val ready = ArrayDeque<DependencyNodeKey>()
+        indegree.filterValues { it == 0 }.keys.sortedBy { it.stableKey() }.forEach(ready::addLast)
         val distance = nodeSet.associateWith { 1 }.toMutableMap()
         val parent = HashMap<DependencyNodeKey, DependencyNodeKey>()
         var processed = 0
         var maxNode: DependencyNodeKey? = null
         while (ready.isNotEmpty()) {
-            val current = ready.remove()
+            val current = ready.removeFirst()
             processed++
             if (maxNode == null || distance.getValue(current) > distance.getValue(maxNode!!)) maxNode = current
             for (edge in outgoing[current].orEmpty()) {
@@ -192,7 +192,7 @@ class DependencyGraph private constructor(
                 }
                 val remaining = indegree.getValue(child) - 1
                 indegree[child] = remaining
-                if (remaining == 0) ready.add(child)
+                if (remaining == 0) ready.addLast(child)
             }
         }
         if (processed != nodeSet.size) return emptyList() // cycle is reported before depth check
@@ -207,7 +207,7 @@ class DependencyGraph private constructor(
     }
 
     private fun neighbors(key: DependencyNodeKey): List<DependencyNodeKey> =
-        outgoing[key].orEmpty().map { it.dependent }.distinct().sortedBy { it.stableKey() }
+        outgoing[key].orEmpty().map { it.dependent }.distinct()
 
     companion object {
         fun empty(limits: DependencyGraphLimits = DependencyGraphLimits()): DependencyGraph =
