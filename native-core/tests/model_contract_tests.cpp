@@ -30,10 +30,10 @@ void typedGestureCoalescingAcrossEntityKinds(){
  p.catalogInstances.push_back(CatalogInstance{ModelId{"G2"},"asset",Point2{Meters{0},Meters{0}},0,ModelId{},ModelId{},Meters{.5},Meters{.5},Meters{.5},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},"furniture",""});
  CommandBus bus(p);
  const auto initial=bus.snapshot();
- for(int i=1;i<=5;++i)assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{static_cast<double>(i)},Meters{0}}),{}, "wall-drag").ok());
+ for(int i=1;i<=5;++i)assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag").ok());
  assert(bus.undoDepth()==1);
  assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==0);
- assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==5);
+ auto redone=bus.redo();assert(redone.ok());assert(bus.snapshot()->project->walls[0].axis.start.x.value==5);
  assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.3},Meters{.8}),{}, "opening-drag").ok());
  assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.4},Meters{.8}),{}, "opening-drag").ok());
  assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{1},Meters{1}}),{}, "catalog-drag").ok());
