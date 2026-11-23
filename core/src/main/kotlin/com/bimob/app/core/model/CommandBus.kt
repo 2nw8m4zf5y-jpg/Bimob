@@ -48,24 +48,24 @@ class TransactionContext internal constructor(
     fun admitDependency(edge: DependencyEdge) {
         checkpoint()
         when (val result = stagedGraph.admitEdge(edge)) {
-            is EdgeAdmission.Accepted -> stagedGraph = result.graph
+            is EdgeAdmission.Accepted -> { stagedGraph = result.graph; dirtySeeds += edge.dependent }
             is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
         }
     }
     fun admitDependencies(edges: Collection<DependencyEdge>) {
         checkpoint()
         when (val result = stagedGraph.admitEdges(edges)) {
-            is EdgeAdmission.Accepted -> stagedGraph = result.graph
+            is EdgeAdmission.Accepted -> { stagedGraph = result.graph; edges.forEach { dirtySeeds += it.dependent } }
             is EdgeAdmission.Rejected -> throw DependencyAdmissionException(result.diagnostic)
         }
     }
-    fun removeDependency(edge: DependencyEdge) { checkpoint(); stagedGraph = stagedGraph.withoutEdge(edge) }
-    fun removeDependencyNode(node: DependencyNodeKey) { checkpoint(); stagedGraph = stagedGraph.withoutNode(node) }
+    fun removeDependency(edge: DependencyEdge) { checkpoint(); stagedGraph = stagedGraph.withoutEdge(edge); dirtySeeds += edge.dependent }
+    fun removeDependencyNode(node: DependencyNodeKey) { checkpoint(); stagedGraph.outgoingEdges(node).forEach { dirtySeeds += it.dependent }; stagedGraph = stagedGraph.withoutNode(node); stagedValues = stagedValues - node }
     fun markDirty(node: DependencyNodeKey) { checkpoint(); dirtySeeds += node }
     fun registerEvaluator(node: DependencyNodeKey, evaluator: DependencyEvaluator) {
         checkpoint(); evaluators[node] = evaluator
     }
-    internal fun publishEvaluated(values: Map<DependencyNodeKey, DerivedValue>) { stagedValues = values.toMap() }
+    internal fun publishEvaluated(values: Map<DependencyNodeKey, DerivedValue>) { stagedValues = freezeDerivedValues(values) }
 }
 internal class DependencyAdmissionException(
     val diagnostic: com.bimob.app.core.dependency.GraphDiagnostic
@@ -253,7 +253,7 @@ class CommandBus(
                 undoStack.addLast(historyEntry(before))
                 trimHistory()
             }
-            current = ModelRevision(nextRevision, candidate, context.dependencyGraph, candidateValues)
+            current = ModelRevision(nextRevision, candidate, context.dependencyGraph, freezeDerivedValues(candidateValues))
             committed = current
             enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
         }
@@ -287,7 +287,7 @@ class CommandBus(
                 destination.addLast(historyEntry(current))
                 trimHistory()
             }
-            current = ModelRevision(nextRevision, target.state.project, target.state.dependencyGraph, target.state.derivedValues)
+            current = ModelRevision(nextRevision, target.state.project, target.state.dependencyGraph, freezeDerivedValues(target.state.derivedValues))
             restored = current
             enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
@@ -379,3 +379,14 @@ private fun freezeProject(project: Project): Project = project.copy(
     materials = immutableList(project.materials),
     types = immutableList(project.types.map { it.copy(parameters = immutableList(it.parameters)) })
 )
+
+/** Freeze heterogeneous derived-state payloads so revisions cannot be mutated by callers. */
+private fun freezeDerivedValues(values: Map<DependencyNodeKey, DerivedValue>): Map<DependencyNodeKey, DerivedValue> {
+    val frozen = values.mapValues { (_, value) ->
+        when (value) {
+            is DerivedValue.NumberList -> value.copy(values = java.util.Collections.unmodifiableList(ArrayList(value.values)))
+            else -> value
+        }
+    }
+    return java.util.Collections.unmodifiableMap(frozen)
+}
