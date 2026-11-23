@@ -147,6 +147,7 @@ class CommandBusTest {
     @Test fun pendingEventQueueRejectsBeforePublishingAndNeverDropsEvents() {
         val bus = CommandBus(project(), pendingEventLimit = 1)
         val entered = java.util.concurrent.CountDownLatch(1)
+        val secondStaged = java.util.concurrent.CountDownLatch(1)
         val release = java.util.concurrent.CountDownLatch(1)
         val observed = java.util.Collections.synchronizedList(mutableListOf<Long>())
         bus.subscribe { event ->
@@ -167,9 +168,15 @@ class CommandBusTest {
             val second = executor.submit<CommandResult> {
                 bus.execute(object : ModelMutation {
                     override val label = "Second"
-                    override fun apply(before: Project) = before.copy(name = "Second")
+                    override fun apply(before: Project): Project {
+                        secondStaged.countDown()
+                        return before.copy(name = "Second")
+                    }
                 })
             }
+            assertTrue(secondStaged.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            // snapshot() synchronizes with the mutation's monitor and confirms publication.
+            assertEquals(2L, bus.snapshot().number)
             // The second event is queued while revision 1's callback is still in flight.
             val rejected = bus.execute(object : ModelMutation {
                 override val label = "Third"
