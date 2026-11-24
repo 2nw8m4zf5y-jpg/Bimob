@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.dp\nimport androidx.compose.ui.platform.LocalDensity
 import kotlin.math.*
 
 private enum class EditorTool { WALL, SELECT, DOOR, WINDOW, CATALOG }
@@ -29,7 +29,7 @@ internal data class TransformPreviewState(val kind:EditorElementKind,val id:Stri
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
  val state by viewModel.state.collectAsState()
- val camera by viewModel.camera.collectAsState()
+ val camera by viewModel.camera.collectAsState()\n val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
@@ -67,7 +67,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }while(event.changes.any{it.pressed})
     }
    }
-   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,preset,rotation){
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,preset,rotation,hitRadiusPx){
     detectTapGestures { screen ->
      if(!screen.x.isFinite()||!screen.y.isFinite())return@detectTapGestures
      val p=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
@@ -76,7 +76,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       EditorTool.DOOR->viewModel.createOpening("DOOR",p.x,p.y)
       EditorTool.WINDOW->viewModel.createOpening("WINDOW",p.x,p.y)
       EditorTool.CATALOG->viewModel.createCatalog(preset,p.x,p.y,rotation.toDouble())
-      else->viewModel.selectAt(p.x,p.y)
+      else->{val hit=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)};if(hit!=null)viewModel.selectElement(hit)else viewModel.selectAt(p.x,p.y)}
      }
     }
    }
