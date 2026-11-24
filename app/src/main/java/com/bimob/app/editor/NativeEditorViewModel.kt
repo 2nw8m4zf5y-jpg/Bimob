@@ -72,7 +72,10 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  }
  fun closeAndReset(){if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}
  fun createWall(sx:Double,sy:Double,ex:Double,ey:Double){
-  if(hypot(ex-sx,ey-sy)<0.05)return
+  if(levelId.isBlank()){publishError("Сначала создайте проект с активным уровнем.");return}
+  if(!listOf(sx,sy,ex,ey).all{it.isFinite()}){publishError("Координаты стены должны быть конечными числами.");return}
+  val length=hypot(ex-sx,ey-sy)
+  if(!length.isFinite()||length<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return}
   mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$sx,"startY":$sy,"endX":$ex,"endY":$ey,"heightMeters":2.7,"thicknessMeters":0.2}""")
  }
  fun createOpening(kind:String,x:Double,y:Double):Boolean{
@@ -121,7 +124,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  fun cancelGesture(id:String){if(engine.cancelGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture cancellation failed.")}
  fun undo()=history("Undo");fun redo()=history("Redo")
  private fun history(t:String){if(handle==0L)return;val r=engine.dispatch(handle,"""{"type":"$t"}""");if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}
- private fun mutate(c:String){val r=engine.dispatch(handle,c);if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}
+ private fun mutate(c:String){try{if(handle==0L){publishError("Native session is closed.");return};val r=engine.dispatch(handle,c);if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}catch(e:Exception){publishError(e.message?:"Native command failed safely.")}}
  private fun refresh(projectId:String){try{
   val g=engine.export(handle);val snap=engine.snapshot(handle);val h=engine.dispatch(handle,"""{"type":"HistoryState"}""")
   val info=mutableMapOf<String,OpeningRenderInfo>()
