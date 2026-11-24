@@ -23,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.*
 
-private enum class EditorTool { WALL, SELECT, DOOR, WINDOW, CATALOG }
+private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, DOOR, WINDOW, CATALOG }
 internal data class WorldPoint(val x:Double,val y:Double)
-internal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val dx:Double,val dy:Double)
+internal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val dx:Double=0.0,val dy:Double=0.0,val rotationRadians:Double=0.0,val scaleFactor:Double=1.0)
 
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
@@ -41,6 +41,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
    FilterChip(tool==EditorTool.SELECT,{tool=EditorTool.SELECT},{Text("Выбор")})
+   FilterChip(tool==EditorTool.ROTATE,{tool=EditorTool.ROTATE},{Text("Поворот")})
+   FilterChip(tool==EditorTool.RESIZE,{tool=EditorTool.RESIZE},{Text("Размер")})
    FilterChip(tool==EditorTool.DOOR,{tool=EditorTool.DOOR},{Text("Дверь")})
    FilterChip(tool==EditorTool.WINDOW,{tool=EditorTool.WINDOW},{Text("Окно")})
   }
@@ -87,28 +89,37 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }
     }
    }
-   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var movingSelection:EditorSelection?=null
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,hitRadiusPx){
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null
     try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val world=snap(raw,state.typedGeometry);start=world;last=world
-     if(tool==EditorTool.SELECT)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)}
+     val world=if(tool==EditorTool.WALL)snap(raw,state.typedGeometry)else raw;start=world;last=world;startScreen=screen
+     if(tool!=EditorTool.WALL)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)}
     },onDrag={change,_->
-     change.consume();val origin=start?:return@detectDragGestures
+     change.consume();val origin=start?:return@detectDragGestures;val originScreen=startScreen?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
      val raw=screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
      val point=snap(raw,state.typedGeometry)
-     if(tool==EditorTool.WALL)preview=origin to point
-     else if(tool==EditorTool.SELECT)movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,point.x-origin.x,point.y-origin.y)}
+     when(tool){
+      EditorTool.WALL->preview=origin to point
+      EditorTool.SELECT->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,point.x-origin.x,point.y-origin.y)}
+      EditorTool.ROTATE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,rotationRadians=(change.position.x-originScreen.x)/120f*2*Math.PI)}
+      EditorTool.RESIZE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,scaleFactor=exp((change.position.x-originScreen.x)/160f).coerceIn(.2,5.0))}
+      else->Unit
+     }
      last=point
     },onDragEnd={
-     val from=start;val to=last;val tp=transformPreview
-     try{if(tool==EditorTool.WALL&&from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
-      else if(tp!=null&&tp.dx.isFinite()&&tp.dy.isFinite()&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
-     }finally{preview=null;transformPreview=null;start=null;last=null;movingSelection=null}
-    },onDragCancel={preview=null;transformPreview=null;start=null;last=null;movingSelection=null})}
-    finally{preview=null;transformPreview=null;start=null;last=null;movingSelection=null}
+     val from=start;val to=last;val tp=transformPreview;val sel=movingSelection
+     try{when(tool){
+      EditorTool.WALL->if(from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
+      EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
+      EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
+      EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
+      else->Unit
+     }}finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
+    },onDragCancel={preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null})}
+    finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
    }
 
   ) {
