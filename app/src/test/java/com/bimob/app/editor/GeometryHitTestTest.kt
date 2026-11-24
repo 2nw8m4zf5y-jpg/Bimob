@@ -50,7 +50,7 @@ class GeometryHitTestTest {
  }
  @Test fun orthoLockSnapsAndSoftModeUsesFiveDegreeWindow(){
   val anchor=WorldPoint(0.0,0.0)
-  val raw=WorldPoint(1.0,.4)
+  val raw=WorldPoint(.96,.43)
   val locked=snapPoint(raw,anchor,geom(),IntSize(400,400),100f,Offset.Zero,22f,true)
   assertEquals(SnapKind.ORTHO,locked.kind);assertEquals(0.0,locked.point.y,1e-6)
   val empty=TypedGeometry(1,emptyList(),emptyList(),emptyList(),emptyList())
