@@ -2,6 +2,8 @@ package com.bimob.app.editor
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.abs
+import kotlin.math.hypot
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -37,7 +39,8 @@ class GeometryHitTestTest {
   val raw=WorldPoint(2.03,.02)
   val result=snapPoint(raw,null,g,IntSize(400,400),100f,Offset.Zero,22f,false)
   assertEquals(SnapKind.ENDPOINT,result.kind);assertEquals(2.0,result.point.x,1e-6);assertEquals(0.0,result.point.y,1e-6)
-  val tooFar=snapPoint(WorldPoint(2.25,0.0),null,g,IntSize(400,400),100f,Offset.Zero,22f,false)
+  val empty=TypedGeometry(1,emptyList(),emptyList(),emptyList(),emptyList())
+  val tooFar=snapPoint(WorldPoint(2.25,0.0),null,empty,IntSize(400,400),100f,Offset.Zero,3f,false)
   assertEquals(SnapKind.NONE,tooFar.kind)
  }
  @Test fun edgeSnapPrecedesOrthoAndGrid(){
@@ -62,6 +65,13 @@ class GeometryHitTestTest {
   assertEquals(SnapKind.GRID,snapped.kind);assertEquals(.4,snapped.point.x,1e-6);assertEquals(.5,snapped.point.y,1e-6)
   val noSnap=snapPoint(raw,null,TypedGeometry(1,emptyList(),emptyList(),emptyList(),emptyList()),IntSize(400,400),100f,Offset.Zero,3f,false)
   assertEquals(SnapKind.NONE,noSnap.kind)
+ }
+ @Test fun cornerAndTSnapPreviewMiterProducesFiniteJoinFootprint(){
+  val corner=previewJoinCorners(wall,WorldPoint(2.0,0.0),WorldPoint(2.0,2.0),WorldPoint(2.0,0.0),.2)
+  assertNotNull(corner);assertEquals(4,corner!!.size);assertTrue(corner.all{it.x.isFinite()&&it.y.isFinite()})
+  val tJoin=previewJoinCorners(wall,WorldPoint(1.0,0.0),WorldPoint(1.0,1.0),WorldPoint(1.0,0.0),.2)
+  assertNotNull(tJoin);assertEquals(4,tJoin!!.size)
+  assertTrue(tJoin.any{abs(it.x-1.0)<.11&&abs(it.y)<.11})
  }
  @Test fun selectedWallEndpointHandlesAreScreenHitTargets(){
   val start=hitWallEndpoint(Offset(200f,200f),wall,IntSize(400,400),100f,Offset.Zero,24f)

@@ -53,6 +53,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  var endpointPreview by remember{mutableStateOf<EndpointPreview?>(null)}
  var snapPreview by remember{mutableStateOf<SnapResult?>(null)}
+ var wallStartSnap by remember{mutableStateOf<SnapResult?>(null)}
  var fingerScreen by remember{mutableStateOf<Offset?>(null)}
  var orthoLocked by remember{mutableStateOf(false)}
  val crosshairOffsetPx=with(LocalDensity.current){48.dp.toPx()}
@@ -151,6 +152,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val snap=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen
      snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
+     wallStartSnap=if(tool==EditorTool.WALL)snap else null
      endpointPreview=endpointDrag?.copy(point=world)
      if(tool!=EditorTool.WALL&&endpointDrag==null)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,canvasOffset,hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
     },onDrag={change,_->
@@ -180,8 +182,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       tool==EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
       tool==EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
       tool==EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
-     }}finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
-    },onDragCancel={preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null})}
+     }}finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
+    },onDragCancel={preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null})}
     finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
    }
 
@@ -222,6 +224,15 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
+   preview?.let{pair->
+    listOfNotNull(wallStartSnap?.takeIf{it.kind in setOf(SnapKind.ENDPOINT,SnapKind.EDGE)},snapPreview?.takeIf{it.kind in setOf(SnapKind.ENDPOINT,SnapKind.EDGE)}).forEach{sn->
+     val point=sn.point;val host=g?.walls?.minByOrNull{wallAxisDistance(point,it)}
+     if(host!=null&&wallAxisDistance(point,host)<1e-5){
+      val join=previewJoinCorners(host,pair.first,pair.second,point,.2)
+      if(join!=null)drawTypedPolygon(join,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF36A45A))
+     }
+    }
+   }
    val finger=fingerScreen
    val crossTarget=if(finger!=null)Offset(finger.x,finger.y-crosshairOffsetPx)else null
    if(finger!=null&&crossTarget!=null&&(tool==EditorTool.WALL||endpointPreview!=null)){
@@ -229,6 +240,10 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     drawCircle(Color(0xFF1976D2),radius=7f,center=crossTarget,style=Stroke(1.5f))
     drawLine(Color(0xFF1976D2),Offset(crossTarget.x-9,crossTarget.y),Offset(crossTarget.x+9,crossTarget.y),1.5f)
     drawLine(Color(0xFF1976D2),Offset(crossTarget.x,crossTarget.y-9),Offset(crossTarget.x,crossTarget.y+9),1.5f)
+   }
+   wallStartSnap?.takeIf{it.kind!=SnapKind.NONE&&tool==EditorTool.WALL}?.let{sn->
+    val startPoint=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
+    drawCircle(Color(0xFF22A447),radius=6f,center=startPoint);drawCircle(Color.White,radius=2.5f,center=startPoint)
    }
    snapPreview?.takeIf{it.kind!=SnapKind.NONE}?.let{sn->
     val target=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
@@ -275,6 +290,29 @@ internal fun screenToWorld(p:Offset,size:IntSize,scale:Float,pan:Offset):WorldPo
  val x=(p.x.toDouble()-size.width/2.0-pan.x.toDouble())/scale.toDouble()
  val y=(size.height/2.0+pan.y.toDouble()-p.y.toDouble())/scale.toDouble()
  return if(x.isFinite()&&y.isFinite())WorldPoint(x,y) else WorldPoint(Double.NaN,Double.NaN)
+}
+internal fun wallAxisDistance(point:WorldPoint,wall:WallItem):Double{
+ val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val l2=dx*dx+dy*dy
+ if(l2<=1e-12)return Double.POSITIVE_INFINITY
+ val t=((point.x-wall.axisStart.x)*dx+(point.y-wall.axisStart.y)*dy)/l2
+ val tc=t.coerceIn(0.0,1.0);return hypot(point.x-wall.axisStart.x-tc*dx,point.y-wall.axisStart.y-tc*dy)
+}
+internal fun previewJoinCorners(host:WallItem,newStart:WorldPoint,newEnd:WorldPoint,joint:WorldPoint,newThickness:Double):List<Vec2>?{
+ val adx=host.axisEnd.x-host.axisStart.x;val ady=host.axisEnd.y-host.axisStart.y;val al=hypot(adx,ady)
+ val bdx=newEnd.x-newStart.x;val bdy=newEnd.y-newStart.y;val bl=hypot(bdx,bdy)
+ if(al<=1e-9||bl<=1e-9)return null
+ val au=Vec2(adx/al,ady/al);val bu=Vec2(bdx/bl,bdy/bl);val an=Vec2(-au.y,au.x);val bn=Vec2(-bu.y,bu.x)
+ val den=au.x*bu.y-au.y*bu.x;if(abs(den)<1e-10)return null
+ val hostThickness=hypot(host.corners[0].x-host.corners[3].x,host.corners[0].y-host.corners[3].y)
+ val points=mutableListOf<Vec2>()
+ for(sa in listOf(-1.0,1.0))for(sb in listOf(-1.0,1.0)){
+  val p=Vec2(joint.x+an.x*hostThickness*.5*sa,joint.y+an.y*hostThickness*.5*sa)
+  val q=Vec2(joint.x+bn.x*newThickness*.5*sb,joint.y+bn.y*newThickness*.5*sb)
+  val t=((q.x-p.x)*bu.y-(q.y-p.y)*bu.x)/den
+  points+=Vec2(p.x+t*au.x,p.y+t*au.y)
+ }
+ val cx=points.map{it.x}.average();val cy=points.map{it.y}.average()
+ return points.sortedBy{atan2(it.y-cy,it.x-cx)}
 }
 internal fun offsetCrosshairScreen(finger:Offset,offsetPx:Float)=Offset(finger.x,finger.y-offsetPx)
 internal fun offsetCrosshairWorld(finger:Offset,offsetPx:Float,size:IntSize,zoom:Float,pan:Offset)=screenToWorld(offsetCrosshairScreen(finger,offsetPx),size,zoom,pan)
