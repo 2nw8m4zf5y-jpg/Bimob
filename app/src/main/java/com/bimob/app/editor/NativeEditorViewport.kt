@@ -392,6 +392,7 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 @Composable
 private fun ToolbarDivider(){Box(Modifier.width(1.dp).height(24.dp).background(Color(0xFF303947)))}
 
+@Composable
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
   Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)Color(0xFF1E90FF)else MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=label;role=Role.Button}){
