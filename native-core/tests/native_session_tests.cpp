@@ -17,7 +17,10 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  auto readU64=[&](std::size_t offset){std::uint64_t v=0;for(int i=0;i<8;i++)v|=static_cast<std::uint64_t>(geometry[offset+i])<<(8*i);return v;};
  assert(readU32(4)==1);assert(readU64(8)>=3);
  auto wc=readU32(16),jc=readU32(20),oc=readU32(24),cc=readU32(28);assert(wc==2&&jc==1&&oc==1&&cc==1);
- assert(geometry.size()==32ULL+(wc+jc+oc+cc)*32ULL);
+ assert(geometry.size()>=32ULL+(wc+jc+oc+cc)*32ULL);
+ auto idOffset=32ULL+(wc+jc+oc+cc)*32ULL;
+ auto readId=[&](){auto n=readU32(idOffset);idOffset+=4;assert(n<=geometry.size()-idOffset);std::string id(reinterpret_cast<const char*>(geometry.data()+idOffset),n);idOffset+=n;return id;};
+ assert(readId()=="W1"&&readId()=="W2");assert(readId()=="auto:W1:W2");assert(readId()=="O1");assert(readId()=="C1");assert(idOffset==geometry.size());
  auto readF=[&](std::size_t offset){auto bits=readU32(offset);float v;std::memcpy(&v,&bits,sizeof(v));return v;};
  for(std::size_t i=32;i<32+wc*32;i+=4)assert(std::isfinite(readF(i)));
  assert(std::abs(readF(32+8)-4.1f)<1e-4f&&std::abs(readF(32+9*4)-0.1f)<1e-4f);
