@@ -57,7 +57,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    Button(onClick=viewModel::deleteSelection,enabled=state.selection!=null,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)){Text("Удалить")}
    state.selection?.let{Text("Выбрано: "+when(it.kind){EditorElementKind.WALL->"стена";EditorElementKind.OPENING->"проём";EditorElementKind.CATALOG->"объект"},style=MaterialTheme.typography.labelSmall)}
    state.selection?.let{selected->
-    TextButton(onClick={viewModel.rotateElement(selected,PI/4)}){Text("⟳ 45°")}
+    if(selected.kind!=EditorElementKind.OPENING)TextButton(onClick={viewModel.rotateElement(selected,PI/4)}){Text("⟳ 45°")}
     TextButton(onClick={viewModel.resizeElement(selected,1.1)}){Text("+10%")}
     TextButton(onClick={viewModel.resizeElement(selected,.9)}){Text("−10%")}
    }
@@ -95,7 +95,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val world=if(tool==EditorTool.WALL)snap(raw,state.typedGeometry)else raw;start=world;last=world;startScreen=screen
-     if(tool!=EditorTool.WALL)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)}
+     if(tool!=EditorTool.WALL)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
     },onDrag={change,_->
      change.consume();val origin=start?:return@detectDragGestures;val originScreen=startScreen?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
