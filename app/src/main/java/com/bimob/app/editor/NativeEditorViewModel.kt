@@ -121,7 +121,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  private fun refresh(projectId:String){try{
   val g=engine.export(handle);val snap=engine.snapshot(handle);val h=engine.dispatch(handle,"""{"type":"HistoryState"}""")
   val info=mutableMapOf<String,OpeningRenderInfo>()
-  val pattern=Regex("""\{[^{}]*"hostWallId"\s*:\s*"([^"]+)"[^{}]*"id"\s*:\s*"([^"]+)"[^{}]*"openingKind"\s*:\s*"([^"]+)"[^{}]*}""")
+  val pattern=Regex("""\{[^{}]*"hostWallId"\s*:\s*"([^"]+)"[^{}]*"id"\s*:\s*"([^"]+)"[^{}]*"openingKind"\s*:\s*"([^"]+)"[^{}]*\}""")
   pattern.findAll(snap).forEach{info[it.groupValues[2]]=OpeningRenderInfo(it.groupValues[3],it.groupValues[1])}
   val sel=mutableState.value.selection?.takeIf{when(it.kind){EditorElementKind.WALL->g.wallIds.contains(it.id);EditorElementKind.OPENING->g.openingIds.contains(it.id);EditorElementKind.CATALOG->g.catalogInstanceIds.contains(it.id)}}
   mutableState.value=NativeEditorState(g,Regex(""""canUndo"\s*:\s*true""").containsMatchIn(h),Regex(""""canRedo"\s*:\s*true""").containsMatchIn(h),projectId=projectId,selection=sel,openingInfo=info)
