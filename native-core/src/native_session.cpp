@@ -65,7 +65,7 @@ void appendString(std::vector<std::uint8_t>&o,const std::string&s){if(s.size()>s
 void appendF32(std::vector<std::uint8_t>&o,double v){if(!std::isfinite(v)||std::abs(v)>std::numeric_limits<float>::max())throw std::runtime_error("Render geometry contains non-finite/out-of-range value");float f=static_cast<float>(v);std::uint32_t bits;std::memcpy(&bits,&f,sizeof(bits));appendU32(o,bits);}
 
 std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vector<RenderJoin>&joins){
- double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy),ux=dx/len,uy=dy/len,nx=-uy,ny=ux,half=w.thickness.value*.5;
+ double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy);if(!std::isfinite(len)||len<0.05)throw std::runtime_error("Wall footprint requires a finite axis of at least 0.05 metres");double ux=dx/len,uy=dy/len,nx=-uy,ny=ux,half=w.thickness.value*.5;
  std::array<Point2,4>v{{{Meters{w.axis.start.x.value+nx*half},Meters{w.axis.start.y.value+ny*half}},{Meters{w.axis.end.x.value+nx*half},Meters{w.axis.end.y.value+ny*half}},{Meters{w.axis.end.x.value-nx*half},Meters{w.axis.end.y.value-ny*half}},{Meters{w.axis.start.x.value-nx*half},Meters{w.axis.start.y.value-ny*half}}}};
  for(const auto&r:joins){
   const bool isA=r.join.wallA==w.id,isB=r.join.wallB==w.id;if(!isA&&!isB)continue;
