@@ -62,7 +62,7 @@ class NativeEditorViewModelTest {
   }
   override fun snapshot(handle:Long):String {
    val elements=model.openings.entries.joinToString(","){(id,value)->
-    """{"hostWallId":"${value.first}","id":"$id","openingKind":"${value.second}"}"""
+    """{"hostWallId":"${value.first}","id":"$id","kind":"opening","openingKind":"${value.second}"}"""
    }
    return """{"elements":[$elements]}"""
   }
@@ -93,6 +93,7 @@ class NativeEditorViewModelTest {
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("p3","Project");vm.createWall(0.0,0.0,4.0,0.0)
   assertTrue(vm.createOpening("WINDOW",2.0,0.0));val id=vm.state.value.geometry!!.openingIds.single()
   assertEquals("WINDOW",vm.state.value.openingInfo[id]?.kind)
+  assertEquals(vm.state.value.geometry!!.wallIds.single(),vm.state.value.openingInfo[id]?.hostWallId)
   val g=vm.beginGesture();assertNotNull(g);vm.commitGesture(g!!)
   assertEquals(1,vm.state.value.geometry!!.openingIds.size)
  }
