@@ -110,6 +110,16 @@ class NativeEditorViewModelTest {
   assertTrue(JSONObject(wallCommand).optString("levelId").isNotBlank())
   vm.close()
  }
+ @Test fun wallMoveDispatchesExactlyOneNativeCommandAtCommitBoundary(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("move-atomic","Project");vm.createWall(0.0,0.0,3.0,0.0)
+  val before=e.commands.size
+  vm.moveElement(EditorElementKind.WALL,"wall-test",1.25,-.5)
+  assertEquals(before+1,e.commands.size)
+  val command=JSONObject(e.commands.last())
+  assertEquals("MoveWall",command.optString("type"));assertEquals("wall-test",command.optString("id"))
+  assertEquals(1.25,command.optDouble("deltaX"),0.0);assertEquals(-.5,command.optDouble("deltaY"),0.0)
+  vm.close()
+ }
  @Test fun wallCommandJniLinkageFailureIsReportedWithoutEscapingViewModel(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("jni-failure","Project")
   e.failWallDispatchWithLinkageError=true
