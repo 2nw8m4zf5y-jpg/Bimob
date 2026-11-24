@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -26,46 +28,46 @@ private data class WorldPoint(val x:Double,val y:Double)
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
  val state by viewModel.state.collectAsState()
+ val camera by viewModel.camera.collectAsState()
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
- var scale by remember{mutableFloatStateOf(72f)}
- var pan by remember{mutableStateOf(Offset.Zero)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  Column(modifier) {
-  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth()) {
+  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
    FilterChip(tool==EditorTool.SELECT,{tool=EditorTool.SELECT},{Text("Выбор")})
    FilterChip(tool==EditorTool.DOOR,{tool=EditorTool.DOOR},{Text("Дверь")})
    FilterChip(tool==EditorTool.WINDOW,{tool=EditorTool.WINDOW},{Text("Окно")})
   }
-  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth()) {
+  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
    FilterChip(tool==EditorTool.CATALOG,{tool=EditorTool.CATALOG},{Text("Каталог")})
    CatalogPreset.all.forEach { item -> FilterChip(preset==item,{preset=item;tool=EditorTool.CATALOG},{Text(item.label)}) }
    TextButton(onClick={rotation=(rotation+PI.toFloat()/4f)%(2f*PI.toFloat())}){Text("↻ 45°")}
   }
-  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth()) {
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
    Button(onClick=viewModel::undo,enabled=state.canUndo){Text("↶ Undo")}
    Button(onClick=viewModel::redo,enabled=state.canRedo){Text("↷ Redo")}
    Button(onClick=viewModel::deleteSelection,enabled=state.selection!=null,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)){Text("Удалить")}
    state.selection?.let{Text("Выбрано: "+when(it.kind){EditorElementKind.WALL->"стена";EditorElementKind.OPENING->"проём";EditorElementKind.CATALOG->"объект"},style=MaterialTheme.typography.labelSmall)}
   }
-  Canvas(Modifier.fillMaxWidth().weight(1f).background(Color.White)
+  Canvas(Modifier.fillMaxWidth().weight(1f).clipToBounds().zIndex(0f).background(Color.White)
    .pointerInput(Unit){
     awaitEachGesture {
      var oldCentroid:Offset?=null;var oldDistance=0f
      do {
       val event=awaitPointerEvent();val pressed=event.changes.filter{it.pressed}
       if(pressed.size>=2){val a=pressed[0].position;val b=pressed[1].position;val c=(a+b)/2f;val d=(a-b).getDistance()
-       if(oldCentroid!=null&&oldDistance>0f&&d>0f){scale=(scale*d/oldDistance).coerceIn(12f,240f);pan+=c-oldCentroid!!}
+       if(oldCentroid!=null&&oldDistance>0f&&d>0f){val current=viewModel.camera.value
+        viewModel.setCamera(current.zoom*d/oldDistance,current.panX+c.x-oldCentroid!!.x,current.panY+c.y-oldCentroid!!.y)}
        oldCentroid=c;oldDistance=d;event.changes.forEach{it.consume()}
       }else{oldCentroid=null;oldDistance=0f}
      }while(event.changes.any{it.pressed})
     }
    }
-   .pointerInput(tool,scale,pan,state.geometry,preset,rotation){
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.geometry,preset,rotation){
     detectTapGestures { screen ->
-     val p=screenToWorld(screen,size,scale,pan)
+     val p=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
      when(tool){
       EditorTool.DOOR->viewModel.createOpening("DOOR",p.x,p.y)
       EditorTool.WINDOW->viewModel.createOpening("WINDOW",p.x,p.y)
@@ -74,14 +76,14 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }
     }
    }
-   .pointerInput(tool,scale,pan,state.geometry){
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.geometry){
     var start:WorldPoint?=null;var last:WorldPoint?=null;var gesture:String?=null;var movingId:String?=null
     detectDragGestures(onDragStart={screen->
-     val world=snap(screenToWorld(screen,size,scale,pan),state.geometry);start=world;last=world
-     if(tool==EditorTool.SELECT){movingId=nearestWallId(screen,state.geometry,size,scale,pan);if(movingId!=null)gesture=viewModel.beginGesture()}
+     val world=snap(screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY)),state.geometry);start=world;last=world
+     if(tool==EditorTool.SELECT){movingId=nearestWallId(screen,state.geometry,size,camera.zoom,Offset(camera.panX,camera.panY));if(movingId!=null)gesture=viewModel.beginGesture()}
     },onDrag={change,_->
      change.consume();val a=start?:return@detectDragGestures
-     val p=snap(screenToWorld(change.position,size,scale,pan),state.geometry);val prev=last?:a
+     val p=snap(screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY)),state.geometry);val prev=last?:a
      if(tool==EditorTool.WALL)preview=a to p
      else if(tool==EditorTool.SELECT){movingId?.let{viewModel.moveWall(it,p.x-prev.x,p.y-prev.y)}}
      last=p
@@ -93,27 +95,27 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     },onDragCancel={gesture?.let(viewModel::cancelGesture);preview=null;start=null;last=null;gesture=null;movingId=null})
    }
   ) {
-   val origin=Offset(size.width/2f+pan.x,size.height/2f+pan.y);val grid=(scale*.5f).coerceAtLeast(6f)
+   val origin=Offset(size.width/2f+camera.panX,size.height/2f+camera.panY);val grid=(camera.zoom*.5f).coerceAtLeast(6f)
    var gx=origin.x%grid;while(gx<size.width){drawLine(Color(0xFFE8EDF2),Offset(gx,0f),Offset(gx,size.height));gx+=grid}
    var gy=origin.y%grid;while(gy<size.height){drawLine(Color(0xFFE8EDF2),Offset(0f,gy),Offset(size.width,gy));gy+=grid}
    drawLine(Color(0xFFCAD3DD),Offset(origin.x,0f),Offset(origin.x,size.height),1.5f)
    drawLine(Color(0xFFCAD3DD),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
    val g=state.geometry
    if(g!=null){
-    g.walls.indices.forEach{i->drawPolygon(g.walls,i*10,size,scale,pan,if(state.selection==EditorSelection(EditorElementKind.WALL,g.wallIds[i]))Color(0xFF1976D2)else Color(0xFF33465B))}
-    g.wallJoins.indices.forEach{i->drawPolygon(g.wallJoins,i*9,size,scale,pan,Color(0xFF8BA3B8))}
+    g.walls.indices.forEach{i->drawPolygon(g.walls,i*10,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,g.wallIds[i]))Color(0xFF1976D2)else Color(0xFF33465B))}
+    g.wallJoins.indices.forEach{i->drawPolygon(g.wallJoins,i*9,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
     g.openingIds.indices.forEach{i->
      val o=i*8;val info=state.openingInfo[g.openingIds[i]]?:return@forEach
      val wi=g.wallIds.indexOf(info.hostWallId);if(wi<0)return@forEach
      val seg=wallSegment(g,wi)?:return@forEach
      val dx=seg.second.x-seg.first.x;val dy=seg.second.y-seg.first.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
      val ux=dx/len;val uy=dy/len;val cx=g.openings[o].toDouble();val cy=g.openings[o+1].toDouble();val half=g.openings[o+3]/2.0
-     val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,scale,pan);val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,scale,pan)
+     val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
      drawLine(Color.White,a,b,strokeWidth=10f)
      val selected=state.selection==EditorSelection(EditorElementKind.OPENING,g.openingIds[i]);val c=if(selected)Color(0xFF1976D2)else Color(0xFF008C95)
      if(info.kind=="DOOR"){
       drawLine(c,a,Offset(a.x+(b.x-a.x)*.9f,a.y+(b.y-a.y)*.9f),2f)
-      val radius=(g.openings[o+3]*scale).coerceAtLeast(4f)
+      val radius=(g.openings[o+3]*camera.zoom).coerceAtLeast(4f)
       drawArc(c,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2,radius*2),style=Stroke(1.5f))
      }else{
       drawLine(c,Offset(a.x+(b.x-a.x)*.0f,a.y+(b.y-a.y)*.0f),Offset(b.x,b.y),3f)
@@ -125,12 +127,12 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val hw=g.catalogInstances[o+3]/2.0;val hd=g.catalogInstances[o+4]/2.0
      val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd)
      val path=Path()
-     corners.forEachIndexed{k,pair->val x=cx+pair.first*cos(angle)-pair.second*sin(angle);val y=cy+pair.first*sin(angle)+pair.second*cos(angle);val s=worldToScreen(WorldPoint(x,y),size,scale,pan);if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)}
+     corners.forEachIndexed{k,pair->val x=cx+pair.first*cos(angle)-pair.second*sin(angle);val y=cy+pair.first*sin(angle)+pair.second*cos(angle);val s=worldToScreen(WorldPoint(x,y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)}
      path.close();val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,g.catalogInstanceIds[i])
      drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1976D2)else Color(0xFF3A789A),style=Stroke(2f))
     }
    }
-   preview?.let{drawPreviewWall(it.first,it.second,size,scale,pan)}
+   preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
   }
   state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(4.dp))}
   Text("BGR1 • ревизия ${state.geometry?.revision?:0} • стен ${state.geometry?.wallIds?.size?:0} • проёмов ${state.geometry?.openingIds?.size?:0} • объектов ${state.geometry?.catalogInstanceIds?.size?:0}",style=MaterialTheme.typography.labelSmall,color=Color.Gray)

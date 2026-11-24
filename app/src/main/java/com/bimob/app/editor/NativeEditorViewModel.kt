@@ -37,6 +37,7 @@ data class CatalogPreset(val assetId:String,val label:String,val category:String
   val all=listOf(TABLE,BED,COLUMN)
  }
 }
+data class CanvasCamera(val zoom:Float=72f,val panX:Float=0f,val panY:Float=0f)
 data class NativeEditorState(val geometry:RenderGeometryBuffer?=null,val canUndo:Boolean=false,val canRedo:Boolean=false,
  val error:String?=null,val projectId:String="",val selection:EditorSelection?=null,val openingInfo:Map<String,OpeningRenderInfo> = emptyMap())
 class NativeEditorViewModel internal constructor(private val engine:NativeEditorEngine):ViewModel() {
@@ -44,6 +45,12 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  private var handle=engine.createSession();private var levelId=""
  private val mutableState=MutableStateFlow(NativeEditorState())
  val state:StateFlow<NativeEditorState> = mutableState.asStateFlow()
+ private val mutableCamera=MutableStateFlow(CanvasCamera())
+ val camera:StateFlow<CanvasCamera> = mutableCamera.asStateFlow()
+ fun setCamera(zoom:Float,panX:Float,panY:Float){
+  if(!zoom.isFinite()||!panX.isFinite()||!panY.isFinite())return
+  mutableCamera.value=CanvasCamera(zoom.coerceIn(12f,240f),panX.coerceIn(-100000f,100000f),panY.coerceIn(-100000f,100000f))
+ }
  init{check(handle!=0L){"Native engine could not create a session."}}
  fun resetProject(projectId:String,projectName:String){
   if(mutableState.value.projectId==projectId&&levelId.isNotEmpty())return

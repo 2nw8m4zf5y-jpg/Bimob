@@ -71,6 +71,21 @@ class NativeEditorViewModelTest {
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
  }
+ @Test fun cameraZoomAndPanRemainInViewModelAndAreClamped(){
+  val vm=NativeEditorViewModel(FakeEngine())
+  vm.setCamera(144f,37f,-22f)
+  val cameraAfterConfigurationChange=vm.camera.value
+  assertEquals(144f,cameraAfterConfigurationChange.zoom,0f)
+  assertEquals(37f,cameraAfterConfigurationChange.panX,0f)
+  assertEquals(-22f,cameraAfterConfigurationChange.panY,0f)
+  vm.setCamera(999f,Float.NaN,0f)
+  assertEquals(cameraAfterConfigurationChange,vm.camera.value)
+  vm.setCamera(999f,200000f,-200000f)
+  assertEquals(240f,vm.camera.value.zoom,0f)
+  assertEquals(100000f,vm.camera.value.panX,0f)
+  assertEquals(-100000f,vm.camera.value.panY,0f)
+  vm.close()
+ }
  @Test fun firstWallInFreshProjectIsCommittedAndExported(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e)
   vm.createWall(0.0,0.0,3.0,0.0)
