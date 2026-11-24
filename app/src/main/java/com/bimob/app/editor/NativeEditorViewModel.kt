@@ -51,8 +51,10 @@ class NativeEditorViewModel internal constructor(
 
     fun resetProject(projectId: String, projectName: String) {
         if (mutableState.value.projectId == projectId && levelId.isNotEmpty()) return
-        if (handle != 0L) engine.destroySession(handle)
-        handle = engine.createSession()
+        if (levelId.isNotEmpty() || mutableState.value.projectId.isNotEmpty()) {
+            if (handle != 0L) engine.destroySession(handle)
+            handle = engine.createSession()
+        }
         check(handle != 0L) { "Native engine could not create a session." }
         levelId = "level-${UUID.randomUUID()}"
         val result = engine.dispatch(handle,
