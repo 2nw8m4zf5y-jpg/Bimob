@@ -3,6 +3,8 @@ import androidx.lifecycle.ViewModel
 import com.bimob.app.core.nativebridge.NativeEngineBridge
 import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 import java.util.UUID
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlin.math.hypot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,9 +55,11 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  }
  fun exportProjectSnapshot():String=engine.snapshot(handle)
  fun openProjectSnapshot(json:String):Boolean {
-  val pid=Regex(""""projectId"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)
-  val importedLevel=Regex(""""levels"\s*:\s*\[\s*\{[^}]*"id"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)
-  if(pid.isNullOrBlank()||importedLevel.isNullOrBlank()){
+  val snapshot=try{JSONObject(json)}catch(e:Exception){publishError(e.message?:"Invalid canonical snapshot JSON.");return false}
+  val pid=snapshot.optString("projectId").takeIf{it.isNotBlank()}
+  val levels=snapshot.optJSONArray("levels")
+  val importedLevel=levels?.optJSONObject(0)?.optString("id")?.takeIf{it.isNotBlank()}
+  if(pid==null||importedLevel==null){
    publishError("Canonical snapshot is missing projectId or a level.")
    return false
   }
@@ -121,16 +125,25 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  private fun refresh(projectId:String){try{
   val g=engine.export(handle);val snap=engine.snapshot(handle);val h=engine.dispatch(handle,"""{"type":"HistoryState"}""")
   val info=mutableMapOf<String,OpeningRenderInfo>()
-  val pattern=Regex("""\{[^{}]*"hostWallId"\s*:\s*"([^"]+)"[^{}]*"id"\s*:\s*"([^"]+)"[^{}]*"openingKind"\s*:\s*"([^"]+)"[^{}]*\}""")
-  pattern.findAll(snap).forEach{info[it.groupValues[2]]=OpeningRenderInfo(it.groupValues[3],it.groupValues[1])}
+  val elements=JSONObject(snap).optJSONArray("elements")?:JSONArray()
+  for(i in 0 until elements.length()){
+   val element=elements.optJSONObject(i)?:continue
+   if(element.optString("kind")=="opening"){
+    val id=element.optString("id")
+    val host=element.optString("hostWallId")
+    val kind=element.optString("openingKind")
+    if(id.isNotBlank()&&host.isNotBlank()&&kind.isNotBlank())info[id]=OpeningRenderInfo(kind,host)
+   }
+  }
+  val history=JSONObject(h)
   val sel=mutableState.value.selection?.takeIf{when(it.kind){EditorElementKind.WALL->g.wallIds.contains(it.id);EditorElementKind.OPENING->g.openingIds.contains(it.id);EditorElementKind.CATALOG->g.catalogInstanceIds.contains(it.id)}}
-  mutableState.value=NativeEditorState(g,Regex(""""canUndo"\s*:\s*true""").containsMatchIn(h),Regex(""""canRedo"\s*:\s*true""").containsMatchIn(h),projectId=projectId,selection=sel,openingInfo=info)
+  mutableState.value=NativeEditorState(g,history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
  }catch(e:Exception){publishError(e.message?:"BGR1 export failed.")}}
  private data class Point(val x:Double,val y:Double)
  private fun wallSegment(g:RenderGeometryBuffer,i:Int):Pair<Point,Point>?{val o=i*10;if(o+7>=g.walls.size)return null
   return Point((g.walls[o]+g.walls[o+6])/2.0,(g.walls[o+1]+g.walls[o+7])/2.0) to Point((g.walls[o+2]+g.walls[o+4])/2.0,(g.walls[o+3]+g.walls[o+5])/2.0)}
- private fun isOk(s:String)=Regex(""""ok"\s*:\s*true""").containsMatchIn(s)
- private fun errorFrom(s:String)=Regex(""""error"\s*:\s*"([^"]*)"""").find(s)?.groupValues?.getOrNull(1)?:"Native command rejected."
+ private fun isOk(s:String)=runCatching{JSONObject(s).optBoolean("ok")}.getOrDefault(false)
+ private fun errorFrom(s:String)=runCatching{JSONObject(s).optString("error").takeIf{it.isNotBlank()}}.getOrNull()?:"Native command rejected."
  private fun publishError(s:String){mutableState.value=mutableState.value.copy(error=s)}
  fun close(){if(handle!=0L){engine.destroySession(handle);handle=0L}}
  override fun onCleared(){close();super.onCleared()}
