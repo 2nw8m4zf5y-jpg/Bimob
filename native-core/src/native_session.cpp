@@ -32,7 +32,12 @@ Mutation parseMutation(const std::string&j){
  if(type=="CreateWall"){const ModelId levelId{field(j,"levelId")};if(!levelId.valid())throw std::invalid_argument("CreateWall requires an active level.");const double sx=number(j,"startX"),sy=number(j,"startY"),ex=number(j,"endX"),ey=number(j,"endY");if(!std::isfinite(sx)||!std::isfinite(sy)||!std::isfinite(ex)||!std::isfinite(ey))throw std::invalid_argument("Wall coordinates must be finite.");const double length=std::hypot(ex-sx,ey-sy);if(!std::isfinite(length)||length<0.05)throw std::invalid_argument("Wall length must be at least 0.05 metres.");Wall w{id,WallAxis{{Meters{sx},Meters{sy}},{Meters{ex},Meters{ey}}},Meters{number(j,"heightMeters",2.7)},Meters{number(j,"thicknessMeters",.2)},levelId};return commands::createWall(w);}
  if(type=="MoveWall")return commands::moveWall(id,Point2{Meters{number(j,"deltaX")},Meters{number(j,"deltaY")}});
  if(type=="ResizeWall")return commands::resizeWall(id,Meters{number(j,"lengthMeters")});
- if(type=="RotateWall")return commands::batch({commands::moveWallEndpoint(id,true,Point2{Meters{number(j,"startX")},Meters{number(j,"startY")}}),commands::moveWallEndpoint(id,false,Point2{Meters{number(j,"endX")},Meters{number(j,"endY")}})});
+ if(type=="RotateWall"){
+  return commands::batch({
+   commands::moveWallEndpoint(id,true,Point2{Meters{number(j,"startX")},Meters{number(j,"startY")}}),
+   commands::moveWallEndpoint(id,false,Point2{Meters{number(j,"endX")},Meters{number(j,"endY")}})
+  });
+ }
  if(type=="DeleteWall")return commands::deleteWall(id);
  if(type=="CreateOpening"){Opening o{id,ModelId{field(j,"hostWallId")},OpeningKind::Generic,Meters{number(j,"offsetAlongWallMeters")},Meters{number(j,"widthMeters")},Meters{number(j,"heightMeters")},Meters{number(j,"sillHeightMeters")}};auto kind=field(j,"openingKind");if(kind=="DOOR")o.kind=OpeningKind::Door;else if(kind=="WINDOW")o.kind=OpeningKind::Window;return commands::createOpening(o);}
  if(type=="UpdateOpening")return commands::batch({commands::moveOpening(id,Meters{number(j,"offsetAlongWallMeters")},Meters{number(j,"sillHeightMeters")}),commands::resizeOpening(id,Meters{number(j,"widthMeters")},Meters{number(j,"heightMeters")})});
