@@ -74,6 +74,24 @@ class NativeEditorViewModelTest {
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
  }
+ @Test fun endpointResizeStartAndEndAreSingleAtomicNativeCommandAndKeepOppositeEndpoint(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("endpoint-resize","Project");vm.createWall(0.0,0.0,4.0,0.0)
+  val wallId=vm.state.value.geometry!!.wallIds.single()
+  val beforeStart=e.commands.count{!it.contains("HistoryState")}
+  vm.resizeWallEndpoint(wallId,true,-1.0,1.0)
+  assertEquals(beforeStart+1,e.commands.count{!it.contains("HistoryState")})
+  val startCmd=JSONObject(e.commands.last{!it.contains("HistoryState")})
+  assertEquals("RotateWall",startCmd.optString("type"));assertEquals(wallId,startCmd.optString("id"))
+  assertEquals(-1.0,startCmd.optDouble("startX"),0.0);assertEquals(1.0,startCmd.optDouble("startY"),0.0)
+  assertEquals(4.0,startCmd.optDouble("endX"),0.0);assertEquals(0.0,startCmd.optDouble("endY"),0.0)
+  val beforeEnd=e.commands.count{!it.contains("HistoryState")}
+  vm.resizeWallEndpoint(wallId,false,5.0,2.0)
+  assertEquals(beforeEnd+1,e.commands.count{!it.contains("HistoryState")})
+  val endCmd=JSONObject(e.commands.last{!it.contains("HistoryState")})
+  assertEquals(0.0,endCmd.optDouble("startX"),0.0);assertEquals(0.0,endCmd.optDouble("startY"),0.0)
+  assertEquals(5.0,endCmd.optDouble("endX"),0.0);assertEquals(2.0,endCmd.optDouble("endY"),0.0)
+  vm.close()
+ }
  @Test fun cameraZoomAndPanRemainInViewModelAndAreClamped(){
   val vm=NativeEditorViewModel(FakeEngine())
   vm.setCamera(144f,37f,-22f)
