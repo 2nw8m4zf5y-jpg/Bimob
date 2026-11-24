@@ -107,7 +107,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   if(length<width+.02)return false
   val offset=(along-width/2).coerceIn(.01,length-width-.01)
   val height=if(kind=="DOOR")2.1 else 1.2;val sill=if(kind=="DOOR")0.0 else .9
-  mutate("""{"type":"CreateOpening","id":"opening-\${UUID.randomUUID()}","hostWallId":"\${wall.id}","openingKind":"$kind","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":$sill}""")
+  mutate("""{"type":"CreateOpening","id":"opening-${UUID.randomUUID()}","hostWallId":"${wall.id}","openingKind":"$kind","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":$sill}""")
   return mutableState.value.error==null
  }
  fun createCatalog(p:CatalogPreset,x:Double,y:Double,rotation:Double){
