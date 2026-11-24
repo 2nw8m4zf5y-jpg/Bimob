@@ -65,7 +65,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }while(event.changes.any{it.pressed})
     }
    }
-   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.geometry,preset,rotation){
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,preset,rotation){
     detectTapGestures { screen ->
      if(!screen.x.isFinite()||!screen.y.isFinite())return@detectTapGestures
      val p=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
@@ -84,8 +84,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
      if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val world=snap(raw,state.geometry);start=world;last=world
-     if(tool==EditorTool.SELECT){movingId=nearestWallId(screen,state.geometry,size,camera.zoom,Offset(camera.panX,camera.panY));if(movingId!=null)gesture=viewModel.beginGesture()}
+     val world=snap(raw,state.typedGeometry);start=world;last=world
+     if(tool==EditorTool.SELECT){movingId=nearestWallId(screen,state.typedGeometry,size,camera.zoom,Offset(camera.panX,camera.panY));if(movingId!=null)gesture=viewModel.beginGesture()}
     },onDrag={change,_->
      change.consume();val a=start?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
@@ -107,36 +107,22 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    var gy=origin.y%grid;while(gy<size.height){drawLine(Color(0xFFE8EDF2),Offset(0f,gy),Offset(size.width,gy));gy+=grid}
    drawLine(Color(0xFFCAD3DD),Offset(origin.x,0f),Offset(origin.x,size.height),1.5f)
    drawLine(Color(0xFFCAD3DD),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
-   val g=state.geometry
+   val g=state.typedGeometry
    if(g!=null){
-    wallRenderIndices(g).forEach{i->drawPolygon(g.walls,i*10,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,g.wallIds[i]))Color(0xFF1976D2)else Color(0xFF33465B))}
-    g.wallJoinIds.indices.filter{it*9+7<g.wallJoins.size}.forEach{i->drawPolygon(g.wallJoins,i*9,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
-    g.openingIds.indices.forEach{i->
-     val o=i*8;val info=state.openingInfo[g.openingIds[i]]?:return@forEach
-     val wi=g.wallIds.indexOf(info.hostWallId);if(wi<0)return@forEach
-     val seg=wallSegment(g,wi)?:return@forEach
-     val dx=seg.second.x-seg.first.x;val dy=seg.second.y-seg.first.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
-     val ux=dx/len;val uy=dy/len;val cx=g.openings[o].toDouble();val cy=g.openings[o+1].toDouble();val half=g.openings[o+3]/2.0
-     val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
-     drawLine(Color.White,a,b,strokeWidth=10f)
-     val selected=state.selection==EditorSelection(EditorElementKind.OPENING,g.openingIds[i]);val c=if(selected)Color(0xFF1976D2)else Color(0xFF008C95)
-     if(info.kind=="DOOR"){
-      drawLine(c,a,Offset(a.x+(b.x-a.x)*.9f,a.y+(b.y-a.y)*.9f),2f)
-      val radius=(g.openings[o+3]*camera.zoom).coerceAtLeast(4f)
-      drawArc(c,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2,radius*2),style=Stroke(1.5f))
-     }else{
-      drawLine(c,Offset(a.x+(b.x-a.x)*.0f,a.y+(b.y-a.y)*.0f),Offset(b.x,b.y),3f)
-      drawLine(c,Offset((a.x-uy*4).toFloat(),(a.y-ux*4).toFloat()),Offset((b.x-uy*4).toFloat(),(b.y-ux*4).toFloat()),2f)
-     }
+    g.walls.forEach{wall->drawTypedPolygon(wall.corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B))}
+    g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
+    g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
+     val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
+     val ux=dx/len;val uy=dy/len;val half=item.width/2
+     val a=worldToScreen(WorldPoint(item.center.x-ux*half,item.center.y-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(item.center.x+ux*half,item.center.y+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
+     drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1976D2)else Color(0xFF008C95)
+     if(item.kind=="DOOR"){drawLine(color,a,b,2f);val radius=(item.width*camera.zoom).coerceAtLeast(4f);drawArc(color,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2,radius*2),style=Stroke(1.5f))}
+     else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
-    g.catalogInstanceIds.indices.forEach{i->
-     val o=i*8;val cx=g.catalogInstances[o].toDouble();val cy=g.catalogInstances[o+1].toDouble();val angle=g.catalogInstances[o+2].toDouble()
-     val hw=g.catalogInstances[o+3]/2.0;val hd=g.catalogInstances[o+4]/2.0
-     val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd)
-     val path=Path()
-     corners.forEachIndexed{k,pair->val x=cx+pair.first*cos(angle)-pair.second*sin(angle);val y=cy+pair.first*sin(angle)+pair.second*cos(angle);val s=worldToScreen(WorldPoint(x,y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)}
-     path.close();val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,g.catalogInstanceIds[i])
-     drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1976D2)else Color(0xFF3A789A),style=Stroke(2f))
+    g.catalog.forEach{item->val hw=item.width/2;val hd=item.depth/2;val angle=item.rotationRadians
+     val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(item.center.x+x*cos(angle)-y*sin(angle),item.center.y+x*sin(angle)+y*cos(angle))}
+     val path=Path();corners.forEachIndexed{k,v->val s=worldToScreen(WorldPoint(v.x,v.y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
+     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1976D2)else Color(0xFF3A789A),style=Stroke(2f))
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
@@ -153,14 +139,9 @@ private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
  drawPath(path,Color(0xFF1976D2).copy(alpha=.35f))
 }
-private fun DrawScope.drawPolygon(v:FloatArray,o:Int,size:Size,scale:Float,pan:Offset,color:Color){
- if(o<0||o+7>=v.size||!scale.isFinite()||scale<=0f)return
- for(i in 0..7)if(!v[o+i].isFinite())return
- val p=Path();for(i in 0..3){val s=worldToScreen(WorldPoint(v[o+i*2].toDouble(),v[o+i*2+1].toDouble()),size,scale,pan);if(!s.x.isFinite()||!s.y.isFinite())return;if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color.copy(alpha=.72f))
-}
-internal fun wallRenderIndices(g:com.bimob.app.core.nativebridge.RenderGeometryBuffer):IntRange {
- val count=minOf(g.wallIds.size,g.walls.size/10)
- return if(count<=0)0 until 0 else 0 until count
+private fun DrawScope.drawTypedPolygon(vertices:List<Vec2>,size:Size,scale:Float,pan:Offset,color:Color){
+ if(vertices.size<3||!scale.isFinite()||scale<=0f)return
+ val p=Path();vertices.forEachIndexed{i,v->if(!v.x.isFinite()||!v.y.isFinite())return;val s=worldToScreen(WorldPoint(v.x,v.y),size,scale,pan);if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color.copy(alpha=.72f))
 }
 internal fun worldToScreen(p:WorldPoint,size:Size,scale:Float,pan:Offset):Offset {
  if(!p.x.isFinite()||!p.y.isFinite()||!scale.isFinite()||scale<=0f||!pan.x.isFinite()||!pan.y.isFinite())return Offset.Zero
@@ -175,24 +156,16 @@ internal fun screenToWorld(p:Offset,size:IntSize,scale:Float,pan:Offset):WorldPo
  val y=(size.height/2.0+pan.y.toDouble()-p.y.toDouble())/scale.toDouble()
  return if(x.isFinite()&&y.isFinite())WorldPoint(x,y) else WorldPoint(Double.NaN,Double.NaN)
 }
-private fun snap(p:WorldPoint,g:com.bimob.app.core.nativebridge.RenderGeometryBuffer?):WorldPoint{
+private fun snap(p:WorldPoint,g:TypedGeometry?):WorldPoint{
  val grid=WorldPoint(round(p.x*10)/10,round(p.y*10)/10);if(g==null)return grid
  var best=grid;var dBest=.16
- g.wallIds.indices.forEach{i->val s=wallSegment(g,i)?:return@forEach;listOf(s.first,s.second).forEach{q->val d=hypot(q.x-p.x,q.y-p.y);if(d<dBest){best=WorldPoint(q.x,q.y);dBest=d}}}
+ g.walls.forEach{wall->listOf(wall.axisStart,wall.axisEnd).forEach{q->val d=hypot(q.x-p.x,q.y-p.y);if(d<dBest){best=WorldPoint(q.x,q.y);dBest=d}}}
  return best
 }
-private data class AxisPoint(val x:Double,val y:Double)
-private fun wallSegment(g:com.bimob.app.core.nativebridge.RenderGeometryBuffer,i:Int):Pair<AxisPoint,AxisPoint>?{
- val o=i*10;if(o+7>=g.walls.size)return null
- return AxisPoint((g.walls[o]+g.walls[o+6])/2.0,(g.walls[o+1]+g.walls[o+7])/2.0) to AxisPoint((g.walls[o+2]+g.walls[o+4])/2.0,(g.walls[o+3]+g.walls[o+5])/2.0)
-}
-private fun nearestWallId(p:Offset,g:com.bimob.app.core.nativebridge.RenderGeometryBuffer?,size:IntSize,scale:Float,pan:Offset):String?{
- if(g==null)return null;var best:String?=null;var dBest=18f
- g.wallIds.indices.forEach{i->val s=wallSegment(g,i)?:return@forEach
-  val a=worldToScreen(WorldPoint(s.first.x,s.first.y),Size(size.width.toFloat(),size.height.toFloat()),scale,pan)
-  val b=worldToScreen(WorldPoint(s.second.x,s.second.y),Size(size.width.toFloat(),size.height.toFloat()),scale,pan)
-  val dx=b.x-a.x;val dy=b.y-a.y;val l=dx*dx+dy*dy;val t=if(l==0f)0f else (((p.x-a.x)*dx+(p.y-a.y)*dy)/l).coerceIn(0f,1f)
-  val d=hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);if(d<dBest){dBest=d;best=g.wallIds[i]}
+private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan:Offset):String?{
+ if(g==null)return null;var best:String?=null;var dBest=24f
+ g.walls.forEach{wall->val a=worldToScreen(WorldPoint(wall.axisStart.x,wall.axisStart.y),Size(size.width.toFloat(),size.height.toFloat()),scale,pan);val b=worldToScreen(WorldPoint(wall.axisEnd.x,wall.axisEnd.y),Size(size.width.toFloat(),size.height.toFloat()),scale,pan)
+  val dx=b.x-a.x;val dy=b.y-a.y;val l=dx*dx+dy*dy;val t=if(l==0f)0f else (((p.x-a.x)*dx+(p.y-a.y)*dy)/l).coerceIn(0f,1f);val d=hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);if(d<dBest){dBest=d;best=wall.id}
  }
  return best
 }
