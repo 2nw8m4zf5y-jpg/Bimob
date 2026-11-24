@@ -18,7 +18,9 @@ struct Session {
  explicit Session(Project initial):project(std::move(initial)),bus(project){}
 };
 std::mutex registryMutex;std::map<std::uint64_t,std::shared_ptr<Session>> sessions;std::uint64_t nextHandle=1;
-std::string quote(const std::string&s){std::string o="\"";for(char c:s){if(c=='"'||c=='\\')o+='\\';if(c=='\n')o+="\\n";else if(c=='\r')o+="\\r";else o+=c;}return o+"\"";}
+std::string quote(const std::string&s){std::string o="\"";for(char c:s){if(c=='"'||c=='\\')o+='\\';if(c=='
+')o+="\
+";else if(c=='\r')o+="\\r";else o+=c;}return o+"\"";}
 std::string field(const std::string&j,const std::string&k){std::regex r("\""+k+"\""+R"REGEX(\s*:\s*"((?:\\.|[^"])*)")REGEX");std::smatch m;if(!std::regex_search(j,m,r))return {};return m[1].str();}
 double number(const std::string&j,const std::string&k,double fallback=0){std::regex r("\""+k+"\"\\s*:\\s*(-?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?)");std::smatch m;if(!std::regex_search(j,m,r))return fallback;return std::stod(m[1].str());}
 std::vector<std::string> objectsInArray(const std::string&j,const std::string&key){auto pos=j.find("\""+key+"\"");if(pos==std::string::npos)return {};pos=j.find('[',pos);if(pos==std::string::npos)return {};std::vector<std::string>out;bool inString=false,escape=false;int depth=0;std::size_t start=0;for(std::size_t i=pos+1;i<j.size();++i){char c=j[i];if(inString){if(escape)escape=false;else if(c=='\\')escape=true;else if(c=='"')inString=false;continue;}if(c=='"'){inString=true;continue;}if(c=='{'){if(depth++==0)start=i;}else if(c=='}'&&depth>0){if(--depth==0)out.push_back(j.substr(start,i-start+1));}else if(c==']'&&depth==0)break;}return out;}
@@ -29,7 +31,8 @@ Mutation parseMutation(const std::string&j){
  if(type=="CreateLevel")return commands::createLevel(Level{id,field(j,"name"),Meters{number(j,"elevationMeters")},Meters{number(j,"heightMeters",3)}});
  if(type=="CreateWall"){const ModelId levelId{field(j,"levelId")};if(!levelId.valid())throw std::invalid_argument("CreateWall requires an active level.");const double sx=number(j,"startX"),sy=number(j,"startY"),ex=number(j,"endX"),ey=number(j,"endY");if(!std::isfinite(sx)||!std::isfinite(sy)||!std::isfinite(ex)||!std::isfinite(ey))throw std::invalid_argument("Wall coordinates must be finite.");const double length=std::hypot(ex-sx,ey-sy);if(!std::isfinite(length)||length<0.05)throw std::invalid_argument("Wall length must be at least 0.05 metres.");Wall w{id,WallAxis{{Meters{sx},Meters{sy}},{Meters{ex},Meters{ey}}},Meters{number(j,"heightMeters",2.7)},Meters{number(j,"thicknessMeters",.2)},levelId};return commands::createWall(w);}
  if(type=="MoveWall")return commands::moveWall(id,Point2{Meters{number(j,"deltaX")},Meters{number(j,"deltaY")}});
- if(type=="ResizeWall")return commands::resizeWall(id,Meters{number(j,"lengthMeters")});\n if(type=="RotateWall")return commands::batch({commands::moveWallEndpoint(id,true,Point2{Meters{number(j,"startX")},Meters{number(j,"startY")}}),commands::moveWallEndpoint(id,false,Point2{Meters{number(j,"endX")},Meters{number(j,"endY")}})});
+ if(type=="ResizeWall")return commands::resizeWall(id,Meters{number(j,"lengthMeters")});
+ if(type=="RotateWall")return commands::batch({commands::moveWallEndpoint(id,true,Point2{Meters{number(j,"startX")},Meters{number(j,"startY")}}),commands::moveWallEndpoint(id,false,Point2{Meters{number(j,"endX")},Meters{number(j,"endY")}})});
  if(type=="DeleteWall")return commands::deleteWall(id);
  if(type=="CreateOpening"){Opening o{id,ModelId{field(j,"hostWallId")},OpeningKind::Generic,Meters{number(j,"offsetAlongWallMeters")},Meters{number(j,"widthMeters")},Meters{number(j,"heightMeters")},Meters{number(j,"sillHeightMeters")}};auto kind=field(j,"openingKind");if(kind=="DOOR")o.kind=OpeningKind::Door;else if(kind=="WINDOW")o.kind=OpeningKind::Window;return commands::createOpening(o);}
  if(type=="UpdateOpening")return commands::batch({commands::moveOpening(id,Meters{number(j,"offsetAlongWallMeters")},Meters{number(j,"sillHeightMeters")}),commands::resizeOpening(id,Meters{number(j,"widthMeters")},Meters{number(j,"heightMeters")})});
