@@ -95,19 +95,19 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$sx,"startY":$sy,"endX":$ex,"endY":$ey,"heightMeters":2.7,"thicknessMeters":0.2}""")
  }
  fun createOpening(kind:String,x:Double,y:Double):Boolean{
-  require(kind=="DOOR"||kind=="WINDOW");val g=mutableState.value.geometry?:return false
-  var best=.35;var host:String?=null;var along=0.0;var length=0.0
-  g.wallIds.indices.forEach{i->val s=wallSegment(g,i)?:return@forEach;val dx=s.second.x-s.first.x;val dy=s.second.y-s.first.y
+  require(kind=="DOOR"||kind=="WINDOW");val g=mutableState.value.typedGeometry?:return false
+  var best=.35;var host:WallItem?=null;var along=0.0;var length=0.0
+  g.walls.forEach{wall->val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y
    val len=hypot(dx,dy);if(len<=1e-6)return@forEach
-   val t=(((x-s.first.x)*dx+(y-s.first.y)*dy)/(len*len)).coerceIn(0.0,1.0)
-   val d=hypot(x-s.first.x-t*dx,y-s.first.y-t*dy)
-   if(d<best){best=d;host=g.wallIds[i];along=t*len;length=len}
+   val t=(((x-wall.axisStart.x)*dx+(y-wall.axisStart.y)*dy)/(len*len)).coerceIn(0.0,1.0)
+   val d=hypot(x-wall.axisStart.x-t*dx,y-wall.axisStart.y-t*dy)
+   if(d<best){best=d;host=wall;along=t*len;length=len}
   }
   val wall=host?:return false;val width=if(kind=="DOOR")0.9 else 1.2
   if(length<width+.02)return false
   val offset=(along-width/2).coerceIn(.01,length-width-.01)
   val height=if(kind=="DOOR")2.1 else 1.2;val sill=if(kind=="DOOR")0.0 else .9
-  mutate("""{"type":"CreateOpening","id":"opening-${UUID.randomUUID()}","hostWallId":"$wall","openingKind":"$kind","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":$sill}""")
+  mutate("""{"type":"CreateOpening","id":"opening-\${UUID.randomUUID()}","hostWallId":"\${wall.id}","openingKind":"$kind","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":$sill}""")
   return mutableState.value.error==null
  }
  fun createCatalog(p:CatalogPreset,x:Double,y:Double,rotation:Double){
