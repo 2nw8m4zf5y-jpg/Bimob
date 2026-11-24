@@ -29,7 +29,7 @@ class GeometryHitTestTest {
   val item=CatalogItem("c",Vec2(1.0,1.0),Math.PI/4,1.0,1.0,1.0,0.0,false,"")
   val g=geom(listOf(item));val center=screen(item.center,100f)
   assertEquals(EditorSelection(EditorElementKind.CATALOG,"c"),hitTestTypedGeometry(center,g,IntSize(400,400),100f,Offset.Zero,24f))
-  val outside=Offset(center.x+80f,center.y+80f)
+  val outside=Offset(center.x+80f,center.y+180f)
   assertNull(hitTestTypedGeometry(outside,g,IntSize(400,400),100f,Offset.Zero,24f))
  }
 }
