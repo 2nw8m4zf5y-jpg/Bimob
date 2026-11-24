@@ -188,6 +188,14 @@ class NativeEditorViewModelTest {
  }
 
 
+ @Test fun completedGestureAlwaysReleasesHistoryAndNextDragCanBegin(){
+  val engine=FakeEngine();val vm=NativeEditorViewModel(engine);vm.resetProject("gesture-cycle","Project");vm.createWall(0.0,0.0,3.0,0.0)
+  val first=vm.beginGesture();assertNotNull(first);vm.commitGesture(first!!);assertNull(engine.gesture)
+  vm.undo();assertTrue(vm.state.value.geometry!!.wallIds.isEmpty());assertTrue(vm.state.value.canRedo)
+  vm.redo();assertEquals(1,vm.state.value.geometry!!.wallIds.size)
+  val second=vm.beginGesture();assertNotNull(second);vm.cancelGesture(second!!);assertNull(engine.gesture)
+  assertNotNull(vm.beginGesture());vm.cancelActiveGesture();assertNull(engine.gesture);vm.close()
+ }
  @Test fun renderWallIterationUsesEntityIdsNotFloatArrayIndices(){
   val oneWall=RenderGeometryBuffer(1,1L,listOf("wall-a"),FloatArray(10){it.toFloat()},emptyList(),FloatArray(0),emptyList(),FloatArray(0),emptyList(),FloatArray(0))
   assertEquals(listOf(0),wallRenderIndices(oneWall).toList())
