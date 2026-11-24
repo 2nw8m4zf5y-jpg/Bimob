@@ -25,7 +25,8 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  for(std::size_t i=32;i<32+wc*40;i+=4)assert(std::isfinite(readF(i)));
  assert(std::abs(readF(32+8)-4.1f)<1e-4f&&std::abs(readF(32+9*4)-0.1f)<1e-4f);
  assert(std::abs(readF(32+4*4)-3.9f)<1e-4f&&std::abs(readF(32+5*4)+0.1f)<1e-4f);
- assert(std::abs(readF(32+40)-3.9f)<1e-4f&&std::abs(readF(32+40+4)-0.1f)<1e-4f);\n assert(std::abs(readF(32+40+6*4)-4.1f)<1e-4f&&std::abs(readF(32+40+7*4)+0.1f)<1e-4f);
+ assert(std::abs(readF(32+40)-3.9f)<1e-4f&&std::abs(readF(32+40+4)-0.1f)<1e-4f);
+ assert(std::abs(readF(32+40+6*4)-4.1f)<1e-4f&&std::abs(readF(32+40+7*4)+0.1f)<1e-4f);
  const std::size_t joinOff=32+wc*40;for(int i=0;i<9;i++)assert(std::isfinite(readF(joinOff+i*4)));assert(readF(joinOff+32)==3.0f);
  const std::size_t openingOff=joinOff+jc*36;assert(readF(openingOff+12)==0.9f&&readF(openingOff+16)==2.1f);
  const std::size_t catalogOff=openingOff+oc*32;assert(readF(catalogOff)==2.0f&&readF(catalogOff+12)==1.0f);
