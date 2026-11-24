@@ -16,6 +16,7 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  auto readU32=[&](std::size_t offset){std::uint32_t v=0;for(int i=0;i<4;i++)v|=static_cast<std::uint32_t>(geometry[offset+i])<<(8*i);return v;};
  auto readU64=[&](std::size_t offset){std::uint64_t v=0;for(int i=0;i<8;i++)v|=static_cast<std::uint64_t>(geometry[offset+i])<<(8*i);return v;};
  assert(readU32(4)==1);assert(readU64(8)>=3);
+ const auto exportRevision=readU64(8);assert(exportRenderGeometry(h)==geometry);
  auto wc=readU32(16),jc=readU32(20),oc=readU32(24),cc=readU32(28);assert(wc==2&&jc==1&&oc==1&&cc==1);
  assert(geometry.size()>=32ULL+wc*40ULL+jc*36ULL+oc*32ULL+cc*32ULL);
  auto idOffset=32ULL+wc*40ULL+jc*36ULL+oc*32ULL+cc*32ULL;
@@ -32,6 +33,8 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  const std::size_t catalogOff=openingOff+oc*32;assert(readF(catalogOff)==2.0f&&readF(catalogOff+12)==1.0f);
  
  assert(call(R"({"type":"UpdateOpening","id":"O1","offsetAlongWallMeters":1,"widthMeters":1,"heightMeters":2.2,"sillHeightMeters":0})").find("\"ok\":true")!=std::string::npos);
+ auto changedGeometry=exportRenderGeometry(h);assert(changedGeometry.size()>=32&&std::memcmp(changedGeometry.data(),"BGR1",4)==0);
+ std::uint64_t changedRevision=0;for(int i=0;i<8;i++)changedRevision|=static_cast<std::uint64_t>(changedGeometry[8+i])<<(8*i);assert(changedRevision>exportRevision);
  assert(call(R"({"type":"MoveWall","id":"W1","deltaX":1,"deltaY":0})").find("\"ok\":true")!=std::string::npos);
  assert(call(R"({"type":"ResizeWall","id":"W1","lengthMeters":5})").find("\"ok\":true")!=std::string::npos);
  assert(call(R"({"type":"CreateCatalogInstance","id":"C2","assetId":"asset","levelId":"L1","x":0,"y":0,"widthMeters":1,"depthMeters":1,"heightMeters":1})").find("\"ok\":true")!=std::string::npos);
