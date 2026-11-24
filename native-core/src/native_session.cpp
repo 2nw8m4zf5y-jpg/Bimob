@@ -54,7 +54,7 @@ std::vector<RenderJoin> collectRenderJoins(const Project&p){
   const double t=((bx-ax)*bdy-(by-ay)*bdx)/den,u=((bx-ax)*ady-(by-ay)*adx)/den;
   if(t<-eps||t>1+eps||u<-eps||u>1+eps)continue;
   Point2 pt{Meters{ax+t*adx},Meters{ay+t*ady}};
-  WallJoin j{ModelId{"auto:"+ids.first+":"+ids.second},a.id,t<=eps,t>=1-eps,b.id,u<=eps,u>=1-eps,pt};
+  WallJoin j{ModelId{"auto:"+ids.first+":"+ids.second},a.id,t>=1-eps,b.id,u>=1-eps,pt};
   out.push_back({j.id.value,j});known.emplace(ids);
  }
  std::sort(out.begin(),out.end(),[](const auto&a,const auto&b){return a.id<b.id;});return out;
