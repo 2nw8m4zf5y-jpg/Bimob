@@ -4,7 +4,7 @@ import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 
 /** Validated, immutable projection of native BGR1 geometry for UI/render/hit-test. */
 data class Vec2(val x: Double, val y: Double)
-data class WallItem(val id: String, val corners: List<Vec2>, val baseElevation: Double, val height: Double, val axisStart: Vec2, val axisEnd: Vec2)
+data class WallJoinItem(val id: String, val corners: List<Vec2>, val maxHeight: Double)\ndata class WallItem(val id: String, val corners: List<Vec2>, val baseElevation: Double, val height: Double, val axisStart: Vec2, val axisEnd: Vec2)
 data class OpeningItem(
     val id: String, val center: Vec2, val offsetAlongWall: Double, val width: Double, val height: Double,
     val sill: Double, val elevation: Double, val hostAxisLength: Double, val hostWallId: String, val kind: String
@@ -15,7 +15,7 @@ data class CatalogItem(
     val assetId: String = "", val category: String = ""
 )
 data class CatalogRenderInfo(val hostWallId: String = "", val assetId: String = "", val category: String = "")
-data class TypedGeometry(val revision: Long, val walls: List<WallItem>, val openings: List<OpeningItem>, val catalog: List<CatalogItem>)
+data class TypedGeometry(val revision: Long, val walls: List<WallItem>, val joins: List<WallJoinItem>, val openings: List<OpeningItem>, val catalog: List<CatalogItem>)
 
 object GeometryMapper {
     fun map(buffer: RenderGeometryBuffer, openingInfo: Map<String, OpeningRenderInfo>, catalogInfo: Map<String, CatalogRenderInfo> = emptyMap()): TypedGeometry {
@@ -35,6 +35,11 @@ object GeometryMapper {
                 Vec2((p[0].x+p[3].x)/2,(p[0].y+p[3].y)/2),
                 Vec2((p[1].x+p[2].x)/2,(p[1].y+p[2].y)/2))
         }
+        val joins = buffer.wallJoinIds.indices.map { i ->
+            val o=i*9; val v=buffer.wallJoins
+            val points=(0..3).map { k -> Vec2(finite(v[o+k*2],"Wall join"),finite(v[o+k*2+1],"Wall join")) }
+            WallJoinItem(buffer.wallJoinIds[i],points,finite(v[o+8],"Wall join"))
+        }
         val openings = buffer.openingIds.indices.map { i ->
             val o=i*8; val v=buffer.openings; val info=openingInfo[buffer.openingIds[i]]
             OpeningItem(buffer.openingIds[i], Vec2(finite(v[o],"Opening"),finite(v[o+1],"Opening")),
@@ -49,6 +54,6 @@ object GeometryMapper {
                 finite(v[o+5],"Catalog"),finite(v[o+6],"Catalog"),finite(v[o+7],"Catalog")!=0.0,
                 info?.hostWallId.orEmpty(),info?.assetId.orEmpty(),info?.category.orEmpty())
         }
-        return TypedGeometry(buffer.revision,walls,openings,catalog)
+        return TypedGeometry(buffer.revision,walls,joins,openings,catalog)
     }
 }
