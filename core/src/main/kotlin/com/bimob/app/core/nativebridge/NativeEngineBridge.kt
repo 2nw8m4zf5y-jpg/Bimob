@@ -66,7 +66,7 @@ data class RenderGeometryBuffer(
             val joinSection = readSection(counts[1], JOIN_FLOATS)
             val openingSection = readSection(counts[2], OPENING_FLOATS)
             val catalogSection = readSection(counts[3], CATALOG_FLOATS)
-            require((wallSection + joinSection + openingSection + catalogSection).all { it.isFinite() }) {
+            require(wallSection.all { it.isFinite() } && joinSection.all { it.isFinite() } &&\n                openingSection.all { it.isFinite() } && catalogSection.all { it.isFinite() }) {
                 "Render geometry contains non-finite coordinates."
             }
             val wallIds = readIds(counts[0])
