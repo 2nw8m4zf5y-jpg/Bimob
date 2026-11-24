@@ -163,6 +163,30 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
    }
   }
  }
+ fun rotateElement(selection:EditorSelection,deltaRadians:Double){
+  if(!deltaRadians.isFinite()||deltaRadians==0.0)return
+  val g=mutableState.value.typedGeometry?:return
+  when(selection.kind){
+   EditorElementKind.WALL->{val wall=g.walls.firstOrNull{it.id==selection.id}?:return;val cx=(wall.axisStart.x+wall.axisEnd.x)/2;val cy=(wall.axisStart.y+wall.axisEnd.y)/2
+    fun rotate(p:Vec2):Vec2{val x=p.x-cx;val y=p.y-cy;return Vec2(cx+x*cos(deltaRadians)-y*sin(deltaRadians),cy+x*sin(deltaRadians)+y*cos(deltaRadians))}
+    val a=rotate(wall.axisStart);val b=rotate(wall.axisEnd)
+    mutate("""{"type":"RotateWall","id":"${selection.id}","startX":${a.x},"startY":${a.y},"endX":${b.x},"endY":${b.y}}""")
+   }
+   EditorElementKind.OPENING->publishError("Проём сохраняет ориентацию своей стены.")
+   EditorElementKind.CATALOG->{val item=g.catalog.firstOrNull{it.id==selection.id}?:return
+    mutate("""{"type":"UpdateCatalogInstance","id":"${item.id}","x":${item.center.x},"y":${item.center.y},"widthMeters":${item.width},"depthMeters":${item.depth},"heightMeters":${item.height},"rotationRadians":${item.rotationRadians+deltaRadians}}""")
+   }
+  }
+ }
+ fun resizeElement(selection:EditorSelection,factor:Double){
+  if(!factor.isFinite()||factor<=0.0||factor==1.0)return
+  val g=mutableState.value.typedGeometry?:return
+  when(selection.kind){
+   EditorElementKind.WALL->{val wall=g.walls.firstOrNull{it.id==selection.id}?:return;val length=hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y);mutate("""{"type":"ResizeWall","id":"${wall.id}","lengthMeters":${length*factor}}""")}
+   EditorElementKind.OPENING->{val item=g.openings.firstOrNull{it.id==selection.id}?:return;val width=item.width*factor;val height=item.height*factor;val offset=(item.offsetAlongWall+item.width/2-width/2).coerceIn(0.0,(item.hostAxisLength-width).coerceAtLeast(0.0));mutate("""{"type":"UpdateOpening","id":"${item.id}","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":${item.sill}}""")}
+   EditorElementKind.CATALOG->{val item=g.catalog.firstOrNull{it.id==selection.id}?:return;mutate("""{"type":"UpdateCatalogInstance","id":"${item.id}","x":${item.center.x},"y":${item.center.y},"widthMeters":${item.width*factor},"depthMeters":${item.depth*factor},"heightMeters":${item.height*factor}}""")}
+  }
+ }
  fun beginGesture():String?{if(activeGestureId!=null)return null;val id="gesture-"+UUID.randomUUID().toString();if(handle!=0L&&engine.beginGesture(handle,id)){activeGestureId=id;return id};return null}
  fun commitGesture(id:String){if(activeGestureId!=id)return;try{if(engine.commitGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture commit failed.")}finally{activeGestureId=null}}
  fun cancelGesture(id:String){if(activeGestureId!=id)return;try{if(engine.cancelGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture cancellation failed.")}finally{activeGestureId=null}}
