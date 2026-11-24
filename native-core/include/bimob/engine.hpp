@@ -96,7 +96,8 @@ Mutation resizeOpening(ModelId id, Meters width, Meters height);
 Mutation deleteOpening(ModelId id);
 Mutation createCatalogInstance(CatalogInstance value);
 Mutation moveCatalogInstance(ModelId id, Point2 position);
-Mutation resizeCatalogInstance(ModelId id, Meters width, Meters depth, Meters height);\nMutation rotateCatalogInstance(ModelId id, double radians);
+Mutation resizeCatalogInstance(ModelId id, Meters width, Meters depth, Meters height);
+Mutation rotateCatalogInstance(ModelId id, double radians);
 Mutation deleteCatalogInstance(ModelId id);
 /** Stages child mutations in sequence; CommandBus commits the returned candidate once. */
 Mutation batch(std::vector<Mutation> mutations);
