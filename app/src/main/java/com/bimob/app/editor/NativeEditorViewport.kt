@@ -54,6 +54,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    Button(onClick=viewModel::redo,enabled=state.canRedo){Text("↷ Redo")}
    Button(onClick=viewModel::deleteSelection,enabled=state.selection!=null,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)){Text("Удалить")}
    state.selection?.let{Text("Выбрано: "+when(it.kind){EditorElementKind.WALL->"стена";EditorElementKind.OPENING->"проём";EditorElementKind.CATALOG->"объект"},style=MaterialTheme.typography.labelSmall)}
+   state.selection?.let{selected->
+    TextButton(onClick={viewModel.rotateElement(selected,PI/4)}){Text("⟳ 45°")}
+    TextButton(onClick={viewModel.resizeElement(selected,1.1)}){Text("+10%")}
+    TextButton(onClick={viewModel.resizeElement(selected,.9)}){Text("−10%")}
+   }
   }
   Canvas(Modifier.fillMaxWidth().weight(1f).clipToBounds().zIndex(0f).background(Color.White)
    .pointerInput(Unit){
