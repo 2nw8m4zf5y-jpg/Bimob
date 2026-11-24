@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.horizontalScroll\nimport androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,7 +38,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  Column(modifier) {
-  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
+  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
    FilterChip(tool==EditorTool.SELECT,{tool=EditorTool.SELECT},{Text("Выбор")})
    FilterChip(tool==EditorTool.ROTATE,{tool=EditorTool.ROTATE},{Text("Поворот")})
@@ -51,7 +51,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    CatalogPreset.all.forEach { item -> FilterChip(preset==item,{preset=item;tool=EditorTool.CATALOG},{Text(item.label)}) }
    TextButton(onClick={rotation=(rotation+PI.toFloat()/4f)%(2f*PI.toFloat())}){Text("↻ 45°")}
   }
-  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    Button(onClick=viewModel::undo,enabled=state.canUndo){Text("↶ Undo")}
    Button(onClick=viewModel::redo,enabled=state.canRedo){Text("↷ Redo")}
    Button(onClick=viewModel::deleteSelection,enabled=state.selection!=null,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)){Text("Удалить")}
