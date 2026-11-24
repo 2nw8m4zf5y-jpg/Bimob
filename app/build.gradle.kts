@@ -14,9 +14,19 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1-alpha"
+        externalNativeBuild {
+            cmake { arguments += "-DBIMOB_NATIVE_BUILD_TESTS=OFF" }
+        }
     }
 
     buildFeatures { compose = true }
+
+    externalNativeBuild {
+        cmake {
+            path = file("../native-core/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
