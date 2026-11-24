@@ -42,11 +42,12 @@ data class CatalogPreset(val assetId:String,val label:String,val category:String
  companion object {
   val TABLE=CatalogPreset("furniture.table.basic","Стол","furniture",1.2,0.7,0.75)
   val BED=CatalogPreset("furniture.bed.single","Кровать","furniture",2.0,0.9,0.55)
+  val DOUBLE_BED=CatalogPreset("furniture.bed.double","Двуспальная кровать","furniture",2.0,1.6,0.55)
   val SOFA=CatalogPreset("furniture.sofa.3seat","Диван","furniture",2.1,0.9,0.85)
   val TOILET=CatalogPreset("plumbing.toilet.floor","Унитаз","plumbing",0.7,0.4,0.75)
   val SINK=CatalogPreset("plumbing.sink.basic","Раковина","plumbing",0.6,0.5,0.85)
   val BATH=CatalogPreset("plumbing.bath.standard","Ванна","plumbing",1.7,0.75,0.6)
-  val all=listOf(BED,SOFA,TABLE,TOILET,SINK,BATH)
+  val all=listOf(BED,DOUBLE_BED,SOFA,TABLE,TOILET,SINK,BATH)
  }
 }
 data class CanvasCamera(val zoom:Float=72f,val panX:Float=0f,val panY:Float=0f)
