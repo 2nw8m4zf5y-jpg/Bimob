@@ -114,7 +114,8 @@ class NativeEditorViewModelTest {
  }
  @Test fun catalogPresetsIncludeFurnitureAndSanitaryAssetsWithRealisticDimensions(){
   val ids=CatalogPreset.all.map{it.assetId}
-  assertTrue(ids.contains("furniture.bed.double"));assertTrue(ids.contains("furniture.sofa.3seat"))
+  assertTrue(ids.contains("furniture.bed.single"));assertTrue(ids.contains("furniture.bed.double"));assertTrue(ids.contains("furniture.sofa.3seat"))
+  assertEquals(2.0,CatalogPreset.DOUBLE_BED.width,0.0);assertEquals(1.6,CatalogPreset.DOUBLE_BED.depth,0.0);assertEquals(0.55,CatalogPreset.DOUBLE_BED.height,0.0)
   assertTrue(ids.contains("furniture.table.basic"));assertTrue(ids.contains("plumbing.toilet.floor"))
   assertTrue(ids.contains("plumbing.sink.basic"));assertTrue(ids.contains("plumbing.bath.standard"))
   CatalogPreset.all.forEach{assertTrue(it.width>0);assertTrue(it.depth>0);assertTrue(it.height>0);assertTrue(it.category.isNotBlank())}
