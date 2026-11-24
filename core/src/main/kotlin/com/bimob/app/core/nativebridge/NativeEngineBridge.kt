@@ -5,8 +5,9 @@ import java.nio.ByteOrder
 import java.nio.charset.CodingErrorAction
 
 /** Version-1 render export in world-space metres.
- * Walls: 4 XY vertices + base elevation + height (10 floats); joins: 4 XY + height (9 floats); openings/catalogue: 8 floats.
- * IDs are length-prefixed UTF-8 strings after all float sections, sorted in record order.
+ * Walls: 4 XY vertices + base elevation + height (10 floats).
+ * Wall joins: 4 XY vertices + height (9 floats). Openings/catalogue: 8 floats.
+ * IDs are length-prefixed UTF-8 strings after numeric sections in matching sorted order.
  */
 data class RenderGeometryBuffer(
     val formatVersion: Int,
@@ -22,7 +23,10 @@ data class RenderGeometryBuffer(
 ) {
     companion object {
         private const val HEADER_BYTES = 32
-        private const val WALL_FLOATS = 10\n        private const val JOIN_FLOATS = 9\n        private const val OPENING_FLOATS = 8\n        private const val CATALOG_FLOATS = 8
+        private const val WALL_FLOATS = 10
+        private const val JOIN_FLOATS = 9
+        private const val OPENING_FLOATS = 8
+        private const val CATALOG_FLOATS = 8
 
         internal fun decode(bytes: ByteArray): RenderGeometryBuffer {
             require(bytes.size >= HEADER_BYTES) { "Native render geometry unavailable or truncated." }
@@ -35,15 +39,18 @@ data class RenderGeometryBuffer(
             require(version == 1) { "Unsupported render geometry format version: $version" }
             val revision = b.long
             val counts = IntArray(4) { b.int }
-            require(counts.all { it >= 0 && it <= Int.MAX_VALUE / maxOf(WALL_FLOATS, JOIN_FLOATS, OPENING_FLOATS, CATALOG_FLOATS) }) {
+            val maxRecordFloats = maxOf(WALL_FLOATS, JOIN_FLOATS, OPENING_FLOATS, CATALOG_FLOATS)
+            require(counts.all { it >= 0 && it <= Int.MAX_VALUE / maxRecordFloats }) {
                 "Invalid render geometry section count."
             }
-            val numericEnd = HEADER_BYTES.toLong() + counts[0].toLong() * WALL_FLOATS * Float.SIZE_BYTES +
+            val numericEnd = HEADER_BYTES.toLong() +
+                counts[0].toLong() * WALL_FLOATS * Float.SIZE_BYTES +
                 counts[1].toLong() * JOIN_FLOATS * Float.SIZE_BYTES +
                 counts[2].toLong() * OPENING_FLOATS * Float.SIZE_BYTES +
                 counts[3].toLong() * CATALOG_FLOATS * Float.SIZE_BYTES
             require(numericEnd <= bytes.size.toLong()) { "Render geometry buffer truncated." }
-            fun readSection(count: Int, recordFloats: Int): FloatArray = FloatArray(count * recordFloats) { b.float }
+            fun readSection(count: Int, recordFloats: Int): FloatArray =
+                FloatArray(count * recordFloats) { b.float }
             fun readIds(count: Int): List<String> = List(count) {
                 require(b.remaining() >= 4) { "Truncated geometry ID length." }
                 val size = b.int
@@ -58,7 +65,7 @@ data class RenderGeometryBuffer(
             val wallSection = readSection(counts[0], WALL_FLOATS)
             val joinSection = readSection(counts[1], JOIN_FLOATS)
             val openingSection = readSection(counts[2], OPENING_FLOATS)
-            val catalogSection = readSection(counts[3], CATALOG_FLOATS
+            val catalogSection = readSection(counts[3], CATALOG_FLOATS)
             require((wallSection + joinSection + openingSection + catalogSection).all { it.isFinite() }) {
                 "Render geometry contains non-finite coordinates."
             }
