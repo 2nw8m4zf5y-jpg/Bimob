@@ -38,9 +38,10 @@ data class RenderGeometryBuffer(
             require(counts.all { it >= 0 && it <= Int.MAX_VALUE / maxOf(WALL_FLOATS, JOIN_FLOATS, OPENING_FLOATS, CATALOG_FLOATS) }) {
                 "Invalid render geometry section count."
             }
-            val numericEnd = counts.fold(HEADER_BYTES.toLong()) { total, count ->
-                total + count.toLong() * RECORD_FLOATS * Float.SIZE_BYTES
-            }
+            val numericEnd = HEADER_BYTES.toLong() + counts[0].toLong() * WALL_FLOATS * Float.SIZE_BYTES +
+                counts[1].toLong() * JOIN_FLOATS * Float.SIZE_BYTES +
+                counts[2].toLong() * OPENING_FLOATS * Float.SIZE_BYTES +
+                counts[3].toLong() * CATALOG_FLOATS * Float.SIZE_BYTES
             require(numericEnd <= bytes.size.toLong()) { "Render geometry buffer truncated." }
             fun readSection(count: Int, recordFloats: Int): FloatArray = FloatArray(count * recordFloats) { b.float }
             fun readIds(count: Int): List<String> = List(count) {
@@ -54,10 +55,10 @@ data class RenderGeometryBuffer(
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
                     .decode(ByteBuffer.wrap(raw)).toString()
             }
-            val wallSection = readSection(counts[0])
-            val joinSection = readSection(counts[1])
-            val openingSection = readSection(counts[2])
-            val catalogSection = readSection(counts[3])
+            val wallSection = readSection(counts[0], WALL_FLOATS)
+            val joinSection = readSection(counts[1], JOIN_FLOATS)
+            val openingSection = readSection(counts[2], OPENING_FLOATS)
+            val catalogSection = readSection(counts[3], CATALOG_FLOATS
             require((wallSection + joinSection + openingSection + catalogSection).all { it.isFinite() }) {
                 "Render geometry contains non-finite coordinates."
             }
