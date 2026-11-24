@@ -84,15 +84,33 @@ data class RenderGeometryBuffer(
 /** Thin JNI boundary. */
 object NativeEngineBridge {
     init { System.loadLibrary("bimob_jni") }
-    fun createSession(): Long = nativeCreateSession()
-    fun destroySession(handle: Long) = nativeDestroySession(handle)
-    fun dispatchCommandJson(handle: Long, commandJson: String): String = nativeDispatchCommandJson(handle, commandJson)
-    fun exportCanonicalSnapshot(handle: Long): String = nativeExportCanonicalSnapshot(handle)
-    fun importCanonicalSnapshot(handle: Long, snapshotJson: String): String = nativeImportCanonicalSnapshot(handle, snapshotJson)
-    fun exportRenderGeometry(handle: Long): RenderGeometryBuffer = RenderGeometryBuffer.decode(nativeExportRenderGeometry(handle))
-    fun beginGesture(handle: Long, gestureId: String): Boolean = nativeBeginGesture(handle, gestureId)
-    fun commitGesture(handle: Long, gestureId: String): Boolean = nativeCommitGesture(handle, gestureId)
-    fun cancelGesture(handle: Long, gestureId: String): Boolean = nativeCancelGesture(handle, gestureId)
+    private inline fun <T> guarded(fallback: T, operation: () -> T): T = try {
+        operation()
+    } catch (failure: Exception) {
+        fallback
+    } catch (failure: LinkageError) {
+        fallback
+    }
+
+    fun createSession(): Long = guarded(0L) { nativeCreateSession() }
+    fun destroySession(handle: Long) { guarded(Unit) { nativeDestroySession(handle) } }
+    fun dispatchCommandJson(handle: Long, commandJson: String): String =
+        guarded("""{"ok":false,"error":"JNI command invocation failed safely"}""") {
+            nativeDispatchCommandJson(handle, commandJson)
+        }
+    fun exportCanonicalSnapshot(handle: Long): String =
+        guarded("{}") { nativeExportCanonicalSnapshot(handle) }
+    fun importCanonicalSnapshot(handle: Long, snapshotJson: String): String =
+        guarded("""{"ok":false,"error":"JNI snapshot import failed safely"}""") {
+            nativeImportCanonicalSnapshot(handle, snapshotJson)
+        }
+    fun exportRenderGeometry(handle: Long): RenderGeometryBuffer = guarded(
+        RenderGeometryBuffer(1, 0, emptyList(), FloatArray(0), emptyList(), FloatArray(0),
+            emptyList(), FloatArray(0), emptyList(), FloatArray(0))
+    ) { RenderGeometryBuffer.decode(nativeExportRenderGeometry(handle)) }
+    fun beginGesture(handle: Long, gestureId: String): Boolean = guarded(false) { nativeBeginGesture(handle, gestureId) }
+    fun commitGesture(handle: Long, gestureId: String): Boolean = guarded(false) { nativeCommitGesture(handle, gestureId) }
+    fun cancelGesture(handle: Long, gestureId: String): Boolean = guarded(false) { nativeCancelGesture(handle, gestureId) }
     private external fun nativeCreateSession(): Long
     private external fun nativeDestroySession(handle: Long)
     private external fun nativeDispatchCommandJson(handle: Long, commandJson: String): String
