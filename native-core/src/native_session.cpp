@@ -61,6 +61,7 @@ std::vector<RenderJoin> collectRenderJoins(const Project&p){
 }
 void appendU32(std::vector<std::uint8_t>&o,std::uint32_t v){for(unsigned i=0;i<4;++i)o.push_back(static_cast<std::uint8_t>(v>>(8*i)));}
 void appendU64(std::vector<std::uint8_t>&o,std::uint64_t v){for(unsigned i=0;i<8;++i)o.push_back(static_cast<std::uint8_t>(v>>(8*i)));}
+void appendString(std::vector<std::uint8_t>&o,const std::string&s){if(s.size()>std::numeric_limits<std::uint32_t>::max())throw std::runtime_error("Render geometry ID exceeds encoding limit");appendU32(o,static_cast<std::uint32_t>(s.size()));o.insert(o.end(),s.begin(),s.end());}
 void appendF32(std::vector<std::uint8_t>&o,double v){if(!std::isfinite(v)||std::abs(v)>std::numeric_limits<float>::max())throw std::runtime_error("Render geometry contains non-finite/out-of-range value");float f=static_cast<float>(v);std::uint32_t bits;std::memcpy(&bits,&f,sizeof(bits));appendU32(o,bits);}
 
 std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vector<RenderJoin>&joins){
@@ -94,6 +95,11 @@ std::vector<std::uint8_t> geometryBytes(const ModelRevision&rev){
  for(const Opening*x:openings){auto w=std::find_if(p.walls.begin(),p.walls.end(),[&](const Wall&a){return a.id==x->hostWallId;});if(w==p.walls.end())throw std::runtime_error("Opening references missing wall");double len=w->axis.length().value,ux=(w->axis.end.x.value-w->axis.start.x.value)/len,uy=(w->axis.end.y.value-w->axis.start.y.value)/len,center=x->offsetAlongWall.value+x->width.value*.5;auto lv=levelById(p,w->levelId);appendF32(o,w->axis.start.x.value+ux*center);appendF32(o,w->axis.start.y.value+uy*center);appendF32(o,x->offsetAlongWall.value);appendF32(o,x->width.value);appendF32(o,x->height.value);appendF32(o,x->sillHeight.value);appendF32(o,lv?lv->elevation.value:0);appendF32(o,len);}
  std::vector<const CatalogInstance*>catalog;for(const auto&x:p.catalogInstances)catalog.push_back(&x);std::sort(catalog.begin(),catalog.end(),[](auto*a,auto*b){return a->id.value<b->id.value;});
  for(const auto*x:catalog){auto lv=levelById(p,x->levelId);appendF32(o,x->position.x.value);appendF32(o,x->position.y.value);appendF32(o,x->rotationRadians);appendF32(o,x->targetWidth.value);appendF32(o,x->targetDepth.value);appendF32(o,x->targetHeight.value);appendF32(o,lv?lv->elevation.value:0);appendF32(o,x->hostWallId.valid()?1:0);}
+ // ID tables follow numeric payload in section order and match the deterministic record sorting.
+ for(const auto*w:walls)appendString(o,w->id.value);
+ for(const auto&j:joins)appendString(o,j.id);
+ for(const auto*x:openings)appendString(o,x->id.value);
+ for(const auto*x:catalog)appendString(o,x->id.value);
  return o;
 }
 
