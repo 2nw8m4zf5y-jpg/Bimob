@@ -15,6 +15,7 @@ int main(){
  assert(*(*nums)[2].number()==1.5);assert(*(*nums)[3].number()==-2.75);
  assert(*(*nums)[5].number()==1000.0);assert(*(*nums)[6].number()==0.04);
  auto invalidUtf8=[](std::initializer_list<unsigned char> bytes){std::string input=R"({"x":")";for(auto byte:bytes)input.push_back(static_cast<char>(byte));input+="\"}";return input;};
+ auto validUtf8=parse(invalidUtf8({0xf0,0x9f,0x98,0x83}));assert(validUtf8.get("x")->string()->size()==4);
  rejects([&]{parse(invalidUtf8({0x80}));});
  rejects([&]{parse(invalidUtf8({0xc0,0xaf}));});
  rejects([&]{parse(invalidUtf8({0xed,0xa0,0x80}));});
