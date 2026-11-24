@@ -22,7 +22,7 @@ internal object CrashReporter {
                     failure.printStackTrace(PrintWriter(writer))
                 }.toString()
                 val contents = buildString {
-                    append("BIMOB JVM CRASH\n")
+                    append("NAGAPLAS JVM CRASH\n")
                     append("thread=").append(thread.name).append('\n')
                     append("timeMillis=").append(System.currentTimeMillis()).append('\n')
                     append(trace)

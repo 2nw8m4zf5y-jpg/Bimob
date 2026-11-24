@@ -145,3 +145,12 @@ Partial G2 progress only. Implemented and tested in CI: collection-level COW, bo
 
 - Review of the unverified native changes found a compile-time risk: `CatalogInstance` defaulted equality depends on `DimensionBounds` equality, but that operator was absent. Added default value equality to `DimensionBounds` in commit `355c7eb`.
 - This is a confirmed source-level defect found by review, **not a confirmed explanation of the visible GitHub red check**, because workflow run/job logs are unavailable through the current GitHub connector. Latest status still requires CI verification.
+
+
+## Owner acceptance and Stage G2 kickoff (2026-11-24)
+
+- **Stage G · Step G1: ACCEPTED / CLOSED by owner** following real-device validation of APK from Run #542. Compact toolbar, home menu, grouped catalog, 92 dp properties panel, and numeric property editing were confirmed working.
+- **Stage G · Step G2: IN PROGRESS** on `feature/model-core-v1`; `main` remains untouched.
+- Initial precision-drawing implementation: 48 dp offset crosshair, 22 dp screen-space snap radius, Endpoint > Edge > Ortho > Grid priority, soft 5° orthogonal snap and explicit Ortho lock, endpoint-handle preview and snap guides. Native renderer already derives endpoint/T wall joins; release remains one native wall mutation for Undo/Redo integrity.
+- Branding/app identity transition to NAGAPLAS and `.nagaplas` project file extension are in scope for this isolated G2 commit; Kotlin/C++ namespace and JNI package paths remain `com.bimob.*` by design.
+- CI and owner device validation for this G2 commit remain pending.

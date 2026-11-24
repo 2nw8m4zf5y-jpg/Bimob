@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -36,6 +37,9 @@ import kotlin.math.*
 
 private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, CATALOG }
 internal data class WorldPoint(val x:Double,val y:Double)
+internal enum class SnapKind { ENDPOINT, EDGE, ORTHO, GRID, NONE }
+internal data class SnapResult(val point:WorldPoint,val kind:SnapKind,val target:WorldPoint?=null)
+internal data class EndpointPreview(val wallId:String,val moveStart:Boolean,val point:WorldPoint)
 internal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val dx:Double=0.0,val dy:Double=0.0,val rotationRadians:Double=0.0,val scaleFactor:Double=1.0)
 
 @Composable
@@ -47,6 +51,12 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
+ var endpointPreview by remember{mutableStateOf<EndpointPreview?>(null)}
+ var snapPreview by remember{mutableStateOf<SnapResult?>(null)}
+ var fingerScreen by remember{mutableStateOf<Offset?>(null)}
+ var orthoLocked by remember{mutableStateOf(false)}
+ val crosshairOffsetPx=with(LocalDensity.current){48.dp.toPx()}
+ val snapThresholdPx=with(LocalDensity.current){22.dp.toPx()}
  var showCatalogPicker by remember{mutableStateOf(false)}
  var showProperties by remember{mutableStateOf(false)}
  var catalogCategory by remember{mutableStateOf("openings")}
@@ -65,6 +75,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
     CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
     CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
+    CompactActionButton("⊥","Ортогональный режим 90°",selected=orthoLocked,onClick={orthoLocked=!orthoLocked})
     CompactActionButton("×","Удалить выбранный элемент",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
     Box {
      CompactActionButton("⌂","Меню проекта",onClick={homeMenuExpanded=true})
@@ -128,36 +139,50 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,hitRadiusPx){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null
     try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val world=if(tool==EditorTool.WALL)snap(raw,state.typedGeometry)else raw;start=world;last=world;startScreen=screen
-     if(tool!=EditorTool.WALL)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
+     val canvasOffset=Offset(camera.panX,camera.panY)
+     val cross=if(tool==EditorTool.WALL)Offset(screen.x,screen.y-crosshairOffsetPx)else screen
+     val selectedWall=state.selection?.takeIf{it.kind==EditorElementKind.WALL}?.let{s->state.typedGeometry?.walls?.firstOrNull{it.id==s.id}}
+     endpointDrag=if(tool==EditorTool.SELECT&&selectedWall!=null)hitWallEndpoint(screen,selectedWall,size,camera.zoom,canvasOffset,hitRadiusPx)else null
+     val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
+     val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}} 
+     val snap=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
+     val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen
+     snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
+     endpointPreview=endpointDrag?.copy(point=world)
+     if(tool!=EditorTool.WALL&&endpointDrag==null)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,canvasOffset,hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
     },onDrag={change,_->
      change.consume();val origin=start?:return@detectDragGestures;val originScreen=startScreen?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
-     val raw=screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
-     val point=if(tool==EditorTool.WALL)snap(raw,state.typedGeometry)else WorldPoint(raw.x,raw.y)
-     when(tool){
-      EditorTool.WALL->preview=origin to point
-      EditorTool.SELECT->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,point.x-origin.x,point.y-origin.y)}
-      EditorTool.ROTATE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,rotationRadians=(change.position.x-originScreen.x)/120f*2*Math.PI)}
-      EditorTool.RESIZE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,scaleFactor=exp((change.position.x-originScreen.x).toDouble()/160.0).coerceIn(.2,5.0))}
-      else->Unit
+     fingerScreen=change.position
+     val canvasOffset=Offset(camera.panX,camera.panY)
+     val cross=if(tool==EditorTool.WALL||endpointDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
+     val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
+     val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?:origin
+     val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
+     val point=snapped.point;snapPreview=snapped
+     when{
+      endpointDrag!=null->endpointPreview=endpointDrag!!.copy(point=point)
+      tool==EditorTool.WALL->preview=origin to point
+      tool==EditorTool.SELECT->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,point.x-origin.x,point.y-origin.y)}
+      tool==EditorTool.ROTATE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,rotationRadians=(change.position.x-originScreen.x)/120f*2*Math.PI)}
+      tool==EditorTool.RESIZE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,scaleFactor=exp((change.position.x-originScreen.x).toDouble()/160.0).coerceIn(.2,5.0))}
      }
      last=point
     },onDragEnd={
-     val from=start;val to=last;val tp=transformPreview;val sel=movingSelection
-     try{when(tool){
-      EditorTool.WALL->if(from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
-      EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
-      EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
-      EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
-      else->Unit
-     }}finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
-    },onDragCancel={preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null})}
-    finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
+     val from=start;val to=last;val tp=transformPreview;val sel=movingSelection;val ep=endpointPreview?:endpointDrag
+     try{when{
+      ep!=null&&from!=null&&to!=null&&hypot(to.x-from.x,to.y-from.y)>1e-6->viewModel.resizeWallEndpoint(ep.wallId,ep.moveStart,to.x,to.y)
+      ep!=null->Unit
+      tool==EditorTool.WALL->if(from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
+      tool==EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
+      tool==EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
+      tool==EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
+     }}finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
+    },onDragCancel={preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null})}
+    finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
    }
 
    ) {
@@ -171,7 +196,12 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     g.walls.forEach{wall->
      val tp=transformPreview?.takeIf{it.kind==EditorElementKind.WALL&&it.id==wall.id}
      val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B)
-     drawTypedPolygon(if(tp==null)wall.corners else transformWallPreview(wall,tp),size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null)Color(0xFF1976D2)else color)
+     val ep=endpointPreview?.takeIf{it.wallId==wall.id}
+     val corners=when{ep!=null->wallEndpointPreviewCorners(wall,ep.moveStart,ep.point);tp!=null->transformWallPreview(wall,tp);else->wall.corners}
+     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)Color(0xFF1976D2)else color)
+     if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id)){
+      listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1976D2),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
+     }
     }
     g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
@@ -192,6 +222,21 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
+   val finger=fingerScreen
+   val crossTarget=if(finger!=null)Offset(finger.x,finger.y-crosshairOffsetPx)else null
+   if(finger!=null&&crossTarget!=null&&(tool==EditorTool.WALL||endpointPreview!=null)){
+    drawLine(Color(0xFF64748B),finger,crossTarget,1f)
+    drawCircle(Color(0xFF1976D2),radius=7f,center=crossTarget,style=Stroke(1.5f))
+    drawLine(Color(0xFF1976D2),Offset(crossTarget.x-9,crossTarget.y),Offset(crossTarget.x+9,crossTarget.y),1.5f)
+    drawLine(Color(0xFF1976D2),Offset(crossTarget.x,crossTarget.y-9),Offset(crossTarget.x,crossTarget.y+9),1.5f)
+   }
+   snapPreview?.takeIf{it.kind!=SnapKind.NONE}?.let{sn->
+    val target=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
+    drawCircle(Color(0xFF22A447),radius=7f,center=target)
+    drawCircle(Color.White,radius=3f,center=target)
+    drawLine(Color(0xFF22A447),Offset(target.x,0f),Offset(target.x,size.height),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
+    drawLine(Color(0xFF22A447),Offset(0f,target.y),Offset(size.width,target.y),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
+   }
    }
    if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.align(Alignment.TopEnd).width(92.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
    Text(projectTitle,style=MaterialTheme.typography.labelSmall,color=Color.Black.copy(alpha=.4f),modifier=Modifier.align(Alignment.BottomEnd).padding(6.dp))
@@ -231,11 +276,53 @@ internal fun screenToWorld(p:Offset,size:IntSize,scale:Float,pan:Offset):WorldPo
  val y=(size.height/2.0+pan.y.toDouble()-p.y.toDouble())/scale.toDouble()
  return if(x.isFinite()&&y.isFinite())WorldPoint(x,y) else WorldPoint(Double.NaN,Double.NaN)
 }
-private fun snap(p:WorldPoint,g:TypedGeometry?):WorldPoint{
- val grid=WorldPoint(round(p.x*10)/10,round(p.y*10)/10);if(g==null)return grid
- var best=grid;var dBest=.16
- g.walls.forEach{wall->listOf(wall.axisStart,wall.axisEnd).forEach{q->val d=hypot(q.x-p.x,q.y-p.y);if(d<dBest){best=WorldPoint(q.x,q.y);dBest=d}}}
- return best
+internal fun offsetCrosshairScreen(finger:Offset,offsetPx:Float)=Offset(finger.x,finger.y-offsetPx)
+internal fun offsetCrosshairWorld(finger:Offset,offsetPx:Float,size:IntSize,zoom:Float,pan:Offset)=screenToWorld(offsetCrosshairScreen(finger,offsetPx),size,zoom,pan)
+internal fun hitWallEndpoint(screen:Offset,wall:WallItem,size:IntSize,zoom:Float,pan:Offset,radiusPx:Float):EndpointPreview?{
+ val a=worldToScreen(WorldPoint(wall.axisStart.x,wall.axisStart.y),Size(size.width.toFloat(),size.height.toFloat()),zoom,pan)
+ val b=worldToScreen(WorldPoint(wall.axisEnd.x,wall.axisEnd.y),Size(size.width.toFloat(),size.height.toFloat()),zoom,pan)
+ val da=(screen-a).getDistance();val db=(screen-b).getDistance()
+ return when{da<=radiusPx&&da<=db->EndpointPreview(wall.id,true,WorldPoint(wall.axisStart.x,wall.axisStart.y));db<=radiusPx->EndpointPreview(wall.id,false,WorldPoint(wall.axisEnd.x,wall.axisEnd.y));else->null}
+}
+internal fun wallEndpointPreviewCorners(wall:WallItem,moveStart:Boolean,point:WorldPoint):List<Vec2>{
+ val start=if(moveStart)point else WorldPoint(wall.axisStart.x,wall.axisStart.y)
+ val end=if(moveStart)WorldPoint(wall.axisEnd.x,wall.axisEnd.y)else point
+ val dx=end.x-start.x;val dy=end.y-start.y;val len=hypot(dx,dy);if(len<1e-9)return wall.corners
+ val half=hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)/2
+ val nx=-dy/len*half;val ny=dx/len*half
+ return listOf(Vec2(start.x+nx,start.y+ny),Vec2(end.x+nx,end.y+ny),Vec2(end.x-nx,end.y-ny),Vec2(start.x-nx,start.y-ny))
+}
+internal fun snapPoint(p:WorldPoint,anchor:WorldPoint?,g:TypedGeometry?,size:IntSize,zoom:Float,pan:Offset,thresholdPx:Float,ortho:Boolean,excludeWallId:String?=null,gridStep:Double=.1):SnapResult{
+ if(!p.x.isFinite()||!p.y.isFinite()||!zoom.isFinite()||zoom<=0f)return SnapResult(p,SnapKind.NONE)
+ val screenSize=Size(size.width.toFloat(),size.height.toFloat())
+ val rawScreen=worldToScreen(p,screenSize,zoom,pan)
+ val walls=g?.walls?.filter{it.id!=excludeWallId}.orEmpty()
+ var nearest:WorldPoint?=null;var best=thresholdPx
+ walls.forEach{w->listOf(w.axisStart,w.axisEnd).forEach{ep->
+  val s=worldToScreen(WorldPoint(ep.x,ep.y),screenSize,zoom,pan);val d=(s-rawScreen).getDistance()
+  if(d<best){best=d;nearest=WorldPoint(ep.x,ep.y)}
+ }}
+ nearest?.let{return SnapResult(it,SnapKind.ENDPOINT,it)}
+ var edge:WorldPoint?=null;best=thresholdPx
+ walls.forEach{w->
+  val a=worldToScreen(WorldPoint(w.axisStart.x,w.axisStart.y),screenSize,zoom,pan);val b=worldToScreen(WorldPoint(w.axisEnd.x,w.axisEnd.y),screenSize,zoom,pan)
+  val dx=b.x-a.x;val dy=b.y-a.y;val l2=dx*dx+dy*dy
+  if(l2>1e-9){val t=((rawScreen.x-a.x)*dx+(rawScreen.y-a.y)*dy)/l2
+   if(t in 0f..1f){val projected=Offset(a.x+t*dx,a.y+t*dy);val d=(projected-rawScreen).getDistance()
+    if(d<best){best=d;edge=screenToWorld(projected,size,zoom,pan)}
+   }
+  }
+ }
+ edge?.let{return SnapResult(it,SnapKind.EDGE,it)}
+ if(anchor!=null){
+  val dx=p.x-anchor.x;val dy=p.y-anchor.y;val len=hypot(dx,dy)
+  if(len>1e-9){val angle=atan2(dy,dx);val dirs=listOf(0.0,PI/2,PI,-PI/2);val nearestDir=dirs.minBy{abs(atan2(sin(angle-it),cos(angle-it)))}
+   val error=abs(atan2(sin(angle-nearestDir),cos(angle-nearestDir)))
+   if(ortho||error<=Math.toRadians(5.0)){val snapped=WorldPoint(anchor.x+cos(nearestDir)*len,anchor.y+sin(nearestDir)*len);return SnapResult(snapped,SnapKind.ORTHO,snapped)}
+  }
+ }
+ if(gridStep>0){val q=WorldPoint(round(p.x/gridStep)*gridStep,round(p.y/gridStep)*gridStep);val d=(worldToScreen(q,screenSize,zoom,pan)-rawScreen).getDistance();if(d<=thresholdPx)return SnapResult(q,SnapKind.GRID,q)}
+ return SnapResult(p,SnapKind.NONE)
 }
 private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan:Offset):String?{
  if(g==null)return null;var best:String?=null;var dBest=24f

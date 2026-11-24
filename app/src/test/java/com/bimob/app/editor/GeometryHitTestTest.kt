@@ -25,6 +25,58 @@ class GeometryHitTestTest {
   assertEquals(1.0,center.x,1e-6);assertEquals(0.0,center.y,1e-6)
   assertEquals(2.0,wall.axisEnd.x,1e-6)
  }
+ @Test fun offsetCrosshairConvertsWithZoomAndPan(){
+  val finger=Offset(200f,150f)
+  val world=offsetCrosshairWorld(finger,48f,IntSize(400,400),100f,Offset(20f,-10f))
+  assertEquals(-.2,world.x,1e-6);assertEquals(.88,world.y,1e-6)
+  val target=offsetCrosshairScreen(finger,48f)
+  assertEquals(200f,target.x,0f);assertEquals(102f,target.y,0f)
+ }
+ @Test fun endpointSnapHasHighestPriorityAndScreenThreshold(){
+  val g=geom()
+  val raw=WorldPoint(2.03,.02)
+  val result=snapPoint(raw,null,g,IntSize(400,400),100f,Offset.Zero,22f,false)
+  assertEquals(SnapKind.ENDPOINT,result.kind);assertEquals(2.0,result.point.x,1e-6);assertEquals(0.0,result.point.y,1e-6)
+  val tooFar=snapPoint(WorldPoint(2.25,0.0),null,g,IntSize(400,400),100f,Offset.Zero,22f,false)
+  assertEquals(SnapKind.NONE,tooFar.kind)
+ }
+ @Test fun edgeSnapPrecedesOrthoAndGrid(){
+  val raw=WorldPoint(1.0,.12)
+  val edge=snapPoint(raw,WorldPoint(0.0,0.0),geom(),IntSize(400,400),100f,Offset.Zero,22f,true)
+  assertEquals(SnapKind.EDGE,edge.kind);assertEquals(0.0,edge.point.y,1e-6)
+ }
+ @Test fun orthoLockSnapsAndSoftModeUsesFiveDegreeWindow(){
+  val anchor=WorldPoint(0.0,0.0)
+  val raw=WorldPoint(1.0,.4)
+  val locked=snapPoint(raw,anchor,geom(),IntSize(400,400),100f,Offset.Zero,22f,true)
+  assertEquals(SnapKind.ORTHO,locked.kind);assertEquals(0.0,locked.point.y,1e-6)
+  val empty=TypedGeometry(1,emptyList(),emptyList(),emptyList(),emptyList())
+  val softOutside=snapPoint(raw,anchor,empty,IntSize(400,400),100f,Offset.Zero,3f,false)
+  assertEquals(SnapKind.NONE,softOutside.kind)
+  val softInside=snapPoint(WorldPoint(1.0,.05),anchor,empty,IntSize(400,400),100f,Offset.Zero,3f,false)
+  assertEquals(SnapKind.ORTHO,softInside.kind);assertEquals(0.0,softInside.point.y,1e-6)
+ }
+ @Test fun gridSnapIsLastFallbackAndThresholdIsScreenSpace(){
+  val raw=WorldPoint(.43,.47)
+  val snapped=snapPoint(raw,null,TypedGeometry(1,emptyList(),emptyList(),emptyList(),emptyList()),IntSize(400,400),100f,Offset.Zero,22f,false)
+  assertEquals(SnapKind.GRID,snapped.kind);assertEquals(.4,snapped.point.x,1e-6);assertEquals(.5,snapped.point.y,1e-6)
+  val noSnap=snapPoint(raw,null,TypedGeometry(1,emptyList(),emptyList(),emptyList(),emptyList()),IntSize(400,400),100f,Offset.Zero,3f,false)
+  assertEquals(SnapKind.NONE,noSnap.kind)
+ }
+ @Test fun selectedWallEndpointHandlesAreScreenHitTargets(){
+  val start=hitWallEndpoint(Offset(200f,200f),wall,IntSize(400,400),100f,Offset.Zero,24f)
+  val end=hitWallEndpoint(Offset(400f,200f),wall,IntSize(400,400),100f,Offset.Zero,24f)
+  assertTrue(start!!.moveStart);assertFalse(end!!.moveStart)
+  assertNull(hitWallEndpoint(Offset(260f,200f),wall,IntSize(400,400),100f,Offset.Zero,24f))
+ }
+ @Test fun endpointPreviewKeepsWallThicknessAndMovesOnlyOneEnd(){
+  val preview=wallEndpointPreviewCorners(wall,false,WorldPoint(3.0,1.0))
+  val a=Vec2((preview[0].x+preview[3].x)/2,(preview[0].y+preview[3].y)/2)
+  val b=Vec2((preview[1].x+preview[2].x)/2,(preview[1].y+preview[2].y)/2)
+  assertEquals(0.0,a.x,1e-6);assertEquals(0.0,a.y,1e-6)
+  assertEquals(3.0,b.x,1e-6);assertEquals(1.0,b.y,1e-6)
+  assertEquals(.2,hypot(preview[0].x-preview[3].x,preview[0].y-preview[3].y),1e-6)
+ }
  @Test fun rotatedCatalogBoundsAreHitTestable(){
   val item=CatalogItem("c",Vec2(1.0,1.0),Math.PI/4,1.0,1.0,1.0,0.0,false,"")
   val g=geom(listOf(item));val center=screen(item.center,100f)
