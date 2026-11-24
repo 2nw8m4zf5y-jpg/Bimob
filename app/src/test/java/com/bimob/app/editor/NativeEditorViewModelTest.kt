@@ -30,8 +30,8 @@ class NativeEditorViewModelTest {
     json.contains("DeleteWall")->{undo+=copy(model);val wall=id(json);model.walls.remove(wall);model.openings.entries.removeAll{it.value.first==wall};redo.clear();revision++}
     json.contains("DeleteOpening")->{undo+=copy(model);model.openings.remove(id(json));redo.clear();revision++}
     json.contains("DeleteCatalogInstance")->{undo+=copy(model);model.catalogs.remove(id(json));redo.clear();revision++}
-    json.contains("\\"Undo\\"")&&undo.isNotEmpty()->{redo+=copy(model);model=undo.removeAt(undo.lastIndex);revision++}
-    json.contains("\\"Redo\\"")&&redo.isNotEmpty()->{undo+=copy(model);model=redo.removeAt(redo.lastIndex);revision++}
+    json.contains("\"Undo\"")&&undo.isNotEmpty()->{redo+=copy(model);model=undo.removeAt(undo.lastIndex);revision++}
+    json.contains("\"Redo\"")&&redo.isNotEmpty()->{undo+=copy(model);model=redo.removeAt(redo.lastIndex);revision++}
    }
    return """{"ok":true,"canUndo":${undo.isNotEmpty()},"canRedo":${redo.isNotEmpty()}}"""
   }
@@ -59,7 +59,7 @@ class NativeEditorViewModelTest {
    importedSnapshot=json;undo.clear();redo.clear();revision++
    return """{"ok":true}"""
   }
-  var importedSnapshot:String?=null
+  override fun snapshot(handle:Long):String=importedSnapshot ?: """{}"""
   override fun beginGesture(handle:Long,id:String):Boolean{gesture=id;return true}
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
@@ -89,23 +89,6 @@ class NativeEditorViewModelTest {
   assertEquals("WINDOW",vm.state.value.openingInfo[id]?.kind)
   val g=vm.beginGesture();assertNotNull(g);vm.commitGesture(g!!)
   assertEquals(1,vm.state.value.geometry!!.openingIds.size)
- }
- @Test fun canonicalSnapshotRestoresAllEntityKindsAndRejectsCorruptJsonAtomically(){
-  val e=FakeEngine();val vm=NativeEditorViewModel(e)
-  val snapshot="""{"buildings":[],"elements":[{"axis":{"end":{"xMeters":4,"yMeters":0},"start":{"xMeters":0,"yMeters":0}},"heightMeters":3,"id":"wall-a","kind":"wall","levelId":"level-a","thicknessMeters":0.2},{"heightMeters":2.1,"hostWallId":"wall-a","id":"opening-a","kind":"opening","offsetAlongWallMeters":0.5,"openingKind":"DOOR","sillHeightMeters":0,"widthMeters":0.9},{"assetId":"table","category":"furniture","depthBounds":{"max":2,"min":0.1},"heightBounds":{"max":3,"min":0.1},"hostWallId":null,"id":"catalog-a","kind":"catalogInstance","levelId":"level-a","position":{"xMeters":2,"yMeters":1},"rotationRadians":0,"scalingMode":"UNIFORM","scheduleTag":"","targetDepthMeters":0.7,"targetHeightMeters":0.75,"targetWidthMeters":1.2,"widthBounds":{"max":3,"min":0.1}}],"joins":[],"levels":[{"elevationMeters":0,"heightMeters":3,"id":"level-a","name":"Ground"}],"materials":[],"name":"Restored","projectId":"project-restored","schemaVersion":1,"site":{"id":"site-a","name":"Site"},"types":[]}"""
-  assertTrue(vm.openProjectSnapshot(snapshot))
-  assertEquals("project-restored",vm.state.value.projectId)
-  assertEquals(listOf("wall-a"),vm.state.value.geometry!!.wallIds)
-  assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
-  assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
-  assertEquals("DOOR",vm.state.value.openingInfo["opening-a"]?.kind)
-  val before=vm.exportProjectSnapshot()
-  assertFalse(vm.openProjectSnapshot("{not-valid-json"))
-  assertEquals(before,vm.exportProjectSnapshot())
-  assertEquals(listOf("wall-a"),vm.state.value.geometry!!.wallIds)
-  assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
-  assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
-  vm.close()
  }
  @Test fun canonicalSnapshotRestoresAllEntityKindsAndRejectsCorruptJsonAtomically(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e)
