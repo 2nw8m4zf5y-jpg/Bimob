@@ -40,31 +40,38 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  var showCatalogPicker by remember{mutableStateOf(false)}
+ var showProperties by remember{mutableStateOf(false)}
+ LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
-  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
-   FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
-   FilterChip(tool==EditorTool.SELECT,{tool=EditorTool.SELECT},{Text("Выбор")})
-   FilterChip(tool==EditorTool.ROTATE,{tool=EditorTool.ROTATE},{Text("Поворот")})
-   FilterChip(tool==EditorTool.RESIZE,{tool=EditorTool.RESIZE},{Text("Размер")})
-   FilterChip(tool==EditorTool.DOOR,{tool=EditorTool.DOOR},{Text("Дверь")})
-   FilterChip(tool==EditorTool.WINDOW,{tool=EditorTool.WINDOW},{Text("Окно")})
-  }
-  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
-   Button(onClick={tool=EditorTool.CATALOG;showCatalogPicker=true}){Text("Каталог")}
-  }
-  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
-   Button(onClick=viewModel::undo,enabled=state.canUndo){Text("↶ Undo")}
-   Button(onClick=viewModel::redo,enabled=state.canRedo){Text("↷ Redo")}
-   Button(onClick=viewModel::deleteSelection,enabled=state.selection!=null,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)){Text("Удалить")}
-   state.selection?.let{selected->
-    val selectedName=when(selected.kind){
-     EditorElementKind.WALL->"Стена"
-     EditorElementKind.OPENING->state.typedGeometry?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?: "Проём"
-     EditorElementKind.CATALOG->state.typedGeometry?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label}?: "Объект"
+  Surface(color=MaterialTheme.colorScheme.surface,tonalElevation=2.dp,shape=MaterialTheme.shapes.medium,modifier=Modifier.fillMaxWidth().zIndex(1f)) {
+   Column(Modifier.padding(horizontal=6.dp,vertical=4.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+    Row(horizontalArrangement=Arrangement.spacedBy(3.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+     DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
+     DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT}
+     DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE}
+     DesktopToolButton("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE}
+     DesktopToolButton("▯","Дверь",tool==EditorTool.DOOR){tool=EditorTool.DOOR}
+     DesktopToolButton("▣","Окно",tool==EditorTool.WINDOW){tool=EditorTool.WINDOW}
+     DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}
     }
-    Text("Выбрано: $selectedName",style=MaterialTheme.typography.labelSmall)
+    HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
+    Row(horizontalArrangement=Arrangement.spacedBy(4.dp),verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+     CompactActionButton("↶","Отменить",enabled=state.canUndo,onClick=viewModel::undo)
+     CompactActionButton("↷","Повторить",enabled=state.canRedo,onClick=viewModel::redo)
+     CompactActionButton("⌫","Удалить",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
+     CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
+     state.selection?.let{selected->
+      val selectedName=when(selected.kind){
+       EditorElementKind.WALL->"Стена"
+       EditorElementKind.OPENING->state.typedGeometry?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?: "Проём"
+       EditorElementKind.CATALOG->state.typedGeometry?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label}?: "Объект"
+      }
+      Text(selectedName,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,maxLines=1)
+     }
+    }
    }
   }
+  if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.fillMaxWidth())
   if(showCatalogPicker) AlertDialog(
    onDismissRequest={showCatalogPicker=false},
    title={Text("Каталог элементов")},
@@ -222,4 +229,42 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
   val dx=b.x-a.x;val dy=b.y-a.y;val l=dx*dx+dy*dy;val t=if(l==0f)0f else (((p.x-a.x)*dx+(p.y-a.y)*dy)/l).coerceIn(0f,1f);val d=hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);if(d<dBest){dBest=d;best=wall.id}
  }
  return best
+}
+
+
+@Composable
+private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,onClick:()->Unit){
+ Surface(onClick=onClick,shape=MaterialTheme.shapes.small,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.width(60.dp).height(54.dp)){
+  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxSize().padding(3.dp)){
+   Text(symbol,fontSize=22.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)
+   Text(label,style=MaterialTheme.typography.labelSmall,maxLines=1,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+ }
+}
+
+@Composable
+private fun CompactActionButton(symbol:String,label:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,onClick:()->Unit){
+ Surface(onClick=onClick,enabled=enabled,shape=MaterialTheme.shapes.small,color=when{selected->MaterialTheme.colorScheme.secondaryContainer;danger&&enabled->MaterialTheme.colorScheme.errorContainer;else->MaterialTheme.colorScheme.surface},modifier=Modifier.height(38.dp)){
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.padding(horizontal=8.dp)){
+   Text(symbol,fontSize=18.sp,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;else->MaterialTheme.colorScheme.onSurface})
+   Text(label,style=MaterialTheme.typography.labelMedium,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;else->MaterialTheme.colorScheme.onSurface})
+  }
+ }
+}
+
+@Composable
+private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier){
+ val selected=state.selection?:return
+ val g=state.typedGeometry
+ val details=when(selected.kind){
+  EditorElementKind.WALL->g?.walls?.firstOrNull{it.id==selected.id}?.let{wall->listOf("Длина" to "%.3f м".format(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y),"Высота" to "%.3f м".format(wall.height),"Отметка" to "%.3f м".format(wall.baseElevation))}
+  EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf("Тип" to (if(item.kind=="DOOR")"Дверь" else "Окно"),"Ширина" to "%.3f м".format(item.width),"Высота" to "%.3f м".format(item.height),"Подоконник" to "%.3f м".format(item.sill),"Положение" to "%.3f м".format(item.offsetAlongWall))}
+  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->val name=CatalogPreset.all.firstOrNull{it.assetId==item.assetId}?.label?:item.assetId;listOf("Объект" to name,"Ширина" to "%.3f м".format(item.width),"Глубина" to "%.3f м".format(item.depth),"Высота" to "%.3f м".format(item.height),"Поворот" to "%.1f°".format(Math.toDegrees(item.rotationRadians))) }
+ }
+ if(details!=null)Card(modifier.padding(top=4.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)){
+  Column(Modifier.padding(horizontal=10.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+   Text("Свойства элемента",style=MaterialTheme.typography.titleSmall)
+   details.forEach{(label,value)->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant);Text(value,style=MaterialTheme.typography.labelMedium)}}
+  }
+ }
 }
