@@ -18,6 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bimob.app.editor.NativeEditorViewModel
@@ -36,7 +38,7 @@ class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){
   CrashReporter.install(applicationContext)
   super.onCreate(savedInstanceState)
-  setContent{MaterialTheme{
+  setContent{MaterialTheme(colorScheme=darkColorScheme(primary=Color(0xFF1E90FF),secondary=Color(0xFF00B4D8),tertiary=Color(0xFFFFB300),background=Color(0xFF12151A),surface=Color(0xFF191E24),surfaceVariant=Color(0xFF191E24),outline=Color(0xFF303947),error=Color(0xFFE53935),onPrimary=Color.White,onSecondary=Color.White,onBackground=Color(0xFFE6EDF5),onSurface=Color(0xFFE6EDF5)),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp)){
    val state by editor.state.collectAsState()
    var crashLog by remember { mutableStateOf(CrashReporter.readLastCrash(this@MainActivity)) }
    var showNew by remember{mutableStateOf(false)}
@@ -64,8 +66,8 @@ class MainActivity:ComponentActivity(){
      }
     }
     if(state.projectId.isBlank()){
-     Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(24.dp).verticalScroll(rememberScrollState())){
-      Text("NAGAPLAS",fontSize=32.sp);Text("Нативная модель • единый источник истины",color=Color.Gray)
+     Column(Modifier.fillMaxSize().background(Color(0xFF12151A)).padding(24.dp).verticalScroll(rememberScrollState())){
+      Text("NAGAPLAS",fontSize=32.sp);Text("Нативная модель • единый источник истины",color=Color(0xFF9AA7B5))
       Spacer(Modifier.height(16.dp));Button(onClick={showNew=true},modifier=Modifier.fillMaxWidth()){Text("Создать проект")}
       OutlinedButton(onClick={opener.launch(arrayOf("application/json","text/plain"))},enabled=!state.isImporting,modifier=Modifier.fillMaxWidth()){Text(if(state.isImporting)"Импорт…" else "Открыть JSON проекта")}
       Text("Проекты",style=MaterialTheme.typography.titleMedium)

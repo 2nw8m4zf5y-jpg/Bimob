@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -56,6 +57,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var wallStartSnap by remember{mutableStateOf<SnapResult?>(null)}
  var fingerScreen by remember{mutableStateOf<Offset?>(null)}
  var orthoLocked by remember{mutableStateOf(false)}
+ var snapEnabled by remember{mutableStateOf(true)}
  val crosshairOffsetPx=with(LocalDensity.current){48.dp.toPx()}
  val snapThresholdPx=with(LocalDensity.current){22.dp.toPx()}
  var showCatalogPicker by remember{mutableStateOf(false)}
@@ -66,17 +68,22 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var editValue by remember{mutableStateOf("")}
  LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
-  Surface(color=MaterialTheme.colorScheme.surface,tonalElevation=1.dp,shape=MaterialTheme.shapes.small,modifier=Modifier.fillMaxWidth().zIndex(2f)) {
+  Surface(color=Color(0xFF191E24),tonalElevation=0.dp,shape=RectangleShape,modifier=Modifier.fillMaxWidth().zIndex(2f)) {
    Row(Modifier.fillMaxWidth().padding(horizontal=2.dp,vertical=2.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically) {
-    DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
+    CompactActionButton("⌂","Главная",onClick={homeMenuExpanded=true})
+    ToolbarDivider()
     DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT}
+    ToolbarDivider()
+    CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
+    CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
+    ToolbarDivider()
+    DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
     DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE}
     DesktopToolButton("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE}
     DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}
-    CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
-    CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
     CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
     CompactActionButton("⊥","Ортогональный режим 90°",selected=orthoLocked,onClick={orthoLocked=!orthoLocked})
+    CompactActionButton("S","Snap ${if(snapEnabled)"ВКЛ" else "ВЫКЛ"}",selected=snapEnabled,onClick={snapEnabled=!snapEnabled})
     CompactActionButton("×","Удалить выбранный элемент",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
     Box {
      CompactActionButton("⌂","Меню проекта",onClick={homeMenuExpanded=true})
@@ -114,7 +121,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}}
   )
   Box(Modifier.fillMaxWidth().weight(1f)) {
-   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(Color.White)
+   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(Color(0xFF12151A))
     .pointerInput(Unit){
     awaitEachGesture {
      var oldCentroid:Offset?=null;var oldDistance=0f
@@ -149,7 +156,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      endpointDrag=if(tool==EditorTool.SELECT&&selectedWall!=null)hitWallEndpoint(screen,selectedWall,size,camera.zoom,canvasOffset,hitRadiusPx)else null
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} 
-     val snap=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
+     val snap=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen
      snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
      wallStartSnap=if(tool==EditorTool.WALL)snap else null
@@ -163,7 +170,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val cross=if(tool==EditorTool.WALL||endpointDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
      val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)}?:origin
-     val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
+     val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val point=snapped.point;snapPreview=snapped
      when{
       endpointDrag!=null->endpointPreview=endpointDrag!!.copy(point=point)
@@ -189,7 +196,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
 
    ) {
    val origin=Offset(size.width/2f+camera.panX,size.height/2f+camera.panY);val grid=(camera.zoom*.5f).coerceAtLeast(6f)
-   var gx=origin.x%grid;while(gx<size.width){drawLine(Color(0xFFE8EDF2),Offset(gx,0f),Offset(gx,size.height));gx+=grid}
+   var gx=origin.x%grid;while(gx<size.width){drawLine(Color(0xFF1D222B),Offset(gx,0f),Offset(gx,size.height));gx+=grid}
    var gy=origin.y%grid;while(gy<size.height){drawLine(Color(0xFFE8EDF2),Offset(0f,gy),Offset(size.width,gy));gy+=grid}
    drawLine(Color(0xFFCAD3DD),Offset(origin.x,0f),Offset(origin.x,size.height),1.5f)
    drawLine(Color(0xFFCAD3DD),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
@@ -197,7 +204,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    if(g!=null){
     g.walls.forEach{wall->
      val tp=transformPreview?.takeIf{it.kind==EditorElementKind.WALL&&it.id==wall.id}
-     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B)
+     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1E90FF)else Color(0xFF33465B)
      val ep=endpointPreview?.takeIf{it.wallId==wall.id}
      val corners=when{ep!=null->wallEndpointPreviewCorners(wall,ep.moveStart,ep.point);tp!=null->transformWallPreview(wall,tp);else->wall.corners}
      drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)Color(0xFF1976D2)else color)
@@ -212,7 +219,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val movedAlong=tp?.let{it.dx*ux+it.dy*uy}?:0.0;val newOffset=(item.offsetAlongWall+item.width/2-width/2).coerceIn(0.0,(len-width).coerceAtLeast(0.0));val along=movedAlong+newOffset+width/2-(item.offsetAlongWall+item.width/2)
      val cx=item.center.x+ux*along;val cy=item.center.y+uy*along
      val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
-     drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1976D2)else Color(0xFF008C95)
+     drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1976D2)else Color(0xFF00B4D8)
      if(item.kind=="DOOR"){drawLine(color,a,b,2f);val radius=(item.width*camera.zoom.toDouble()).coerceAtLeast(4.0).toFloat();drawArc(color,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2f,radius*2f),style=Stroke(1.5f))}
      else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
@@ -243,7 +250,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
    wallStartSnap?.takeIf{it.kind!=SnapKind.NONE&&tool==EditorTool.WALL}?.let{sn->
     val startPoint=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
-    drawCircle(Color(0xFF22A447),radius=6f,center=startPoint);drawCircle(Color.White,radius=2.5f,center=startPoint)
+    drawCircle(Color(0xFF00E676),radius=6f,center=startPoint);drawCircle(Color.White,radius=2.5f,center=startPoint)
    }
    snapPreview?.takeIf{it.kind!=SnapKind.NONE}?.let{sn->
     val target=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
@@ -253,8 +260,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     drawLine(Color(0xFF22A447),Offset(0f,target.y),Offset(size.width,target.y),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
    }
    }
-   if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.align(Alignment.TopEnd).width(92.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
-   Text(projectTitle,style=MaterialTheme.typography.labelSmall,color=Color.Black.copy(alpha=.4f),modifier=Modifier.align(Alignment.BottomEnd).padding(6.dp))
+   if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.align(Alignment.TopEnd).width(152.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
+   Column(Modifier.align(Alignment.BottomStart).padding(6.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("Zoom ${(camera.zoom*100).toInt()}%",style=MaterialTheme.typography.labelSmall,color=Color(0xFF9AA7B5));Text("Grid 0.10 m · Snap ${if(snapEnabled)"ON" else "OFF"}",style=MaterialTheme.typography.labelSmall,color=Color(0xFF9AA7B5))}
+   Text("NAGAPLAS · Nagaplezhev Aslan",style=MaterialTheme.typography.labelSmall,color=Color(0xFF9AA7B5).copy(alpha=.4f),modifier=Modifier.align(Alignment.BottomEnd).padding(6.dp))
   }
   state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(3.dp),style=MaterialTheme.typography.labelSmall)}
   if(editingProperty!=null)AlertDialog(onDismissRequest={editingProperty=null},title={Text("Изменить ${editingProperty!!.second}")},text={OutlinedTextField(value=editValue,onValueChange={editValue=it},singleLine=true,label={Text("Число")})},confirmButton={TextButton(onClick={val parsed=editValue.replace(',','.').toDoubleOrNull();if(parsed!=null){viewModel.updateSelectedProperty(editingProperty!!.first,parsed);editingProperty=null}else editValue=editValue}){Text("ОК")}},dismissButton={TextButton(onClick={editingProperty=null}){Text("Отмена")}})
@@ -311,8 +319,9 @@ internal fun previewJoinCorners(host:WallItem,newStart:WorldPoint,newEnd:WorldPo
   val t=((q.x-p.x)*bu.y-(q.y-p.y)*bu.x)/den
   points+=Vec2(p.x+t*au.x,p.y+t*au.y)
  }
- val cx=points.map{it.x}.average();val cy=points.map{it.y}.average()
- return points.sortedBy{atan2(it.y-cy,it.x-cx)}
+ val miterLimit=2.0*max(hostThickness,newThickness);val clamped=points.map{p->val dx=p.x-joint.x;val dy=p.y-joint.y;val d=hypot(dx,dy);if(d>miterLimit&&d>1e-12)Vec2(joint.x+dx*miterLimit/d,joint.y+dy*miterLimit/d)else p}
+ val cx=clamped.map{it.x}.average();val cy=clamped.map{it.y}.average()
+ return clamped.sortedBy{atan2(it.y-cy,it.x-cx)}
 }
 internal fun offsetCrosshairScreen(finger:Offset,offsetPx:Float)=Offset(finger.x,finger.y-offsetPx)
 internal fun offsetCrosshairWorld(finger:Offset,offsetPx:Float,size:IntSize,zoom:Float,pan:Offset)=screenToWorld(offsetCrosshairScreen(finger,offsetPx),size,zoom,pan)
@@ -372,9 +381,11 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 
 
 @Composable
+private fun ToolbarDivider(){Box(Modifier.width(1.dp).height(24.dp).background(Color(0xFF303947)))}
+
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick=onClick,shape=MaterialTheme.shapes.small,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=label;role=Role.Button}){
+  Surface(onClick=onClick,shape=RectangleShape,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=label;role=Role.Button}){
    Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)}
   }
  }
