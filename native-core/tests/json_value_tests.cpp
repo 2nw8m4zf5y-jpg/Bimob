@@ -11,6 +11,8 @@ int main(){
  rejects([]{parse(R"({"x":1,"x":2})");});
  rejects([]{parse(R"({"x":01})");});
  rejects([]{parse(R"({"x":NaN})");});
+ rejects([]{parse(R"({"x":1e9999})");});
+ rejects([]{parse(R"({"x":-1e9999})");});
  rejects([]{parse(R"({"x":"\uD800"})");});
  rejects([]{parse(R"({"x":1} trailing)");});
  rejects([]{parse(R"([1,])");});
