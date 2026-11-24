@@ -117,7 +117,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       drawArc(c,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2,radius*2),style=Stroke(1.5f))
      }else{
       drawLine(c,Offset(a.x+(b.x-a.x)*.0f,a.y+(b.y-a.y)*.0f),Offset(b.x,b.y),3f)
-      drawLine(c,Offset(a.x-uy*4,a.y-ux*4),Offset(b.x-uy*4,b.y-ux*4),2f)
+      drawLine(c,Offset((a.x-uy*4).toFloat(),(a.y-ux*4).toFloat()),Offset((b.x-uy*4).toFloat(),(b.y-ux*4).toFloat()),2f)
      }
     }
     g.catalogInstanceIds.indices.forEach{i->
@@ -151,7 +151,7 @@ private fun screenToWorld(p:Offset,size:IntSize,scale:Float,pan:Offset)=WorldPoi
 private fun snap(p:WorldPoint,g:com.bimob.app.core.nativebridge.RenderGeometryBuffer?):WorldPoint{
  val grid=WorldPoint(round(p.x*10)/10,round(p.y*10)/10);if(g==null)return grid
  var best=grid;var dBest=.16
- g.wallIds.indices.forEach{i->val s=wallSegment(g,i)?:return@forEach;listOf(s.first,s.second).forEach{q->val d=hypot(q.x-p.x,q.y-p.y);if(d<dBest){best=q;dBest=d}}}
+ g.wallIds.indices.forEach{i->val s=wallSegment(g,i)?:return@forEach;listOf(s.first,s.second).forEach{q->val d=hypot(q.x-p.x,q.y-p.y);if(d<dBest){best=WorldPoint(q.x,q.y);dBest=d}}}
  return best
 }
 private data class AxisPoint(val x:Double,val y:Double)
