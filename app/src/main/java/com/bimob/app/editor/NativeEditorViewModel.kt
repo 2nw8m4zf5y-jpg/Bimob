@@ -151,14 +151,14 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   if(!dx.isFinite()||!dy.isFinite()||(dx==0.0&&dy==0.0))return
   val g=mutableState.value.typedGeometry?:return
   when(kind){
-   EditorElementKind.WALL->mutate("""{"type":"MoveWall","id":"\$id","deltaX":\$dx,"deltaY":\$dy}""")
+   EditorElementKind.WALL->mutate("""{"type":"MoveWall","id":"$id","deltaX":$dx,"deltaY":$dy}""")
    EditorElementKind.OPENING->{val item=g.openings.firstOrNull{it.id==id}?:return;val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return
     val ax=wall.axisEnd.x-wall.axisStart.x;val ay=wall.axisEnd.y-wall.axisStart.y;val len=hypot(ax,ay);if(len<=1e-9)return
     val delta=(dx*ax+dy*ay)/len;val offset=(item.offsetAlongWall+delta).coerceIn(0.0,(len-item.width).coerceAtLeast(0.0))
-    mutate("""{"type":"UpdateOpening","id":"\$id","offsetAlongWallMeters":\$offset,"widthMeters":\${item.width},"heightMeters":\${item.height},"sillHeightMeters":\${item.sill}}""")
+    mutate("""{"type":"UpdateOpening","id":"$id","offsetAlongWallMeters":$offset,"widthMeters":${item.width},"heightMeters":${item.height},"sillHeightMeters":${item.sill}}""")
    }
    EditorElementKind.CATALOG->{val item=g.catalog.firstOrNull{it.id==id}?:return
-    mutate("""{"type":"UpdateCatalogInstance","id":"\$id","x":\${item.center.x+dx},"y":\${item.center.y+dy},"widthMeters":\${item.width},"depthMeters":\${item.depth},"heightMeters":\${item.height}}""")
+    mutate("""{"type":"UpdateCatalogInstance","id":"$id","x":${item.center.x+dx},"y":${item.center.y+dy},"widthMeters":${item.width},"depthMeters":${item.depth},"heightMeters":${item.height}}""")
    }
   }
  }
