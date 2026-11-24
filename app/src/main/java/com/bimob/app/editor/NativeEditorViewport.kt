@@ -110,8 +110,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    drawLine(Color(0xFFCAD3DD),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
    val g=state.geometry
    if(g!=null){
-    g.walls.indices.forEach{i->drawPolygon(g.walls,i*10,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,g.wallIds[i]))Color(0xFF1976D2)else Color(0xFF33465B))}
-    g.wallJoins.indices.forEach{i->drawPolygon(g.wallJoins,i*9,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
+    wallRenderIndices(g).forEach{i->drawPolygon(g.walls,i*10,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,g.wallIds[i]))Color(0xFF1976D2)else Color(0xFF33465B))}
+    g.wallJoinIds.indices.filter{it*9+7<g.wallJoins.size}.forEach{i->drawPolygon(g.wallJoins,i*9,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
     g.openingIds.indices.forEach{i->
      val o=i*8;val info=state.openingInfo[g.openingIds[i]]?:return@forEach
      val wi=g.wallIds.indexOf(info.hostWallId);if(wi<0)return@forEach
@@ -158,6 +158,10 @@ private fun DrawScope.drawPolygon(v:FloatArray,o:Int,size:Size,scale:Float,pan:O
  if(o<0||o+7>=v.size||!scale.isFinite()||scale<=0f)return
  for(i in 0..7)if(!v[o+i].isFinite())return
  val p=Path();for(i in 0..3){val s=worldToScreen(WorldPoint(v[o+i*2].toDouble(),v[o+i*2+1].toDouble()),size,scale,pan);if(!s.x.isFinite()||!s.y.isFinite())return;if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color.copy(alpha=.72f))
+}
+internal fun wallRenderIndices(g:com.bimob.app.core.nativebridge.RenderGeometryBuffer):IntRange {
+ val count=minOf(g.wallIds.size,g.walls.size/10)
+ return if(count<=0)0 until 0 else 0 until count
 }
 internal fun worldToScreen(p:WorldPoint,size:Size,scale:Float,pan:Offset):Offset {
  if(!p.x.isFinite()||!p.y.isFinite()||!scale.isFinite()||scale<=0f||!pan.x.isFinite()||!pan.y.isFinite())return Offset.Zero

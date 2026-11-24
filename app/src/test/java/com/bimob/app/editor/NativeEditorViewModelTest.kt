@@ -187,4 +187,14 @@ class NativeEditorViewModelTest {
   vm.close()
  }
 
+
+ @Test fun renderWallIterationUsesEntityIdsNotFloatArrayIndices(){
+  val oneWall=RenderGeometryBuffer(1,1L,listOf("wall-a"),FloatArray(10){it.toFloat()},emptyList(),FloatArray(0),emptyList(),FloatArray(0),emptyList(),FloatArray(0))
+  assertEquals(listOf(0),wallRenderIndices(oneWall).toList())
+  val mismatched=oneWall.copy(wallIds=listOf("wall-a","wall-b"))
+  assertEquals(listOf(0),wallRenderIndices(mismatched).toList())
+  val empty=oneWall.copy(wallIds=emptyList())
+  assertTrue(wallRenderIndices(empty).isEmpty())
+ }
+
 }
