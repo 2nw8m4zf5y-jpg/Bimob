@@ -51,7 +51,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   check(handle!=0L){"Native engine could not create a session."}
   levelId="level-"+UUID.randomUUID().toString()
   val r=engine.dispatch(handle,"""{"type":"CreateLevel","id":"$levelId","name":"Level 1","elevationMeters":0,"heightMeters":3}""")
-  if(!isOk(r)){publishError(errorFrom(r));return};refresh(projectId)
+  if(!isOk(r)){levelId="";publishError(errorFrom(r));return};refresh(projectId)
  }
  fun exportProjectSnapshot():String=engine.snapshot(handle)
  fun openProjectSnapshot(json:String):Boolean {
@@ -124,7 +124,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  fun cancelGesture(id:String){if(engine.cancelGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture cancellation failed.")}
  fun undo()=history("Undo");fun redo()=history("Redo")
  private fun history(t:String){if(handle==0L)return;val r=engine.dispatch(handle,"""{"type":"$t"}""");if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}
- private fun mutate(c:String){try{if(handle==0L){publishError("Native session is closed.");return};val r=engine.dispatch(handle,c);if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}catch(e:Exception){publishError(e.message?:"Native command failed safely.")}}
+ private fun mutate(c:String){try{if(handle==0L){publishError("Native session is closed.");return};val r=engine.dispatch(handle,c);if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}catch(e:Exception){publishError(e.message?:"Native command failed safely.")}catch(e:LinkageError){publishError(e.message?:"Native engine linkage failed safely.")}}
  private fun refresh(projectId:String){try{
   val g=engine.export(handle);val snap=engine.snapshot(handle);val h=engine.dispatch(handle,"""{"type":"HistoryState"}""")
   val info=mutableMapOf<String,OpeningRenderInfo>()
@@ -141,7 +141,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val history=JSONObject(h)
   val sel=mutableState.value.selection?.takeIf{when(it.kind){EditorElementKind.WALL->g.wallIds.contains(it.id);EditorElementKind.OPENING->g.openingIds.contains(it.id);EditorElementKind.CATALOG->g.catalogInstanceIds.contains(it.id)}}
   mutableState.value=NativeEditorState(g,history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
- }catch(e:Exception){publishError(e.message?:"BGR1 export failed.")}}
+ }catch(e:Exception){publishError(e.message?:"BGR1 export failed.")}catch(e:LinkageError){publishError(e.message?:"Native geometry export linkage failed safely.")}}
  private data class Point(val x:Double,val y:Double)
  private fun wallSegment(g:RenderGeometryBuffer,i:Int):Pair<Point,Point>?{val o=i*10;if(o+7>=g.walls.size)return null
   return Point((g.walls[o]+g.walls[o+6])/2.0,(g.walls[o+1]+g.walls[o+7])/2.0) to Point((g.walls[o+2]+g.walls[o+4])/2.0,(g.walls[o+3]+g.walls[o+5])/2.0)}
