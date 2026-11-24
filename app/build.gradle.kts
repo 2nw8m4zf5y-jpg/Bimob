@@ -19,6 +19,22 @@ android {
         }
     }
 
+    signingConfigs {
+        create("ciDebug") {
+            storeFile = rootProject.file("ci/bimob-debug.keystore")
+            storePassword = "android"
+            keyAlias = "bimob-debug"
+            keyPassword = "android"
+            storeType = "JKS"
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("ciDebug")
+        }
+    }
+
     buildFeatures { compose = true }
 
     externalNativeBuild {
