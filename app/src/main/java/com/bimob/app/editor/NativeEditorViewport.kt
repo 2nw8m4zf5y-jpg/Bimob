@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.*
+import kotlinx.coroutines.delay
 
 private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, CATALOG }
 internal data class WorldPoint(val x:Double,val y:Double)
@@ -58,6 +59,10 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var fingerScreen by remember{mutableStateOf<Offset?>(null)}
  var orthoLocked by remember{mutableStateOf(false)}
  var snapEnabled by remember{mutableStateOf(true)}
+ var activeTooltip by remember{mutableStateOf<String?>(null)}
+ var tooltipNonce by remember{mutableStateOf(0)}
+ val showTooltip:(String)->Unit={label->activeTooltip=label;tooltipNonce++}
+ LaunchedEffect(activeTooltip,tooltipNonce){if(activeTooltip!=null){delay(1000L);activeTooltip=null}}
  val crosshairOffsetPx=with(LocalDensity.current){48.dp.toPx()}
  val snapThresholdPx=with(LocalDensity.current){22.dp.toPx()}
  var showCatalogPicker by remember{mutableStateOf(false)}
@@ -70,23 +75,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  Column(modifier) {
   Surface(color=Color(0xFF191E24),tonalElevation=0.dp,shape=RectangleShape,modifier=Modifier.fillMaxWidth().zIndex(2f)) {
    Row(Modifier.fillMaxWidth().padding(horizontal=2.dp,vertical=2.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically) {
-    CompactActionButton("⌂","Главная",onClick={homeMenuExpanded=true})
-    ToolbarDivider()
-    DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT}
-    ToolbarDivider()
-    CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
-    CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
-    ToolbarDivider()
-    DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
-    DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE}
-    DesktopToolButton("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE}
-    DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}
-    CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
-    CompactActionButton("⊥","Ортогональный режим 90°",selected=orthoLocked,onClick={orthoLocked=!orthoLocked})
-    CompactActionButton("S","Snap ${if(snapEnabled)"ВКЛ" else "ВЫКЛ"}",selected=snapEnabled,onClick={snapEnabled=!snapEnabled})
-    CompactActionButton("×","Удалить выбранный элемент",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
     Box {
-     CompactActionButton("⌂","Меню проекта",onClick={homeMenuExpanded=true})
+     CompactActionButton("⌂","Главная",tooltip=showTooltip,onClick={homeMenuExpanded=true})
      DropdownMenu(expanded=homeMenuExpanded,onDismissRequest={homeMenuExpanded=false}) {
       DropdownMenuItem(text={Text("Проекты")},leadingIcon={Text("▣")},onClick={homeMenuExpanded=false;onProjects()})
       DropdownMenuItem(text={Text("Сохранить")},leadingIcon={Text("▤")},onClick={homeMenuExpanded=false;onSave()})
@@ -94,6 +84,25 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       DropdownMenuItem(text={Text("Импорт")},leadingIcon={Text("⇩")},onClick={homeMenuExpanded=false;onImport()})
      }
     }
+    ToolbarDivider()
+    DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT,tooltip=showTooltip){tool=EditorTool.SELECT}
+    ToolbarDivider()
+    CompactActionButton("↶","Отменить",enabled=state.canUndo,tooltip=showTooltip,onClick=viewModel::undo)
+    CompactActionButton("↷","Повторить",enabled=state.canRedo,tooltip=showTooltip,onClick=viewModel::redo)
+    ToolbarDivider()
+    DesktopToolButton("╱","Стена",tool==EditorTool.WALL,tooltip=showTooltip){tool=EditorTool.WALL}
+    DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE,tooltip=showTooltip){tool=EditorTool.ROTATE}
+    DesktopToolButton("↔","Размер",tool==EditorTool.RESIZE,tooltip=showTooltip){tool=EditorTool.RESIZE}
+    DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG,tooltip=showTooltip){tool=EditorTool.CATALOG;showCatalogPicker=true}
+    CompactActionButton("▤","Свойства",enabled=state.selection!=null,selected=showProperties,tooltip=showTooltip,onClick={showProperties=!showProperties})
+    CompactActionButton("⊥","Орто 90°",selected=orthoLocked,tooltip=showTooltip,onClick={orthoLocked=!orthoLocked})
+    CompactActionButton("S","Snap ${if(snapEnabled)"ВКЛ" else "ВЫКЛ"}",selected=snapEnabled,tooltip=showTooltip,onClick={snapEnabled=!snapEnabled})
+    CompactActionButton("×","Удалить",enabled=state.selection!=null,tooltip=showTooltip,onClick=viewModel::deleteSelection,danger=true)
+   }
+  }
+  activeTooltip?.let { label ->
+   Surface(color=Color(0xFF191E24),shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF303947)),modifier=Modifier.zIndex(1f)) {
+    Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=Color.White,style=MaterialTheme.typography.labelSmall)
    }
   }
   if(showCatalogPicker) AlertDialog(
@@ -383,19 +392,19 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 @Composable
 private fun ToolbarDivider(){Box(Modifier.width(1.dp).height(24.dp).background(Color(0xFF303947)))}
 
-private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,onClick:()->Unit){
+private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick=onClick,shape=RectangleShape,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=label;role=Role.Button}){
-   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)}
+  Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)Color(0xFF1E90FF)else MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=label;role=Role.Button}){
+   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=if(selected)Color.White else MaterialTheme.colorScheme.onSurface)}
   }
  }
 }
 
 @Composable
-private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,onClick:()->Unit){
+private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick=onClick,enabled=enabled,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=description;role=Role.Button}){
-   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
+  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->Color(0xFFE53935);selected->Color(0xFF00B4D8);else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(30.dp).semantics{contentDescription=description;role=Role.Button}){
+   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=when{(danger&&enabled)||selected->Color.White;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
   }
  }
 }
