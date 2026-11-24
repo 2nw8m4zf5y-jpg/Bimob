@@ -211,9 +211,6 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val sel=mutableState.value.selection?.takeIf{when(it.kind){EditorElementKind.WALL->g.wallIds.contains(it.id);EditorElementKind.OPENING->g.openingIds.contains(it.id);EditorElementKind.CATALOG->g.catalogInstanceIds.contains(it.id)}}
   mutableState.value=NativeEditorState(g,GeometryMapper.map(g,info,catalogInfo),history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
  }catch(e:Exception){publishError(e.message?:"BGR1 export failed.")}catch(e:LinkageError){publishError(e.message?:"Native geometry export linkage failed safely.")}}
- private data class Point(val x:Double,val y:Double)
- private fun wallSegment(g:RenderGeometryBuffer,i:Int):Pair<Point,Point>?{val o=i*10;if(o+7>=g.walls.size)return null
-  return Point((g.walls[o]+g.walls[o+6])/2.0,(g.walls[o+1]+g.walls[o+7])/2.0) to Point((g.walls[o+2]+g.walls[o+4])/2.0,(g.walls[o+3]+g.walls[o+5])/2.0)}
  private fun isOk(s:String)=runCatching{JSONObject(s).optBoolean("ok")}.getOrDefault(false)
  private fun errorFrom(s:String)=runCatching{JSONObject(s).optString("error").takeIf{it.isNotBlank()}}.getOrNull()?:"Native command rejected."
  private fun publishError(s:String){mutableState.value=mutableState.value.copy(error=s)}
