@@ -134,6 +134,16 @@ class NativeEditorViewModelTest {
   assertEquals(1.3,catalogCommand.optDouble("x"),1e-6);assertEquals(.8,catalogCommand.optDouble("y"),1e-6)
   vm.close()
  }
+ @Test fun rotateAndResizeEachIssueOneNativeCommand(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("transform-controls","Project");vm.createWall(0.0,0.0,4.0,0.0)
+  val wallId=vm.state.value.geometry!!.wallIds.single();val beforeRotate=e.commands.size
+  vm.rotateElement(EditorSelection(EditorElementKind.WALL,wallId),Math.PI/4)
+  assertEquals(beforeRotate+1,e.commands.size);assertEquals("RotateWall",JSONObject(e.commands.last()).optString("type"))
+  val beforeResize=e.commands.size
+  vm.resizeElement(EditorSelection(EditorElementKind.WALL,wallId),1.1)
+  assertEquals(beforeResize+1,e.commands.size);assertEquals("ResizeWall",JSONObject(e.commands.last()).optString("type"))
+  vm.close()
+ }
  @Test fun wallCommandJniLinkageFailureIsReportedWithoutEscapingViewModel(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("jni-failure","Project")
   e.failWallDispatchWithLinkageError=true
