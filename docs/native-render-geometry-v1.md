@@ -1,6 +1,6 @@
 # Native Render Geometry Buffer v1
 
-The JNI render export is a deterministic binary snapshot. It is intended for viewport consumption without JSON parsing. It is **not** a mesh/triangulation format; the UI builds render primitives from these records.
+The JNI render export is a deterministic binary snapshot, implemented by the G3 Step 2b native session and Kotlin bridge. It is intended for viewport consumption without JSON parsing. It is **not** a mesh/triangulation format; the UI builds render primitives from these records.
 
 ## Header
 
