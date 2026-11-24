@@ -3,7 +3,6 @@ package com.bimob.app.persistence
 import com.bimob.app.core.persistence.AtomicStorage
 import com.bimob.app.core.persistence.AtomicStorageCapabilities
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 
