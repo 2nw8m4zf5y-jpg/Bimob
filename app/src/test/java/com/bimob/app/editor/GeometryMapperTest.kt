@@ -11,8 +11,8 @@ class GeometryMapperTest {
    listOf("c"),floatArrayOf(3f,4f,1f,1.2f,.7f,.75f,0f,0f))
   val typed=GeometryMapper.map(g,mapOf("o" to OpeningRenderInfo("DOOR","w")))
   assertEquals(7L,typed.revision);assertEquals("w",typed.walls.single().id)
-  assertEquals(Vec2(0.0,0.1),typed.walls.single().axisStart)
-  assertEquals(Vec2(2.0,0.1),typed.walls.single().axisEnd)
+  assertEquals(0.0,typed.walls.single().axisStart.x,1e-6); assertEquals(0.1,typed.walls.single().axisStart.y,1e-6)
+  assertEquals(2.0,typed.walls.single().axisEnd.x,1e-6); assertEquals(0.1,typed.walls.single().axisEnd.y,1e-6)
   assertEquals("DOOR",typed.openings.single().kind);assertEquals("w",typed.openings.single().hostWallId)
   assertEquals(1.0,typed.catalog.single().rotationRadians,0.0)
  }
