@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -45,9 +48,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var showProperties by remember{mutableStateOf(false)}
  LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
-  Surface(color=MaterialTheme.colorScheme.surface,tonalElevation=2.dp,shape=MaterialTheme.shapes.medium,modifier=Modifier.fillMaxWidth().zIndex(1f)) {
-   Column(Modifier.padding(horizontal=6.dp,vertical=4.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-    Row(horizontalArrangement=Arrangement.spacedBy(3.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+  Surface(color=MaterialTheme.colorScheme.surface,tonalElevation=1.dp,shape=MaterialTheme.shapes.small,modifier=Modifier.fillMaxWidth().zIndex(1f)) {
+   Column(Modifier.padding(horizontal=3.dp,vertical=2.dp),verticalArrangement=Arrangement.spacedBy(1.dp)) {
+    Row(horizontalArrangement=Arrangement.spacedBy(1.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
      DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
      DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT}
      DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE}
@@ -56,11 +59,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      DesktopToolButton("▣","Окно",tool==EditorTool.WINDOW){tool=EditorTool.WINDOW}
      DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}
     }
-    HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
-    Row(horizontalArrangement=Arrangement.spacedBy(4.dp),verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-     CompactActionButton("↶","Отменить",enabled=state.canUndo,onClick=viewModel::undo)
-     CompactActionButton("↷","Повторить",enabled=state.canRedo,onClick=viewModel::redo)
-     CompactActionButton("⌫","Удалить",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
+    HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant,thickness=0.5.dp)
+    Row(horizontalArrangement=Arrangement.spacedBy(0.dp),verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+     CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
+     CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
+     CompactActionButton("×","Удалить выбранный элемент",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
      CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
      state.selection?.let{selected->
       val selectedName=when(selected.kind){
@@ -73,8 +76,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
   }
-  if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.fillMaxWidth())
-  if(showCatalogPicker) AlertDialog(
+  Row(Modifier.fillMaxWidth().weight(1f)) {
+   Canvas(Modifier.weight(1f).clipToBounds().zIndex(0f).background(Color.White)
+    .pointerInput(Unit){
    onDismissRequest={showCatalogPicker=false},
    title={Text("Каталог элементов")},
    text={Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())){
@@ -152,7 +156,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
    }
 
-  ) {
+   ) {
    val origin=Offset(size.width/2f+camera.panX,size.height/2f+camera.panY);val grid=(camera.zoom*.5f).coerceAtLeast(6f)
    var gx=origin.x%grid;while(gx<size.width){drawLine(Color(0xFFE8EDF2),Offset(gx,0f),Offset(gx,size.height));gx+=grid}
    var gy=origin.y%grid;while(gy<size.height){drawLine(Color(0xFFE8EDF2),Offset(0f,gy),Offset(size.width,gy));gy+=grid}
@@ -184,6 +188,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
+   }
+   if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.width(152.dp).fillMaxHeight(),onClose={showProperties=false})
   }
   state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(4.dp))}
   Text("BGR1 • ревизия ${state.geometry?.revision?:0} • стен ${state.geometry?.wallIds?.size?:0} • проёмов ${state.geometry?.openingIds?.size?:0} • объектов ${state.geometry?.catalogInstanceIds?.size?:0}",style=MaterialTheme.typography.labelSmall,color=Color.Gray)
@@ -236,37 +242,55 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 
 @Composable
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,onClick:()->Unit){
- Surface(onClick=onClick,shape=MaterialTheme.shapes.small,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.width(60.dp).height(54.dp)){
-  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxSize().padding(3.dp)){
-   Text(symbol,fontSize=22.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)
+ Surface(onClick=onClick,shape=MaterialTheme.shapes.small,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.width(50.dp).height(46.dp)){
+  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxSize().padding(1.dp)){
+   Text(symbol,fontSize=20.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)
    Text(label,style=MaterialTheme.typography.labelSmall,maxLines=1,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
   }
  }
 }
 
 @Composable
-private fun CompactActionButton(symbol:String,label:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,onClick:()->Unit){
- Surface(onClick=onClick,enabled=enabled,shape=MaterialTheme.shapes.small,color=when{selected->MaterialTheme.colorScheme.secondaryContainer;danger&&enabled->MaterialTheme.colorScheme.errorContainer;else->MaterialTheme.colorScheme.surface},modifier=Modifier.height(38.dp)){
-  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.padding(horizontal=8.dp)){
-   Text(symbol,fontSize=18.sp,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;else->MaterialTheme.colorScheme.onSurface})
-   Text(label,style=MaterialTheme.typography.labelMedium,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;else->MaterialTheme.colorScheme.onSurface})
+private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,onClick:()->Unit){
+ Surface(onClick=onClick,enabled=enabled,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(44.dp).semantics{contentDescription=description;role=Role.Button}){
+  Box(contentAlignment=Alignment.Center){
+   Surface(shape=MaterialTheme.shapes.small,color=when{selected->MaterialTheme.colorScheme.secondaryContainer;danger&&enabled->MaterialTheme.colorScheme.errorContainer;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(38.dp)){
+    Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=20.sp,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;else->MaterialTheme.colorScheme.onSurfaceVariant})}
+   }
   }
  }
 }
 
+internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String = when(kind){
+ EditorElementKind.WALL->when(field){"Длина"->"Д:";"Высота"->"В:";"Отметка"->"О:";else->field}
+ EditorElementKind.OPENING->when(field){"Ширина"->"Ш:";"Высота"->"В:";"Подоконник"->"П:";"Положение"->"С:";else->field}
+ EditorElementKind.CATALOG->when(field){"Ширина"->"Ш:";"Глубина"->"Г:";"Высота"->"В:";"Поворот"->"∠:";else->field}
+}
+
 @Composable
-private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier){
+private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier,onClose:()->Unit){
  val selected=state.selection?:return
  val g=state.typedGeometry
+ val typeName=when(selected.kind){
+  EditorElementKind.WALL->"Стена"
+  EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?:"Проём"
+  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label?.let{if(it.contains("кровать",true))"Кровать" else it}}?:"Элемент"
+ }
  val details=when(selected.kind){
   EditorElementKind.WALL->g?.walls?.firstOrNull{it.id==selected.id}?.let{wall->listOf("Длина" to "%.3f м".format(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)),"Высота" to "%.3f м".format(wall.height),"Отметка" to "%.3f м".format(wall.baseElevation))}
-  EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf("Тип" to (if(item.kind=="DOOR")"Дверь" else "Окно"),"Ширина" to "%.3f м".format(item.width),"Высота" to "%.3f м".format(item.height),"Подоконник" to "%.3f м".format(item.sill),"Положение" to "%.3f м".format(item.offsetAlongWall))}
-  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->val name=CatalogPreset.all.firstOrNull{it.assetId==item.assetId}?.label?:item.assetId;listOf("Объект" to name,"Ширина" to "%.3f м".format(item.width),"Глубина" to "%.3f м".format(item.depth),"Высота" to "%.3f м".format(item.height),"Поворот" to "%.1f°".format(Math.toDegrees(item.rotationRadians))) }
+  EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf("Ширина" to "%.3f м".format(item.width),"Высота" to "%.3f м".format(item.height),"Подоконник" to "%.3f м".format(item.sill),"Положение" to "%.3f м".format(item.offsetAlongWall))}
+  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->listOf("Ширина" to "%.3f м".format(item.width),"Глубина" to "%.3f м".format(item.depth),"Высота" to "%.3f м".format(item.height),"Поворот" to "%.1f°".format(Math.toDegrees(item.rotationRadians))) }
  }
- if(details!=null)Card(modifier.padding(top=4.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)){
-  Column(Modifier.padding(horizontal=10.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
-   Text("Свойства элемента",style=MaterialTheme.typography.titleSmall)
-   details.forEach{(label,value)->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant);Text(value,style=MaterialTheme.typography.labelMedium)}}
+ if(details!=null)Surface(modifier.fillMaxHeight(),color=MaterialTheme.colorScheme.surfaceVariant,tonalElevation=1.dp){
+  Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=5.dp,vertical=4.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+   Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
+    Text(typeName,style=MaterialTheme.typography.labelMedium,maxLines=1,modifier=Modifier.weight(1f))
+    Surface(onClick=onClose,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
+     Box(contentAlignment=Alignment.Center){Text("×",fontSize=18.sp)}
+    }
+   }
+   HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant,thickness=0.5.dp)
+   details.forEach{(label,value)->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.width(20.dp));Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1)}}
   }
  }
 }
