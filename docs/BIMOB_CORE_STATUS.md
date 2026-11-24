@@ -1,4 +1,4 @@
-# BIMOB Core Status
+# NAGAPLAS Core Status
 
 **Date:** 2026-11-23  
 **Repository:** 2nw8m4zf5y-jpg/Bimob  
@@ -9,8 +9,8 @@
 ## Summary
 
 - Stage F: accepted by owner; snapshot-only ModelSession boundary and scalar UI command API.
-- Stage G1: model contract implemented; final full-branch CI confirmation is part of current G2 CI.
-- Stage G2: initial native transaction/dependency port implemented; **not yet accepted**.
+- Stage G1: **ACCEPTED / CLOSED by owner** after real-device validation of Run #542 APK.
+- Stage G2: precision snap drawing, offset crosshair, endpoint handles and preview joins in progress; **not yet accepted**.
 - No JNI, Android, rendering, or platform dependencies in native-core.
 
 ## Commits
