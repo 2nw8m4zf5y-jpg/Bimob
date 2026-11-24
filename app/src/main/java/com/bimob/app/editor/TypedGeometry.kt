@@ -2,15 +2,23 @@ package com.bimob.app.editor
 
 import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 
-/** Typed, validated projection of the native BGR1 flat buffers. Renderer/hit-test consume these, never raw offsets. */
+/** Validated, immutable projection of native BGR1 geometry for UI/render/hit-test. */
 data class Vec2(val x: Double, val y: Double)
 data class WallItem(val id: String, val corners: List<Vec2>, val baseElevation: Double, val height: Double, val axisStart: Vec2, val axisEnd: Vec2)
-data class OpeningItem(val id: String, val center: Vec2, val width: Double, val height: Double, val sill: Double, val hostWallId: String, val kind: String)
-data class CatalogItem(val id: String, val center: Vec2, val rotationRadians: Double, val width: Double, val depth: Double, val height: Double)
+data class OpeningItem(
+    val id: String, val center: Vec2, val offsetAlongWall: Double, val width: Double, val height: Double,
+    val sill: Double, val elevation: Double, val hostAxisLength: Double, val hostWallId: String, val kind: String
+)
+data class CatalogItem(
+    val id: String, val center: Vec2, val rotationRadians: Double, val width: Double, val depth: Double,
+    val height: Double, val elevation: Double, val hosted: Boolean, val hostWallId: String,
+    val assetId: String = "", val category: String = ""
+)
+data class CatalogRenderInfo(val hostWallId: String = "", val assetId: String = "", val category: String = "")
 data class TypedGeometry(val revision: Long, val walls: List<WallItem>, val openings: List<OpeningItem>, val catalog: List<CatalogItem>)
 
 object GeometryMapper {
-    fun map(buffer: RenderGeometryBuffer, openingInfo: Map<String, OpeningRenderInfo>): TypedGeometry {
+    fun map(buffer: RenderGeometryBuffer, openingInfo: Map<String, OpeningRenderInfo>, catalogInfo: Map<String, CatalogRenderInfo> = emptyMap()): TypedGeometry {
         require(buffer.formatVersion == 1) { "Unsupported geometry format." }
         require(buffer.walls.size == buffer.wallIds.size * 10) { "Wall section/ID count mismatch." }
         require(buffer.wallJoins.size == buffer.wallJoinIds.size * 9) { "Wall join section/ID count mismatch." }
@@ -30,14 +38,16 @@ object GeometryMapper {
         val openings = buffer.openingIds.indices.map { i ->
             val o=i*8; val v=buffer.openings; val info=openingInfo[buffer.openingIds[i]]
             OpeningItem(buffer.openingIds[i], Vec2(finite(v[o],"Opening"),finite(v[o+1],"Opening")),
-                finite(v[o+3],"Opening"), finite(v[o+4],"Opening"), finite(v[o+5],"Opening"),
+                finite(v[o+2],"Opening"), finite(v[o+3],"Opening"), finite(v[o+4],"Opening"),
+                finite(v[o+5],"Opening"), finite(v[o+6],"Opening"), finite(v[o+7],"Opening"),
                 info?.hostWallId.orEmpty(), info?.kind.orEmpty())
         }
         val catalog = buffer.catalogInstanceIds.indices.map { i ->
-            val o=i*8; val v=buffer.catalogInstances
+            val o=i*8; val v=buffer.catalogInstances; val info=catalogInfo[buffer.catalogInstanceIds[i]]
             CatalogItem(buffer.catalogInstanceIds[i],Vec2(finite(v[o],"Catalog"),finite(v[o+1],"Catalog")),
                 finite(v[o+2],"Catalog"),finite(v[o+3],"Catalog"),finite(v[o+4],"Catalog"),
-                finite(v[o+5],"Catalog"))
+                finite(v[o+5],"Catalog"),finite(v[o+6],"Catalog"),finite(v[o+7],"Catalog")!=0.0,
+                info?.hostWallId.orEmpty(),info?.assetId.orEmpty(),info?.category.orEmpty())
         }
         return TypedGeometry(buffer.revision,walls,openings,catalog)
     }
