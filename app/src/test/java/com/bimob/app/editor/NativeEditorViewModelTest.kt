@@ -7,7 +7,7 @@ class NativeEditorViewModelTest {
  private data class Model(val walls:MutableList<String> = mutableListOf(),val openings:MutableMap<String,Pair<String,String>> = mutableMapOf(),val catalogs:MutableList<String> = mutableListOf())
  private class FakeEngine:NativeEditorEngine {
   var next=1L;var destroyed=0;var revision=1L;var gesture:String?=null
-  var model=Model();val undo=mutableListOf<Model>();val redo=mutableListOf();val commands=mutableListOf<String>()
+  var model=Model();val undo=mutableListOf<Model>();val redo=mutableListOf<Model>();val commands=mutableListOf<String>()
   private fun copy(m:Model)=Model(m.walls.toMutableList(),m.openings.toMutableMap(),m.catalogs.toMutableList())
   private fun id(j:String)=Regex(""""id"\s*:\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
   private fun field(j:String,k:String)=Regex(""""$k"\s*:\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
