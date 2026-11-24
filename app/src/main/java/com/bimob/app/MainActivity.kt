@@ -30,7 +30,7 @@ import kotlinx.coroutines.withContext
 
 class MainActivity:ComponentActivity(){
  private val editor by viewModels<NativeEditorViewModel>()
- private val prefs by lazy{getSharedPreferences("nagaplas_native_projects",MODE_PRIVATE)}
+ private val prefs by lazy{getSharedPreferences("bimob_native_projects",MODE_PRIVATE)}
  private val dir by lazy{File(filesDir,"native_projects").apply{mkdirs()}}
  private var pendingJson=""
  override fun onCreate(savedInstanceState:Bundle?){
@@ -91,7 +91,8 @@ class MainActivity:ComponentActivity(){
   }}
  }
  private fun fileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas")
- private fun loadSaved(name:String){lifecycleScope.launch{val json=runCatching{withContext(Dispatchers.IO){fileFor(name).readText()}};json.onSuccess{editor.openProjectSnapshotAsync(it){ok->if(ok)prefs.edit().putString("active_name",name).apply()else toast("Не удалось открыть проект")}}.onFailure{toast(it.message?:"Не удалось открыть")}}}
+ private fun legacyFileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.json")
+ private fun loadSaved(name:String){lifecycleScope.launch{val json=runCatching{withContext(Dispatchers.IO){(if(fileFor(name).exists())fileFor(name)else legacyFileFor(name)).readText()}};json.onSuccess{editor.openProjectSnapshotAsync(it){ok->if(ok)prefs.edit().putString("active_name",name).apply()else toast("Не удалось открыть проект")}}.onFailure{toast(it.message?:"Не удалось открыть")}}}
  private fun saveCurrent(){val n=prefs.getString("active_name","Мой проект")?:"Мой проект";editor.exportProjectSnapshotAsync{result->result.onSuccess{json->lifecycleScope.launch{val saved=runCatching{withContext(Dispatchers.IO){val target=fileFor(n);val temp=File(dir,target.name+".tmp");temp.writeText(json);if(!temp.renameTo(target))error("Atomic save failed")}};saved.onSuccess{prefs.edit().putString(n,"saved").apply();toast("Сохранено")}.onFailure{toast(it.message?:"Ошибка сохранения")}}}.onFailure{toast(it.message?:"Ошибка сохранения")}}}
  private fun openJson(uri:Uri){lifecycleScope.launch{val read=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Пустой файл")}};read.onSuccess{json->editor.openProjectSnapshotAsync(json){ok->if(ok){val n=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?:"Импортированный проект";prefs.edit().putString("active_name",n).apply()}else toast("Проект не прошёл проверку")}}.onFailure{toast(it.message?:"Ошибка открытия")}}}
  private fun writeJson(uri:Uri,json:String){try{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл");toast("Экспорт завершён")}catch(e:Exception){toast(e.message?:"Ошибка экспорта")}}
