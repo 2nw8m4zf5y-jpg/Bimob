@@ -103,7 +103,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       else if(tp!=null&&tp.dx.isFinite()&&tp.dy.isFinite()&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
      }finally{preview=null;transformPreview=null;start=null;last=null;movingSelection=null}
     },onDragCancel={preview=null;transformPreview=null;start=null;last=null;movingSelection=null})}
-    finally{preview=null;transformPreview=null;start=null;last=null;movingId=null}
+    finally{preview=null;transformPreview=null;start=null;last=null;movingSelection=null}
    }
 
   ) {
