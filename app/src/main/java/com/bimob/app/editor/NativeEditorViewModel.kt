@@ -70,8 +70,8 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  fun exportProjectSnapshot():String=synchronized(nativeSessionLock){val session=handle;if(session==0L)error("Native session is closed.");engine.snapshot(session)}
  fun exportProjectSnapshotAsync(onResult:(Result<String>)->Unit){if(mutableState.value.isExporting||mutableState.value.isImporting)return;mutableState.value=mutableState.value.copy(isExporting=true,error=null);viewModelScope.launch{snapshotIoMutex.withLock{val gen=requestGeneration;val result=runCatching{withContext(Dispatchers.IO){synchronized(nativeSessionLock){val session=handle;if(session==0L)error("Native session is closed.");engine.snapshot(session)}}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isExporting=false);onResult(result)}}}
  fun openProjectSnapshotAsync(json:String,onResult:(Boolean)->Unit){if(mutableState.value.isImporting||mutableState.value.isExporting)return;mutableState.value=mutableState.value.copy(isImporting=true,error=null);viewModelScope.launch{snapshotIoMutex.withLock{val gen=requestGeneration;val ok=withContext(Dispatchers.IO){synchronized(nativeSessionLock){openProjectSnapshot(json)}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isImporting=false);onResult(gen==requestGeneration&&ok)}}}
- fun openProjectSnapshot(json:String):Boolean {
-  val snapshot=try{JSONObject(json)}catch(e:Exception){publishError(e.message?:"Invalid canonical snapshot JSON.");return false}
+ fun openProjectSnapshot(json:String):Boolean = synchronized(nativeSessionLock) {
+  val snapshot=try{JSONObject(json)}catch(e:Exception){publishError(e.message?:"Invalid canonical snapshot JSON.");return@synchronized false}
   val pid=snapshot.optString("projectId").takeIf{it.isNotBlank()}
   val levels=snapshot.optJSONArray("levels")
   val importedLevel=levels?.optJSONObject(0)?.optString("id")?.takeIf{it.isNotBlank()}
