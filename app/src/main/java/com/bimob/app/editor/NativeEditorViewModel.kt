@@ -114,18 +114,27 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   mutate("""{"type":"CreateCatalogInstance","id":"catalog-${UUID.randomUUID()}","assetId":"${p.assetId}","category":"${p.category}","levelId":"$levelId","x":$x,"y":$y,"rotationRadians":$rotation,"widthMeters":${p.width},"depthMeters":${p.depth},"heightMeters":${p.height}}""")
  }
  fun selectAt(x:Double,y:Double){
-  val g=mutableState.value.geometry?:return
-  for(i in g.catalogInstanceIds.indices.reversed()){val o=i*8;val dx=x-g.catalogInstances[o];val dy=y-g.catalogInstances[o+1];val a=g.catalogInstances[o+2].toDouble()
-   val lx=dx*kotlin.math.cos(a)+dy*kotlin.math.sin(a);val ly=-dx*kotlin.math.sin(a)+dy*kotlin.math.cos(a)
-   if(kotlin.math.abs(lx)<=g.catalogInstances[o+3].toDouble()/2&&kotlin.math.abs(ly)<=g.catalogInstances[o+4].toDouble()/2){select(EditorSelection(EditorElementKind.CATALOG,g.catalogInstanceIds[i]));return}
+  val g=mutableState.value.typedGeometry?:return
+  for(item in g.catalog.asReversed()){
+   val dx=x-item.center.x;val dy=y-item.center.y;val a=item.rotationRadians
+   val lx=dx*cos(a)+dy*sin(a);val ly=-dx*sin(a)+dy*cos(a)
+   if(abs(lx)<=item.width/2&&abs(ly)<=item.depth/2){select(EditorSelection(EditorElementKind.CATALOG,item.id));return}
   }
-  for(i in g.openingIds.indices.reversed()){val o=i*8;val info=mutableState.value.openingInfo[g.openingIds[i]]?:continue
-   if(g.wallIds.contains(info.hostWallId)&&hypot(x-g.openings[o],y-g.openings[o+1])<=maxOf(g.openings[o+3].toDouble()/2,.35)){select(EditorSelection(EditorElementKind.OPENING,g.openingIds[i]));return}
+  for(item in g.openings.asReversed()){
+   val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:continue
+   val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy)
+   if(len<=1e-9)continue
+   val ux=dx/len;val uy=dy/len
+   val ax=item.center.x-ux*item.width/2;val ay=item.center.y-uy*item.width/2
+   val bx=item.center.x+ux*item.width/2;val by=item.center.y+uy*item.width/2
+   val vx=bx-ax;val vy=by-ay;val l2=vx*vx+vy*vy
+   val t=if(l2<=1e-12)0.0 else (((x-ax)*vx+(y-ay)*vy)/l2).coerceIn(0.0,1.0)
+   if(hypot(x-ax-t*vx,y-ay-t*vy)<=maxOf(item.width/2,.35)){select(EditorSelection(EditorElementKind.OPENING,item.id));return}
   }
   var chosen:String?=null;var best=.3
-  g.wallIds.indices.forEach{i->val s=wallSegment(g,i)?:return@forEach;val dx=s.second.x-s.first.x;val dy=s.second.y-s.first.y;val l2=dx*dx+dy*dy
-   if(l2<=1e-12)return@forEach;val t=(((x-s.first.x)*dx+(y-s.first.y)*dy)/l2).coerceIn(0.0,1.0)
-   val d=hypot(x-s.first.x-t*dx,y-s.first.y-t*dy);if(d<best){best=d;chosen=g.wallIds[i]}
+  g.walls.forEach{w->val dx=w.axisEnd.x-w.axisStart.x;val dy=w.axisEnd.y-w.axisStart.y;val l2=dx*dx+dy*dy
+   if(l2<=1e-12)return@forEach;val t=(((x-w.axisStart.x)*dx+(y-w.axisStart.y)*dy)/l2).coerceIn(0.0,1.0)
+   val d=hypot(x-w.axisStart.x-t*dx,y-w.axisStart.y-t*dy);if(d<best){best=d;chosen=w.id}
   }
   select(chosen?.let{EditorSelection(EditorElementKind.WALL,it)})
  }
@@ -145,19 +154,19 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  private fun refresh(projectId:String){try{
   val g=engine.export(handle);val snap=engine.snapshot(handle);val h=engine.dispatch(handle,"""{"type":"HistoryState"}""")
   val info=mutableMapOf<String,OpeningRenderInfo>()
+  val catalogInfo=mutableMapOf<String,CatalogRenderInfo>()
   val elements=JSONObject(snap).optJSONArray("elements")?:JSONArray()
   for(i in 0 until elements.length()){
    val element=elements.optJSONObject(i)?:continue
-   if(element.optString("kind")=="opening"){
-    val id=element.optString("id")
-    val host=element.optString("hostWallId")
-    val kind=element.optString("openingKind")
-    if(id.isNotBlank()&&host.isNotBlank()&&kind.isNotBlank())info[id]=OpeningRenderInfo(kind,host)
+   val id=element.optString("id")
+   when(element.optString("kind")){
+    "opening"->{val host=element.optString("hostWallId");val kind=element.optString("openingKind");if(id.isNotBlank()&&host.isNotBlank()&&kind.isNotBlank())info[id]=OpeningRenderInfo(kind,host)}
+    "catalogInstance"->{val host=element.optString("hostWallId");val asset=element.optString("assetId");val category=element.optString("category");if(id.isNotBlank())catalogInfo[id]=CatalogRenderInfo(host,asset,category)}
    }
   }
   val history=JSONObject(h)
   val sel=mutableState.value.selection?.takeIf{when(it.kind){EditorElementKind.WALL->g.wallIds.contains(it.id);EditorElementKind.OPENING->g.openingIds.contains(it.id);EditorElementKind.CATALOG->g.catalogInstanceIds.contains(it.id)}}
-  mutableState.value=NativeEditorState(g,GeometryMapper.map(g,info),history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
+  mutableState.value=NativeEditorState(g,GeometryMapper.map(g,info,catalogInfo),history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
  }catch(e:Exception){publishError(e.message?:"BGR1 export failed.")}catch(e:LinkageError){publishError(e.message?:"Native geometry export linkage failed safely.")}}
  private data class Point(val x:Double,val y:Double)
  private fun wallSegment(g:RenderGeometryBuffer,i:Int):Pair<Point,Point>?{val o=i*10;if(o+7>=g.walls.size)return null
