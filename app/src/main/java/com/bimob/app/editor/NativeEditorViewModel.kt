@@ -59,13 +59,13 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   mutableCamera.value=CanvasCamera(zoom.coerceIn(12f,240f),panX.coerceIn(-100000f,100000f),panY.coerceIn(-100000f,100000f))
  }
  init{check(handle!=0L){"Native engine could not create a session."}}
- fun resetProject(projectId:String,projectName:String){
-  if(mutableState.value.projectId==projectId&&levelId.isNotEmpty())return
+ fun resetProject(projectId:String,projectName:String)=synchronized(nativeSessionLock){
+  if(mutableState.value.projectId==projectId&&levelId.isNotEmpty())return@synchronized
   if(levelId.isNotEmpty()||mutableState.value.projectId.isNotEmpty()){if(handle!=0L)engine.destroySession(handle);handle=engine.createSession()}
   check(handle!=0L){"Native engine could not create a session."}
   levelId="level-"+UUID.randomUUID().toString()
   val r=engine.dispatch(handle,"""{"type":"CreateLevel","id":"$levelId","name":"Level 1","elevationMeters":0,"heightMeters":3}""")
-  if(!isOk(r)){levelId="";publishError(errorFrom(r));return};refresh(projectId)
+  if(!isOk(r)){levelId="";publishError(errorFrom(r));return@synchronized};refresh(projectId)
  }
  fun exportProjectSnapshot():String=synchronized(nativeSessionLock){val session=handle;if(session==0L)error("Native session is closed.");engine.snapshot(session)}
  fun exportProjectSnapshotAsync(onResult:(Result<String>)->Unit){if(mutableState.value.isExporting||mutableState.value.isImporting)return;mutableState.value=mutableState.value.copy(isExporting=true,error=null);viewModelScope.launch{snapshotIoMutex.withLock{val gen=requestGeneration;val result=runCatching{withContext(Dispatchers.IO){synchronized(nativeSessionLock){val session=handle;if(session==0L)error("Native session is closed.");engine.snapshot(session)}}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isExporting=false);onResult(result)}}}
@@ -86,7 +86,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   refresh(pid)
   return mutableState.value.projectId==pid && mutableState.value.geometry!=null
  }
- fun closeAndReset(){requestGeneration++;cancelActiveGesture();if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}
+ fun closeAndReset(){requestGeneration++;synchronized(nativeSessionLock){cancelActiveGesture();if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}}
  fun createWall(sx:Double,sy:Double,ex:Double,ey:Double){
   if(levelId.isBlank()){publishError("Сначала создайте проект с активным уровнем.");return}
   if(!listOf(sx,sy,ex,ey).all{it.isFinite()}){publishError("Координаты стены должны быть конечными числами.");return}
