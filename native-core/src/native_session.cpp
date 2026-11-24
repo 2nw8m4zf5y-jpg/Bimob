@@ -62,12 +62,33 @@ std::vector<RenderJoin> collectRenderJoins(const Project&p){
 void appendU32(std::vector<std::uint8_t>&o,std::uint32_t v){for(unsigned i=0;i<4;++i)o.push_back(static_cast<std::uint8_t>(v>>(8*i)));}
 void appendU64(std::vector<std::uint8_t>&o,std::uint64_t v){for(unsigned i=0;i<8;++i)o.push_back(static_cast<std::uint8_t>(v>>(8*i)));}
 void appendF32(std::vector<std::uint8_t>&o,double v){if(!std::isfinite(v)||std::abs(v)>std::numeric_limits<float>::max())throw std::runtime_error("Render geometry contains non-finite/out-of-range value");float f=static_cast<float>(v);std::uint32_t bits;std::memcpy(&bits,&f,sizeof(bits));appendU32(o,bits);}
+
+std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vector<RenderJoin>&joins){
+ double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy),ux=dx/len,uy=dy/len,nx=-uy,ny=ux,half=w.thickness.value*.5;
+ std::array<Point2,4>v{{{Meters{w.axis.start.x.value+nx*half},Meters{w.axis.start.y.value+ny*half}},{Meters{w.axis.end.x.value+nx*half},Meters{w.axis.end.y.value+ny*half}},{Meters{w.axis.end.x.value-nx*half},Meters{w.axis.end.y.value-ny*half}},{Meters{w.axis.start.x.value-nx*half},Meters{w.axis.start.y.value-ny*half}}}};
+ for(const auto&r:joins){
+  const bool isA=r.join.wallA==w.id,isB=r.join.wallB==w.id;if(!isA&&!isB)continue;
+  const bool atEnd=isA?r.join.endA:r.join.endB;if(!atEnd)continue;
+  const Wall*other=nullptr;for(const auto&candidate:p.walls)if(candidate.id==(isA?r.join.wallB:r.join.wallA)){other=&candidate;break;}if(!other)continue;
+  const double odx=other->axis.end.x.value-other->axis.start.x.value,ody=other->axis.end.y.value-other->axis.start.y.value,olen=std::hypot(odx,ody);if(olen<=kMinWallLength)continue;
+  const double oux=odx/olen,ouy=ody/olen,onx=-ouy,ony=oux,den=ux*ouy-uy*oux;if(std::abs(den)<1e-12)continue;
+  for(int side:{-1,1}){
+   const double ownOff=side*half,otherSide=-side*(den>0?1:-1),otherOff=otherSide*other->thickness.value*.5;
+   const double px=r.join.joint.x.value+nx*ownOff,py=r.join.joint.y.value+ny*ownOff;
+   const double qx=r.join.joint.x.value+onx*otherOff,qy=r.join.joint.y.value+ony*otherOff;
+   const double t=((qx-px)*ouy-(qy-py)*oux)/den;Point2 m{Meters{px+t*ux},Meters{py+t*uy}};
+   const std::size_t index=atEnd?(side>0?1:2):(side>0?0:3);v[index]=m;
+  }
+ }
+ return v;
+}
+
 const Level* levelById(const Project&p,const ModelId&id){auto it=std::find_if(p.levels.begin(),p.levels.end(),[&](const Level&l){return l.id==id;});return it==p.levels.end()?nullptr:&*it;}
 std::vector<std::uint8_t> geometryBytes(const ModelRevision&rev){
  const Project&p=*rev.project;auto joins=collectRenderJoins(p);std::vector<std::uint8_t>o;o.reserve(24+p.walls.size()*32+joins.size()*32+p.openings.size()*32+p.catalogInstances.size()*32);
  o.insert(o.end(),{'B','G','R','1'});appendU32(o,1);appendU64(o,rev.number);appendU32(o,static_cast<std::uint32_t>(p.walls.size()));appendU32(o,static_cast<std::uint32_t>(joins.size()));appendU32(o,static_cast<std::uint32_t>(p.openings.size()));appendU32(o,static_cast<std::uint32_t>(p.catalogInstances.size()));
  std::vector<const Wall*>walls;for(const auto&w:p.walls)walls.push_back(&w);std::sort(walls.begin(),walls.end(),[](auto*a,auto*b){return a->id.value<b->id.value;});
- for(const Wall*w:walls){double dx=w->axis.end.x.value-w->axis.start.x.value,dy=w->axis.end.y.value-w->axis.start.y.value,len=std::hypot(dx,dy);if(len<=kMinWallLength)throw std::runtime_error("Invalid wall length in geometry export");double nx=-dy/len*w->thickness.value*.5,ny=dx/len*w->thickness.value*.5;std::array<Point2,4>v{{{Meters{w->axis.start.x.value+nx},Meters{w->axis.start.y.value+ny}},{Meters{w->axis.end.x.value+nx},Meters{w->axis.end.y.value+ny}},{Meters{w->axis.end.x.value-nx},Meters{w->axis.end.y.value-ny}},{Meters{w->axis.start.x.value-nx},Meters{w->axis.start.y.value-ny}}}};for(auto q:v){appendF32(o,q.x.value);appendF32(o,q.y.value);}}
+ for(const Wall*w:walls){if(!w->axis.valid())throw std::runtime_error("Invalid wall length in geometry export");auto v=wallFootprint(*w,p,joins);for(auto q:v){appendF32(o,q.x.value);appendF32(o,q.y.value);}}
  for(const auto&j:joins){auto g=solveWallJoinGeometry(p,j.join);if(!g.ok())throw std::runtime_error("WallJoin geometry failed: "+g.error()->message);for(const auto&q:g.value()->vertices){appendF32(o,q.x.value);appendF32(o,q.y.value);}}
  std::vector<const Opening*>openings;for(const auto&x:p.openings)openings.push_back(&x);std::sort(openings.begin(),openings.end(),[](auto*a,auto*b){return a->id.value<b->id.value;});
  for(const Opening*x:openings){auto w=std::find_if(p.walls.begin(),p.walls.end(),[&](const Wall&a){return a.id==x->hostWallId;});if(w==p.walls.end())throw std::runtime_error("Opening references missing wall");double len=w->axis.length().value,ux=(w->axis.end.x.value-w->axis.start.x.value)/len,uy=(w->axis.end.y.value-w->axis.start.y.value)/len,center=x->offsetAlongWall.value+x->width.value*.5;auto lv=levelById(p,w->levelId);appendF32(o,w->axis.start.x.value+ux*center);appendF32(o,w->axis.start.y.value+uy*center);appendF32(o,x->offsetAlongWall.value);appendF32(o,x->width.value);appendF32(o,x->height.value);appendF32(o,x->sillHeight.value);appendF32(o,lv?lv->elevation.value:0);appendF32(o,len);}
