@@ -37,7 +37,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
- var rotation by remember{mutableFloatStateOf(0f)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  var showCatalogPicker by remember{mutableStateOf(false)}
@@ -52,9 +51,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
   }
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    Button(onClick={tool=EditorTool.CATALOG;showCatalogPicker=true}){Text("Каталог")}
-   if(tool==EditorTool.CATALOG) TextButton(onClick={rotation=(rotation+PI.toFloat()/4f)%(2f*PI.toFloat())}) {
-    Text("Поворот размещения: ${((rotation*180f/PI.toFloat()).toInt()+360)%360}°")
-   }
   }
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    Button(onClick=viewModel::undo,enabled=state.canUndo){Text("↶ Undo")}
@@ -67,9 +63,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      EditorElementKind.CATALOG->state.typedGeometry?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label}?: "Объект"
     }
     Text("Выбрано: $selectedName",style=MaterialTheme.typography.labelSmall)
-    if(selected.kind!=EditorElementKind.OPENING)TextButton(onClick={viewModel.rotateElement(selected,PI/4)}){Text("⟳ 45°")}
-    TextButton(onClick={viewModel.resizeElement(selected,1.1)}){Text("+10%")}
-    TextButton(onClick={viewModel.resizeElement(selected,.9)}){Text("−10%")}
    }
   }
   if(showCatalogPicker) AlertDialog(
@@ -104,7 +97,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }while(event.changes.any{it.pressed})
     }
    }
-   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,preset,rotation,hitRadiusPx){
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,preset,hitRadiusPx){
     detectTapGestures { screen ->
      if(!screen.x.isFinite()||!screen.y.isFinite())return@detectTapGestures
      val p=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
@@ -112,7 +105,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      when(tool){
       EditorTool.DOOR->viewModel.createOpening("DOOR",p.x,p.y)
       EditorTool.WINDOW->viewModel.createOpening("WINDOW",p.x,p.y)
-      EditorTool.CATALOG->viewModel.createCatalog(preset,p.x,p.y,rotation.toDouble())
+      EditorTool.CATALOG->viewModel.createCatalog(preset,p.x,p.y,0.0)
       else->{val hit=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)};viewModel.selectElement(hit)}
      }
     }
