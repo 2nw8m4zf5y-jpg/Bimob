@@ -15,7 +15,7 @@ class NativeEditorViewModelTest {
  private class FakeEngine:NativeEditorEngine {
   var next=1L;var destroyed=0;var revision=1L;var gesture:String?=null
   var model=Model();val undo=mutableListOf<Model>();val redo=mutableListOf<Model>();val commands=mutableListOf<String>()
-  var importedSnapshot:String?=null
+  var importedSnapshot:String?=null;var failWallDispatchWithLinkageError=false
   private fun copy(m:Model)=Model(m.levels.toMutableList(),m.walls.toMutableList(),m.openings.toMutableMap(),m.catalogs.toMutableList())
   private fun id(j:String)=JSONObject(j).optString("id")
   private fun field(j:String,k:String)=JSONObject(j).optString(k)
@@ -23,6 +23,7 @@ class NativeEditorViewModelTest {
   override fun destroySession(handle:Long){destroyed++}
   override fun dispatch(handle:Long,json:String):String {
    commands+=json
+   if(failWallDispatchWithLinkageError&&json.contains("CreateWall"))throw UnsatisfiedLinkError("simulated missing JNI symbol")
    when {
     json.contains("CreateLevel")->{undo+=copy(model);model.levels+=id(json);redo.clear();revision++}
     json.contains("CreateWall")->{undo+=copy(model);model.walls+=id(json);redo.clear();revision++}
@@ -89,6 +90,14 @@ class NativeEditorViewModelTest {
   assertTrue(geometry.walls.all{it.isFinite()})
   val wallCommand=e.commands.last{it.contains("CreateWall")}
   assertTrue(JSONObject(wallCommand).optString("levelId").isNotBlank())
+  vm.close()
+ }
+ @Test fun wallCommandJniLinkageFailureIsReportedWithoutEscapingViewModel(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("jni-failure","Project")
+  e.failWallDispatchWithLinkageError=true
+  vm.createWall(0.0,0.0,3.0,0.0)
+  assertTrue(vm.state.value.error!!.contains("simulated missing JNI symbol"))
+  assertTrue(vm.state.value.geometry!!.wallIds.isEmpty())
   vm.close()
  }
  @Test fun createsWallsAndHistoryFromBgr1(){
