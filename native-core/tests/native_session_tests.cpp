@@ -8,10 +8,10 @@
 int main(){using namespace bimob::bridge;
  auto fresh=createSession();assert(fresh);
  auto freshCall=[&](const char*j){return dispatchCommandJson(fresh,j);};
- assert(freshCall(R"({"type":"CreateWall","id":"W0","levelId":"","startX":0,"startY":0,"endX":2,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\\"ok\\":false")!=std::string::npos);
- assert(freshCall(R"({"type":"CreateLevel","id":"LF","name":"Ground","elevationMeters":0,"heightMeters":3})").find("\\"ok\\":true")!=std::string::npos);
- assert(freshCall(R"({"type":"CreateWall","id":"Wshort","levelId":"LF","startX":0,"startY":0,"endX":0.01,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\\"ok\\":false")!=std::string::npos);
- assert(freshCall(R"({"type":"CreateWall","id":"Wfirst","levelId":"LF","startX":0,"startY":0,"endX":3,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\\"ok\\":true")!=std::string::npos);
+ assert(freshCall(R"({"type":"CreateWall","id":"W0","levelId":"","startX":0,"startY":0,"endX":2,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":false")!=std::string::npos);
+ assert(freshCall(R"({"type":"CreateLevel","id":"LF","name":"Ground","elevationMeters":0,"heightMeters":3})").find("\"ok\":true")!=std::string::npos);
+ assert(freshCall(R"({"type":"CreateWall","id":"Wshort","levelId":"LF","startX":0,"startY":0,"endX":0.01,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":false")!=std::string::npos);
+ assert(freshCall(R"({"type":"CreateWall","id":"Wfirst","levelId":"LF","startX":0,"startY":0,"endX":3,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
  auto firstGeometry=exportRenderGeometry(fresh);assert(firstGeometry.size()>=72&&std::memcmp(firstGeometry.data(),"BGR1",4)==0);
  auto firstU32=[&](std::size_t o){std::uint32_t v=0;for(int i=0;i<4;i++)v|=static_cast<std::uint32_t>(firstGeometry[o+i])<<(8*i);return v;};
  assert(firstU32(16)==1&&firstU32(20)==0&&firstU32(24)==0&&firstU32(28)==0);
