@@ -53,10 +53,18 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  }
  fun exportProjectSnapshot():String=engine.snapshot(handle)
  fun openProjectSnapshot(json:String):Boolean {
-  val r=engine.importSnapshot(handle,json);if(!isOk(r)){publishError(errorFrom(r));return false}
-  val pid=Regex(""""projectId"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)?:return false
-  levelId=Regex(""""levels"\s*:\s*\[\s*\{[^}]*"id"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1).orEmpty()
-  refresh(pid);return true
+  val pid=Regex(""""projectId"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)
+  val importedLevel=Regex(""""levels"\s*:\s*\[\s*\{[^}]*"id"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)
+  if(pid.isNullOrBlank()||importedLevel.isNullOrBlank()){
+   publishError("Canonical snapshot is missing projectId or a level.")
+   return false
+  }
+  val r=engine.importSnapshot(handle,json)
+  if(!isOk(r)){publishError(errorFrom(r));return false}
+  levelId=importedLevel
+  mutableState.value=mutableState.value.copy(selection=null)
+  refresh(pid)
+  return mutableState.value.projectId==pid && mutableState.value.geometry!=null
  }
  fun closeAndReset(){if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}
  fun createWall(sx:Double,sy:Double,ex:Double,ey:Double){

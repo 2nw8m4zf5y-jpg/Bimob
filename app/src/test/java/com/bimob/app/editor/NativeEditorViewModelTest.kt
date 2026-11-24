@@ -1,29 +1,37 @@
 package com.bimob.app.editor
+
 import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 import org.junit.Assert.*
 import org.junit.Test
 
 class NativeEditorViewModelTest {
- private data class Model(val walls:MutableList<String> = mutableListOf(),val openings:MutableMap<String,Pair<String,String>> = mutableMapOf(),val catalogs:MutableList<String> = mutableListOf())
+ private data class Model(
+  val levels:MutableList<String> = mutableListOf(),
+  val walls:MutableList<String> = mutableListOf(),
+  val openings:MutableMap<String,Pair<String,String>> = mutableMapOf(),
+  val catalogs:MutableList<String> = mutableListOf()
+ )
  private class FakeEngine:NativeEditorEngine {
   var next=1L;var destroyed=0;var revision=1L;var gesture:String?=null
   var model=Model();val undo=mutableListOf<Model>();val redo=mutableListOf<Model>();val commands=mutableListOf<String>()
-  private fun copy(m:Model)=Model(m.walls.toMutableList(),m.openings.toMutableMap(),m.catalogs.toMutableList())
-  private fun id(j:String)=Regex(""""id"\s*:\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
-  private fun field(j:String,k:String)=Regex(""""$k"\s*:\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
+  var importedSnapshot:String?=null
+  private fun copy(m:Model)=Model(m.levels.toMutableList(),m.walls.toMutableList(),m.openings.toMutableMap(),m.catalogs.toMutableList())
+  private fun id(j:String)=Regex(""""id"\\s*:\\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
+  private fun field(j:String,k:String)=Regex(""""$k"\\s*:\\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
   override fun createSession()=next++
   override fun destroySession(handle:Long){destroyed++}
   override fun dispatch(handle:Long,json:String):String {
    commands+=json
    when {
+    json.contains("CreateLevel")->{undo+=copy(model);model.levels+=id(json);redo.clear();revision++}
     json.contains("CreateWall")->{undo+=copy(model);model.walls+=id(json);redo.clear();revision++}
     json.contains("CreateOpening")->{undo+=copy(model);model.openings[id(json)]=field(json,"hostWallId") to field(json,"openingKind");redo.clear();revision++}
     json.contains("CreateCatalogInstance")->{undo+=copy(model);model.catalogs+=id(json);redo.clear();revision++}
     json.contains("DeleteWall")->{undo+=copy(model);val wall=id(json);model.walls.remove(wall);model.openings.entries.removeAll{it.value.first==wall};redo.clear();revision++}
     json.contains("DeleteOpening")->{undo+=copy(model);model.openings.remove(id(json));redo.clear();revision++}
     json.contains("DeleteCatalogInstance")->{undo+=copy(model);model.catalogs.remove(id(json));redo.clear();revision++}
-    json.contains("\"Undo\"")&&undo.isNotEmpty()->{redo+=copy(model);model=undo.removeAt(undo.lastIndex);revision++}
-    json.contains("\"Redo\"")&&redo.isNotEmpty()->{undo+=copy(model);model=redo.removeAt(redo.lastIndex);revision++}
+    json.contains("\\"Undo\\"")&&undo.isNotEmpty()->{redo+=copy(model);model=undo.removeAt(undo.lastIndex);revision++}
+    json.contains("\\"Redo\\"")&&redo.isNotEmpty()->{undo+=copy(model);model=redo.removeAt(redo.lastIndex);revision++}
    }
    return """{"ok":true,"canUndo":${undo.isNotEmpty()},"canRedo":${redo.isNotEmpty()}}"""
   }
@@ -37,9 +45,24 @@ class NativeEditorViewModelTest {
    return RenderGeometryBuffer(1,revision,model.walls.toList(),w,if(model.walls.size>=2)listOf("join-1")else emptyList(),FloatArray(if(model.walls.size>=2)9 else 0),
     model.openings.keys.toList(),op,model.catalogs.toList(),cat)
   }
-  override fun importSnapshot(handle:Long,json:String):String { importedSnapshot=json; return """{"ok":true}""" }
-  var importedSnapshot:String?=null
-  override fun snapshot(handle:Long):String=importedSnapshot ?: model.openings.entries.joinToString(prefix="""{"elements":[""",postfix="]}"){(key,v)->"""{"hostWallId":"${v.first}","id":"$key","kind":"opening","openingKind":"${v.second}"}"""}
+  override fun importSnapshot(handle:Long,json:String):String {
+   if(!json.trim().startsWith("{")||!json.trim().endsWith("}")||
+      !json.contains("\\"schemaVersion\\":1")||!json.contains("\\"projectId\\":")||
+      !json.contains("\\"levels\\":[")||!json.contains("\\"joins\\":[")||
+      !json.contains("\\"elements\\":[")) return """{"ok":false,"error":"Malformed canonical snapshot"}"""
+   val levelIds=Regex(""""id"\\s*:\\s*"([^"]+)"""").findAll(json.substringAfter("\\"levels\\":[").substringBefore("],\\"materials\\"")).map{it.groupValues[1]}.toList()
+   val elementBlock=json.substringAfter("\\"elements\\":[").substringBefore("],\\"joins\\"")
+   val elementObjects=Regex("\\{[^{}]*}").findAll(elementBlock).map{it.value}.toList()
+   val walls=elementObjects.filter{it.contains("\\"kind\\":\\"wall\\"")}.map{field(it,"id")}
+   val openings=elementObjects.filter{it.contains("\\"kind\\":\\"opening\\"")}.associate{field(it,"id") to (field(it,"hostWallId") to field(it,"openingKind"))}
+   val catalogs=elementObjects.filter{it.contains("\\"kind\\":\\"catalogInstance\\"")}.map{field(it,"id")}
+   if(levelIds.isEmpty()||elementObjects.size!=walls.size+openings.size+catalogs.size||
+      elementObjects.any{field(it,"id").isBlank()}) return """{"ok":false,"error":"Invalid entities"}"""
+   val nextModel=Model(levelIds.toMutableList(),walls.toMutableList(),openings.toMutableMap(),catalogs.toMutableList())
+   model=nextModel;importedSnapshot=json;undo.clear();redo.clear();revision++
+   return """{"ok":true}"""
+  }
+  override fun snapshot(handle:Long):String=importedSnapshot ?: """{"schemaVersion":1,"projectId":"fake","name":"Fake","levels":[],"joins":[],"elements":[]}"""
   override fun beginGesture(handle:Long,id:String):Boolean{gesture=id;return true}
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
@@ -69,5 +92,22 @@ class NativeEditorViewModelTest {
   assertEquals("WINDOW",vm.state.value.openingInfo[id]?.kind)
   val g=vm.beginGesture();assertNotNull(g);vm.commitGesture(g!!)
   assertEquals(1,vm.state.value.geometry!!.openingIds.size)
+ }
+ @Test fun canonicalSnapshotRestoresAllEntityKindsAndRejectsCorruptJsonAtomically(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e)
+  val snapshot="""{"buildings":[],"elements":[{"axis":{"end":{"xMeters":4,"yMeters":0},"start":{"xMeters":0,"yMeters":0}},"heightMeters":3,"id":"wall-a","kind":"wall","levelId":"level-a","thicknessMeters":0.2},{"heightMeters":2.1,"hostWallId":"wall-a","id":"opening-a","kind":"opening","offsetAlongWallMeters":0.5,"openingKind":"DOOR","sillHeightMeters":0,"widthMeters":0.9},{"assetId":"table","category":"furniture","depthBounds":{"max":2,"min":0.1},"heightBounds":{"max":3,"min":0.1},"hostWallId":null,"id":"catalog-a","kind":"catalogInstance","levelId":"level-a","position":{"xMeters":2,"yMeters":1},"rotationRadians":0,"scalingMode":"UNIFORM","scheduleTag":"","targetDepthMeters":0.7,"targetHeightMeters":0.75,"targetWidthMeters":1.2,"widthBounds":{"max":3,"min":0.1}}],"joins":[],"levels":[{"elevationMeters":0,"heightMeters":3,"id":"level-a","name":"Ground"}],"materials":[],"name":"Restored","projectId":"project-restored","schemaVersion":1,"site":{"id":"site-a","name":"Site"},"types":[]}"""
+  assertTrue(vm.openProjectSnapshot(snapshot))
+  assertEquals("project-restored",vm.state.value.projectId)
+  assertEquals(listOf("wall-a"),vm.state.value.geometry!!.wallIds)
+  assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
+  assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
+  assertEquals("DOOR",vm.state.value.openingInfo["opening-a"]?.kind)
+  val before=vm.exportProjectSnapshot()
+  assertFalse(vm.openProjectSnapshot("{not-valid-json"))
+  assertEquals(before,vm.exportProjectSnapshot())
+  assertEquals(listOf("wall-a"),vm.state.value.geometry!!.wallIds)
+  assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
+  assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
+  vm.close()
  }
 }

@@ -45,7 +45,7 @@ class MainActivity:ComponentActivity(){
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
      Column(Modifier.weight(1f)){Text(prefs.getString("active_name","Проект")?:"Проект",style=MaterialTheme.typography.titleMedium);Text("NativeSession • ревизия ${state.geometry?.revision?:0}",fontSize=12.sp,color=Color.Gray)}
      TextButton(onClick={pendingJson=editor.exportProjectSnapshot();exporter.launch("bimob-project.json")}){Text("Экспорт")}
-     TextButton(onClick=saveCurrent){Text("Сохранить")}
+     TextButton(onClick={saveCurrent()}){Text("Сохранить")}
      TextButton(onClick=editor::closeAndReset){Text("Проекты")}
     }
     NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth())
