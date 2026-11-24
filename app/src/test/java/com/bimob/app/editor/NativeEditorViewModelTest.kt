@@ -230,13 +230,13 @@ class NativeEditorViewModelTest {
   val second=vm.beginGesture();assertNotNull(second);vm.cancelGesture(second!!);assertNull(engine.gesture)
   assertNotNull(vm.beginGesture());vm.cancelActiveGesture();assertNull(engine.gesture);vm.close()
  }
- @Test fun renderWallIterationUsesEntityIdsNotFloatArrayIndices(){
-  val oneWall=RenderGeometryBuffer(1,1L,listOf("wall-a"),FloatArray(10){it.toFloat()},emptyList(),FloatArray(0),emptyList(),FloatArray(0),emptyList(),FloatArray(0))
-  assertEquals(listOf(0),wallRenderIndices(oneWall).toList())
+ @Test fun typedGeometryIterationUsesStableEntityIdsAndRejectsMismatches(){
+  val oneWall=RenderGeometryBuffer(1,1L,listOf("wall-a"),FloatArray(10){if(it%2==0)it.toFloat()else .1f},emptyList(),FloatArray(0),emptyList(),FloatArray(0),emptyList(),FloatArray(0))
+  assertEquals(listOf("wall-a"),GeometryMapper.map(oneWall,emptyMap()).walls.map{it.id})
   val mismatched=oneWall.copy(wallIds=listOf("wall-a","wall-b"))
-  assertEquals(listOf(0),wallRenderIndices(mismatched).toList())
-  val empty=oneWall.copy(wallIds=emptyList())
-  assertTrue(wallRenderIndices(empty).isEmpty())
+  assertThrows(IllegalArgumentException::class.java){GeometryMapper.map(mismatched,emptyMap())}
+  val empty=oneWall.copy(wallIds=emptyList(),walls=FloatArray(0))
+  assertTrue(GeometryMapper.map(empty,emptyMap()).walls.isEmpty())
  }
-
+ 
 }
