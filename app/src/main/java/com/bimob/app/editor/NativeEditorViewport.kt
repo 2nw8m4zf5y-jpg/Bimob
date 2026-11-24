@@ -130,21 +130,25 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    drawLine(Color(0xFFCAD3DD),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
    val g=state.typedGeometry
    if(g!=null){
-    g.walls.forEach{wall->if(transformPreview?.takeIf{it.kind==EditorElementKind.WALL}?.id!=wall.iddrawTypedPolygon(wall.corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B))}
-    transformPreview?.takeIf{it.kind==EditorElementKind.WALL}?.let{tp->g.walls.firstOrNull{it.id==tp.id}?.let{wall->drawTypedPolygon(wall.corners.map{Vec2(it.x+tp.dx,it.y+tp.dy)},size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF1976D2))}}
+    g.walls.forEach{wall->
+     val tp=transformPreview?.takeIf{it.kind==EditorElementKind.WALL&&it.id==wall.id}
+     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B)
+     drawTypedPolygon(if(tp==null)wall.corners else transformWallPreview(wall,tp),size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null)Color(0xFF1976D2)else color)
+    }
     g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
      val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
-     val ux=dx/len;val uy=dy/len;val half=item.width/2
-     val tp=transformPreview?.takeIf{it.kind==EditorElementKind.OPENING&&it.id==item.id};val along=tp?.let{(it.dx*ux+it.dy*uy)}?:0.0
+     val ux=dx/len;val uy=dy/len;val tp=transformPreview?.takeIf{it.kind==EditorElementKind.OPENING&&it.id==item.id};val width=item.width*(tp?.scaleFactor?:1.0);val half=width/2
+     val movedAlong=tp?.let{it.dx*ux+it.dy*uy}?:0.0;val newOffset=(item.offsetAlongWall+item.width/2-width/2).coerceIn(0.0,(len-width).coerceAtLeast(0.0));val along=movedAlong+newOffset+width/2-(item.offsetAlongWall+item.width/2)
      val cx=item.center.x+ux*along;val cy=item.center.y+uy*along
      val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
      drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1976D2)else Color(0xFF008C95)
      if(item.kind=="DOOR"){drawLine(color,a,b,2f);val radius=(item.width*camera.zoom.toDouble()).coerceAtLeast(4.0).toFloat();drawArc(color,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2f,radius*2f),style=Stroke(1.5f))}
      else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
-    g.catalog.forEach{item->val hw=item.width/2;val hd=item.depth/2;val angle=item.rotationRadians
-     val tp=transformPreview?.takeIf{it.kind==EditorElementKind.CATALOG&&it.id==item.id};val cx=item.center.x+(tp?.dx?:0.0);val cy=item.center.y+(tp?.dy?:0.0);val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(cx+x*cos(angle)-y*sin(angle),cy+x*sin(angle)+y*cos(angle))}
+    g.catalog.forEach{item->
+     val tp=transformPreview?.takeIf{it.kind==EditorElementKind.CATALOG&&it.id==item.id};val scale=tp?.scaleFactor?:1.0;val hw=item.width*scale/2;val hd=item.depth*scale/2;val angle=item.rotationRadians+(tp?.rotationRadians?:0.0);val cx=item.center.x+(tp?.dx?:0.0);val cy=item.center.y+(tp?.dy?:0.0)
+     val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(cx+x*cos(angle)-y*sin(angle),cy+x*sin(angle)+y*cos(angle))}
      val path=Path();corners.forEachIndexed{k,v->val s=worldToScreen(WorldPoint(v.x,v.y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
      val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1976D2)else Color(0xFF3A789A),style=Stroke(2f))
     }
@@ -162,6 +166,11 @@ private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:
  val pts=listOf(WorldPoint(a.x+nx,a.y+ny),WorldPoint(b.x+nx,b.y+ny),WorldPoint(b.x-nx,b.y-ny),WorldPoint(a.x-nx,a.y-ny))
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
  drawPath(path,Color(0xFF1976D2).copy(alpha=.35f))
+}
+private fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<Vec2>{
+ val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val length=hypot(dx,dy);if(length<=1e-9)return wall.corners
+ val ux=dx/length;val uy=dy/length;val vx=-uy;val vy=ux;val cx=(wall.axisStart.x+wall.axisEnd.x)/2;val cy=(wall.axisStart.y+wall.axisEnd.y)/2;val co=cos(tp.rotationRadians);val si=sin(tp.rotationRadians)
+ return wall.corners.map{p->val along=(p.x-wall.axisStart.x)*ux+(p.y-wall.axisStart.y)*uy;val across=(p.x-wall.axisStart.x)*vx+(p.y-wall.axisStart.y)*vy;val x=wall.axisStart.x+ux*along*tp.scaleFactor+vx*across;val y=wall.axisStart.y+uy*along*tp.scaleFactor+vy*across;Vec2(cx+(x-cx)*co-(y-cy)*si+tp.dx,cy+(x-cx)*si+(y-cy)*co+tp.dy)}
 }
 private fun DrawScope.drawTypedPolygon(vertices:List<Vec2>,size:Size,scale:Float,pan:Offset,color:Color){
  if(vertices.size<3||!scale.isFinite()||scale<=0f)return
