@@ -1,10 +1,17 @@
 #include "bimob/native_session.hpp"
 #include <cassert>
 #include <string>
-int main(){using bimob::bridge::createSession;auto h=createSession();assert(h!=0);auto initial=bimob::bridge::exportCanonicalSnapshot(h);assert(initial.find("Native Engine Session")!=std::string::npos);
- auto level=bimob::bridge::dispatchCommandJson(h,R"({"type":"CreateLevel","id":"L1","name":"Ground","elevationMeters":0,"heightMeters":3})");assert(level.find("\"ok\":true")!=std::string::npos);
- auto wall=bimob::bridge::dispatchCommandJson(h,R"({"type":"CreateWall","id":"W1","levelId":"L1","startX":0,"startY":0,"endX":4,"endY":0,"heightMeters":3,"thicknessMeters":0.2})");assert(wall.find("\"ok\":true")!=std::string::npos);
- auto opening=bimob::bridge::dispatchCommandJson(h,R"({"type":"CreateOpening","id":"O1","hostWallId":"W1","openingKind":"DOOR","offsetAlongWallMeters":0.5,"widthMeters":0.9,"heightMeters":2.1,"sillHeightMeters":0})");assert(opening.find("\"ok\":true")!=std::string::npos);
- auto snap=bimob::bridge::exportCanonicalSnapshot(h);assert(snap.find("\"id\":\"W1\"")!=std::string::npos&&snap.find("\"id\":\"O1\"")!=std::string::npos);
- auto undo=bimob::bridge::dispatchCommandJson(h,R"({"type":"Undo"})");assert(undo.find("\"ok\":true")!=std::string::npos);snap=bimob::bridge::exportCanonicalSnapshot(h);assert(snap.find("\"id\":\"O1\"")==std::string::npos);
- assert(bimob::bridge::destroySession(h));assert(!bimob::bridge::destroySession(h));assert(bimob::bridge::exportCanonicalSnapshot(h).find("Invalid native handle")!=std::string::npos);assert(!bimob::bridge::destroySession(0));return 0;}
+int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert(exportCanonicalSnapshot(h).find("Native Engine Session")!=std::string::npos);
+ auto call=[&](const char*j){return dispatchCommandJson(h,j);};
+ assert(call(R"({"type":"CreateLevel","id":"L1","name":"Ground","elevationMeters":0,"heightMeters":3})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"CreateWall","id":"W1","levelId":"L1","startX":0,"startY":0,"endX":4,"endY":0,"heightMeters":3,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"CreateOpening","id":"O1","hostWallId":"W1","openingKind":"DOOR","offsetAlongWallMeters":0.5,"widthMeters":0.9,"heightMeters":2.1,"sillHeightMeters":0})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"UpdateOpening","id":"O1","offsetAlongWallMeters":1,"widthMeters":1,"heightMeters":2.2,"sillHeightMeters":0})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"MoveWall","id":"W1","deltaX":1,"deltaY":0})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"ResizeWall","id":"W1","lengthMeters":5})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"CreateCatalogInstance","id":"C1","assetId":"asset","levelId":"L1","x":0,"y":0,"widthMeters":1,"depthMeters":1,"heightMeters":1})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"UpdateCatalogInstance","id":"C1","x":2,"y":1,"widthMeters":2,"depthMeters":1,"heightMeters":1})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"Batch","commands":[{"type":"MoveWall","id":"W1","deltaX":1,"deltaY":0},{"type":"ResizeWall","id":"W1","lengthMeters":6}]})").find("\"ok\":true")!=std::string::npos);
+ assert(beginGesture(h,"g1"));assert(call(R"({"type":"MoveWall","id":"W1","deltaX":1,"deltaY":0})").find("\"ok\":true")!=std::string::npos);assert(call(R"({"type":"MoveWall","id":"W1","deltaX":1,"deltaY":0})").find("\"ok\":true")!=std::string::npos);assert(commitGesture(h,"g1"));assert(call(R"({"type":"Undo"})").find("\"ok\":true")!=std::string::npos);assert(call(R"({"type":"Redo"})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"DeleteWall","id":"W1"})").find("\"ok\":true")!=std::string::npos);auto snap=exportCanonicalSnapshot(h);assert(snap.find("\"id\":\"W1\"")==std::string::npos&&snap.find("\"id\":\"O1\"")==std::string::npos);
+ assert(destroySession(h));assert(!destroySession(h));assert(exportCanonicalSnapshot(h).find("Invalid native handle")!=std::string::npos);return 0;}
