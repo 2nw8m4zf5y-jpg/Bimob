@@ -9,6 +9,19 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 
 class NativeEditorViewModelTest {
+ @Test fun compactPropertyLabelsMatchCadNotation(){
+  assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина"))
+  assertEquals("В:",compactInspectorLabel(EditorElementKind.WALL,"Высота"))
+  assertEquals("О:",compactInspectorLabel(EditorElementKind.WALL,"Отметка"))
+  assertEquals("Ш:",compactInspectorLabel(EditorElementKind.OPENING,"Ширина"))
+  assertEquals("В:",compactInspectorLabel(EditorElementKind.OPENING,"Высота"))
+  assertEquals("П:",compactInspectorLabel(EditorElementKind.OPENING,"Подоконник"))
+  assertEquals("С:",compactInspectorLabel(EditorElementKind.OPENING,"Положение"))
+  assertEquals("Ш:",compactInspectorLabel(EditorElementKind.CATALOG,"Ширина"))
+  assertEquals("Г:",compactInspectorLabel(EditorElementKind.CATALOG,"Глубина"))
+  assertEquals("В:",compactInspectorLabel(EditorElementKind.CATALOG,"Высота"))
+  assertEquals("∠:",compactInspectorLabel(EditorElementKind.CATALOG,"Поворот"))
+ }
  private data class Model(
   val levels:MutableList<String> = mutableListOf(),
   val walls:MutableList<String> = mutableListOf(),
