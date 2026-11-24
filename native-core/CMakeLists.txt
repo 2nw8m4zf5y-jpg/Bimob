@@ -34,7 +34,7 @@ if(BIMOB_NATIVE_BUILD_TESTS)
   else()
     target_compile_options(bimob_native_parity_runner PRIVATE -Wall -Wextra -Wpedantic -Werror)
   endif()
-  add_test(NAME native_parity_step1 COMMAND bimob_native_parity_runner
+  add_test(NAME native_parity_all COMMAND bimob_native_parity_runner
     "${CMAKE_SOURCE_DIR}/../shared-tests/golden-scenarios"
     "${CMAKE_BINARY_DIR}/../parity-out/native")
 endif()

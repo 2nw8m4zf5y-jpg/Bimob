@@ -1,6 +1,7 @@
 #pragma once
 #include "bimob/model.hpp"
 #include <atomic>
+#include <array>
 #include <functional>
 #include <map>
 #include <memory>
@@ -68,6 +69,9 @@ private:
  mutable std::mutex mutex_;EngineLimits limits_;EvaluatorRegistry evaluators_;std::shared_ptr<const ModelRevision> current_;std::optional<Error> initializationError_;HistoryLimits historyLimits_;
  std::vector<std::shared_ptr<const ModelRevision>> undo_;std::vector<std::shared_ptr<const ModelRevision>> redo_;std::optional<std::string> lastGesture_;
 };
+enum class WallJoinTopology : std::uint8_t { L, T, X };
+struct WallJoinGeometry final { WallJoinTopology topology{}; double angleDegrees{}; std::array<Point2,4> vertices{}; };
+Result<WallJoinGeometry> solveWallJoinGeometry(const Project&,const WallJoin&);
 Result<Project> deleteWallCascade(const Project&,const ModelId& wallId);
 Result<Project> deleteLevelCascade(const Project&,const ModelId& levelId);
 Result<Project> solveWallJoin(const Project&,const ModelId& movedWall,bool movedStart,Point2 newJoint);
