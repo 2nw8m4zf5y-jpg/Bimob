@@ -9,6 +9,7 @@ int main(){using namespace bimob::bridge;
  auto fresh=createSession();assert(fresh);
  auto freshCall=[&](const char*j){return dispatchCommandJson(fresh,j);};
  assert(freshCall(R"({"type":"CreateWall","id":"W0","levelId":"","startX":0,"startY":0,"endX":2,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":false")!=std::string::npos);
+ assert(freshCall(R"({"type":"CreateWall","id":"Wunknown","levelId":"missing","startX":0,"startY":0,"endX":2,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\\\"ok\\\":false")!=std::string::npos);
  assert(freshCall(R"({"type":"CreateLevel","id":"LF","name":"Ground","elevationMeters":0,"heightMeters":3})").find("\"ok\":true")!=std::string::npos);
  assert(freshCall(R"({"type":"CreateWall","id":"Wshort","levelId":"LF","startX":0,"startY":0,"endX":0.01,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":false")!=std::string::npos);
  assert(freshCall(R"({"type":"CreateWall","id":"Wfirst","levelId":"LF","startX":0,"startY":0,"endX":3,"endY":0,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
