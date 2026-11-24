@@ -8,10 +8,10 @@
 #include <sstream>
 namespace bimob::bridge {
 namespace {
-struct Session { Project project; CommandBus bus; Session():project{ModelId{"native-project"},"Native Engine Session"},bus(project){} };
+struct Session { Project project; CommandBus bus; Session():project{ModelId{"native-project"},"Native Engine Session",CowVector<Wall>{},CowVector<Level>{},CowVector<WallJoin>{},CowVector<Opening>{},CowVector<CatalogInstance>{}},bus(project){} };
 std::mutex registryMutex;std::map<std::uint64_t,std::unique_ptr<Session>> sessions;std::uint64_t nextHandle=1;
 std::string quote(const std::string&s){std::string o="\"";for(char c:s){if(c=='"'||c=='\\')o+='\\';if(c=='\n')o+="\\n";else if(c=='\r')o+="\\r";else o+=c;}return o+"\"";}
-std::string field(const std::string&j,const std::string&k){std::regex r("\""+k+"\"\\s*:\\s*\"((?:\\\\.|[^\\"])*)\"");std::smatch m;if(!std::regex_search(j,m,r))return {};return m[1].str();}
+std::string field(const std::string&j,const std::string&k){std::regex r("\\\""+k+"\\\""+R"(\s*:\s*"((?:\\.|[^"])*)")");std::smatch m;if(!std::regex_search(j,m,r))return {};return m[1].str();}
 double number(const std::string&j,const std::string&k,double fallback=0){std::regex r("\""+k+"\"\\s*:\\s*(-?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?)");std::smatch m;if(!std::regex_search(j,m,r))return fallback;return std::stod(m[1].str());}
 std::string errorJson(const std::string&msg){return "{\"ok\":false,\"error\":"+quote(msg)+"}";}
 std::string response(Session&s,bool ok,const std::string&err={}){auto rev=s.bus.snapshot();return "{\"ok\":"+std::string(ok?"true":"false")+",\"revision\":"+std::to_string(rev->number)+",\"snapshot\":"+canonicalProjectJson(*rev->project)+(err.empty()?"":",\"error\":"+quote(err))+"}";}
