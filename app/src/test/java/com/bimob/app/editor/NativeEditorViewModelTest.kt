@@ -231,7 +231,7 @@ class NativeEditorViewModelTest {
   assertNotNull(vm.beginGesture());vm.cancelActiveGesture();assertNull(engine.gesture);vm.close()
  }
  @Test fun typedGeometryIterationUsesStableEntityIdsAndRejectsMismatches(){
-  val oneWall=RenderGeometryBuffer(1,1L,listOf("wall-a"),FloatArray(10){if(it%2==0)it.toFloat()else .1f},emptyList(),FloatArray(0),emptyList(),FloatArray(0),emptyList(),FloatArray(0))
+  val oneWall=RenderGeometryBuffer(1,1L,listOf("wall-a"),floatArrayOf(0f,0f,2f,0f,2f,.2f,0f,.2f,0f,2.7f),emptyList(),FloatArray(0),emptyList(),FloatArray(0),emptyList(),FloatArray(0))
   assertEquals(listOf("wall-a"),GeometryMapper.map(oneWall,emptyMap()).walls.map{it.id})
   val mismatched=oneWall.copy(wallIds=listOf("wall-a","wall-b"))
   assertThrows(IllegalArgumentException::class.java){GeometryMapper.map(mismatched,emptyMap())}
