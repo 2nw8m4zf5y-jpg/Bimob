@@ -44,7 +44,7 @@ data class CatalogPreset(val assetId:String,val label:String,val category:String
  }
 }
 data class CanvasCamera(val zoom:Float=72f,val panX:Float=0f,val panY:Float=0f)
-data class NativeEditorState(val geometry:RenderGeometryBuffer?=null,val canUndo:Boolean=false,val canRedo:Boolean=false,
+data class NativeEditorState(val geometry:RenderGeometryBuffer?=null,val typedGeometry:TypedGeometry?=null,val canUndo:Boolean=false,val canRedo:Boolean=false,
  val error:String?=null,val projectId:String="",val selection:EditorSelection?=null,val openingInfo:Map<String,OpeningRenderInfo> = emptyMap(),val isImporting:Boolean=false,val isExporting:Boolean=false)
 class NativeEditorViewModel internal constructor(private val engine:NativeEditorEngine):ViewModel() {
  constructor():this(JniNativeEditorEngine)
@@ -157,7 +157,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   }
   val history=JSONObject(h)
   val sel=mutableState.value.selection?.takeIf{when(it.kind){EditorElementKind.WALL->g.wallIds.contains(it.id);EditorElementKind.OPENING->g.openingIds.contains(it.id);EditorElementKind.CATALOG->g.catalogInstanceIds.contains(it.id)}}
-  mutableState.value=NativeEditorState(g,history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
+  mutableState.value=NativeEditorState(g,GeometryMapper.map(g,info),history.optBoolean("canUndo"),history.optBoolean("canRedo"),projectId=projectId,selection=sel,openingInfo=info)
  }catch(e:Exception){publishError(e.message?:"BGR1 export failed.")}catch(e:LinkageError){publishError(e.message?:"Native geometry export linkage failed safely.")}}
  private data class Point(val x:Double,val y:Double)
  private fun wallSegment(g:RenderGeometryBuffer,i:Int):Pair<Point,Point>?{val o=i*10;if(o+7>=g.walls.size)return null
