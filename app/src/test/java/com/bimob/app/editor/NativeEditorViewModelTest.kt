@@ -120,6 +120,20 @@ class NativeEditorViewModelTest {
   assertEquals(1.25,command.optDouble("deltaX"),0.0);assertEquals(-.5,command.optDouble("deltaY"),0.0)
   vm.close()
  }
+ @Test fun hostedOpeningAndCatalogMoveEachDispatchOneAtomicCommand(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("move-items","Project");vm.createWall(0.0,0.0,4.0,0.0);vm.createOpening("DOOR",2.0,0.0)
+  val openingId=vm.state.value.geometry!!.openingIds.single();val beforeOpening=e.commands.size
+  vm.moveElement(EditorElementKind.OPENING,openingId,.25,.4)
+  assertEquals(beforeOpening+1,e.commands.size)
+  val openingCommand=JSONObject(e.commands.last());assertEquals("UpdateOpening",openingCommand.optString("type"));assertEquals(openingId,openingCommand.optString("id"))
+  assertEquals(1.8,openingCommand.optDouble("offsetAlongWallMeters"),1e-6)
+  vm.createCatalog(CatalogPreset.TABLE,1.0,1.0,0.0);val catalogId=vm.state.value.geometry!!.catalogInstanceIds.single();val beforeCatalog=e.commands.size
+  vm.moveElement(EditorElementKind.CATALOG,catalogId,.3,-.2)
+  assertEquals(beforeCatalog+1,e.commands.size)
+  val catalogCommand=JSONObject(e.commands.last());assertEquals("UpdateCatalogInstance",catalogCommand.optString("type"));assertEquals(catalogId,catalogCommand.optString("id"))
+  assertEquals(1.3,catalogCommand.optDouble("x"),1e-6);assertEquals(.8,catalogCommand.optDouble("y"),1e-6)
+  vm.close()
+ }
  @Test fun wallCommandJniLinkageFailureIsReportedWithoutEscapingViewModel(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("jni-failure","Project")
   e.failWallDispatchWithLinkageError=true
