@@ -17,16 +17,16 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  auto readU64=[&](std::size_t offset){std::uint64_t v=0;for(int i=0;i<8;i++)v|=static_cast<std::uint64_t>(geometry[offset+i])<<(8*i);return v;};
  assert(readU32(4)==1);assert(readU64(8)>=3);
  auto wc=readU32(16),jc=readU32(20),oc=readU32(24),cc=readU32(28);assert(wc==2&&jc==1&&oc==1&&cc==1);
- assert(geometry.size()>=32ULL+(wc+jc+oc+cc)*32ULL);
- auto idOffset=32ULL+(wc+jc+oc+cc)*32ULL;
+ assert(geometry.size()>=32ULL+wc*40ULL+jc*36ULL+oc*32ULL+cc*32ULL);
+ auto idOffset=32ULL+wc*40ULL+jc*36ULL+oc*32ULL+cc*32ULL;
  auto readId=[&](){auto n=readU32(idOffset);idOffset+=4;assert(n<=geometry.size()-idOffset);std::string id(reinterpret_cast<const char*>(geometry.data()+idOffset),n);idOffset+=n;return id;};
  assert(readId()=="W1"&&readId()=="W2");assert(readId()=="auto:W1:W2");assert(readId()=="O1");assert(readId()=="C1");assert(idOffset==geometry.size());
  auto readF=[&](std::size_t offset){auto bits=readU32(offset);float v;std::memcpy(&v,&bits,sizeof(v));return v;};
- for(std::size_t i=32;i<32+wc*32;i+=4)assert(std::isfinite(readF(i)));
+ for(std::size_t i=32;i<32+wc*40;i+=4)assert(std::isfinite(readF(i)));
  assert(std::abs(readF(32+8)-4.1f)<1e-4f&&std::abs(readF(32+9*4)-0.1f)<1e-4f);
  assert(std::abs(readF(32+4*4)-3.9f)<1e-4f&&std::abs(readF(32+5*4)+0.1f)<1e-4f);
- const std::size_t joinOff=32+wc*32;for(int i=0;i<8;i++)assert(std::isfinite(readF(joinOff+i*4)));
- const std::size_t openingOff=joinOff+jc*32;assert(readF(openingOff+12)==0.9f&&readF(openingOff+16)==2.1f);
+ const std::size_t joinOff=32+wc*40;for(int i=0;i<9;i++)assert(std::isfinite(readF(joinOff+i*4)));assert(readF(joinOff+32)==3.0f);
+ const std::size_t openingOff=joinOff+jc*36;assert(readF(openingOff+12)==0.9f&&readF(openingOff+16)==2.1f);
  const std::size_t catalogOff=openingOff+oc*32;assert(readF(catalogOff)==2.0f&&readF(catalogOff+12)==1.0f);
  
  assert(call(R"({"type":"UpdateOpening","id":"O1","offsetAlongWallMeters":1,"widthMeters":1,"heightMeters":2.2,"sillHeightMeters":0})").find("\"ok\":true")!=std::string::npos);
