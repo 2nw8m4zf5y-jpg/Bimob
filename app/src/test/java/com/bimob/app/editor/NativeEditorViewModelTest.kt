@@ -76,6 +76,11 @@ class NativeEditorViewModelTest {
   assertTrue(vm.state.value.geometry?.wallIds.isNullOrEmpty())
   assertTrue(vm.state.value.error!!.contains("активным уровнем"))
   vm.resetProject("first-wall","New project")
+  vm.createWall(Double.NaN,0.0,3.0,0.0)
+  assertTrue(vm.state.value.geometry!!.wallIds.isEmpty())
+  assertTrue(vm.state.value.error!!.contains("конечными"))
+  vm.createWall(0.0,0.0,0.01,0.0)
+  assertTrue(vm.state.value.geometry!!.wallIds.isEmpty())
   vm.createWall(0.0,0.0,3.0,0.0)
   val geometry=vm.state.value.geometry!!
   assertEquals(1,geometry.wallIds.size)
