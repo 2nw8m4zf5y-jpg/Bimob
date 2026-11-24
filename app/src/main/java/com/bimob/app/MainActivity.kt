@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.bimob.app.editor.NativeEditorViewModel
 import com.bimob.app.editor.NativeEditorViewport
 import java.io.File
+import org.json.JSONObject
 
 class MainActivity:ComponentActivity(){
  private val editor by viewModels<NativeEditorViewModel>()
@@ -58,7 +59,7 @@ class MainActivity:ComponentActivity(){
  private fun fileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.json")
  private fun loadSaved(name:String){try{if(editor.openProjectSnapshot(fileFor(name).readText()))prefs.edit().putString("active_name",name).apply()}catch(e:Exception){toast(e.message?:"Не удалось открыть")}}
  private fun saveCurrent(){try{val n=prefs.getString("active_name","Мой проект")?:"Мой проект";val target=fileFor(n);val temp=File(dir,target.name+".tmp");temp.writeText(editor.exportProjectSnapshot());if(!temp.renameTo(target))error("Atomic save failed");prefs.edit().putString(n,"saved").apply();toast("Сохранено в NativeSession")}catch(e:Exception){toast(e.message?:"Ошибка сохранения")}}
- private fun openJson(uri:Uri){try{val json=contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Пустой файл");if(editor.openProjectSnapshot(json)){val n=Regex(""""name"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)?:"Импортированный проект";prefs.edit().putString("active_name",n).apply()}else toast("Проект не прошёл проверку")}catch(e:Exception){toast(e.message?:"Ошибка открытия")}}
+ private fun openJson(uri:Uri){try{val json=contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Пустой файл");if(editor.openProjectSnapshot(json)){val n=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?:"Импортированный проект";prefs.edit().putString("active_name",n).apply()}else toast("Проект не прошёл проверку")}catch(e:Exception){toast(e.message?:"Ошибка открытия")}}
  private fun writeJson(uri:Uri,json:String){try{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл");toast("Экспорт завершён")}catch(e:Exception){toast(e.message?:"Ошибка экспорта")}}
  private fun toast(s:String)=android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show()
 }
