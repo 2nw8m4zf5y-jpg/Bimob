@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.*
 
 private enum class EditorTool { WALL, SELECT, DOOR, WINDOW, CATALOG }
-internal data class WorldPoint(val x:Double,val y:Double)
+internal data class WorldPoint(val x:Double,val y:Double)\ninternal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val dx:Double,val dy:Double)
 
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
@@ -32,7 +32,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
- var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
+ var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}\n var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  Column(modifier) {
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
@@ -78,29 +78,30 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }
     }
    }
-   .pointerInput(tool,camera.zoom,camera.panX,camera.panY){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var gesture:String?=null;var movingId:String?=null;var settled=false
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry){
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var movingId:String?=null
     try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
-     if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
+     val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val world=snap(raw,state.typedGeometry);start=world;last=world
-     if(tool==EditorTool.SELECT){movingId=nearestWallId(screen,state.typedGeometry,size,camera.zoom,Offset(camera.panX,camera.panY));if(movingId!=null)gesture=viewModel.beginGesture()}
+     if(tool==EditorTool.SELECT)movingId=nearestWallId(screen,state.typedGeometry,size,camera.zoom,Offset(camera.panX,camera.panY))
     },onDrag={change,_->
-     change.consume();val a=start?:return@detectDragGestures
+     change.consume();val origin=start?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
-     val raw=screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY))
-     if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
-     val p=snap(raw,state.geometry);val prev=last?:a
-     if(tool==EditorTool.WALL)preview=a to p
-     else if(tool==EditorTool.SELECT){movingId?.let{viewModel.moveWall(it,p.x-prev.x,p.y-prev.y)}}
-     last=p
+     val raw=screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY));if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
+     val point=snap(raw,state.typedGeometry)
+     if(tool==EditorTool.WALL)preview=origin to point
+     else if(tool==EditorTool.SELECT)movingId?.let{id->transformPreview=TransformPreviewState(EditorElementKind.WALL,id,point.x-origin.x,point.y-origin.y)}
+     last=point
     },onDragEnd={
-     val a=start;val b=last
-     if(tool==EditorTool.WALL&&a!=null&&b!=null)viewModel.createWall(a.x,a.y,b.x,b.y)
-     try{gesture?.let(viewModel::commitGesture);settled=true}finally{preview=null;start=null;last=null;gesture=null;movingId=null}
-    },onDragCancel={try{gesture?.let(viewModel::cancelGesture)}finally{settled=true;preview=null;start=null;last=null;gesture=null;movingId=null}})}finally{if(!settled)gesture?.let(viewModel::cancelGesture);preview=null;start=null;last=null;gesture=null;movingId=null}
+     val from=start;val to=last;val tp=transformPreview
+     try{if(tool==EditorTool.WALL&&from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
+      else if(tp!=null&&tp.dx.isFinite()&&tp.dy.isFinite()&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveWall(tp.id,tp.dx,tp.dy)
+     }finally{preview=null;transformPreview=null;start=null;last=null;movingId=null}
+    },onDragCancel={preview=null;transformPreview=null;start=null;last=null;movingId=null})}
+    finally{preview=null;transformPreview=null;start=null;last=null;movingId=null}
    }
+
   ) {
    val origin=Offset(size.width/2f+camera.panX,size.height/2f+camera.panY);val grid=(camera.zoom*.5f).coerceAtLeast(6f)
    var gx=origin.x%grid;while(gx<size.width){drawLine(Color(0xFFE8EDF2),Offset(gx,0f),Offset(gx,size.height));gx+=grid}
@@ -109,7 +110,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    drawLine(Color(0xFFCAD3DD),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
    val g=state.typedGeometry
    if(g!=null){
-    g.walls.forEach{wall->drawTypedPolygon(wall.corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B))}
+    g.walls.forEach{wall->if(transformPreview?.id!=wall.id)drawTypedPolygon(wall.corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B))}
+    transformPreview?.takeIf{it.kind==EditorElementKind.WALL}?.let{tp->g.walls.firstOrNull{it.id==tp.id}?.let{wall->drawTypedPolygon(wall.corners.map{Vec2(it.x+tp.dx,it.y+tp.dy)},size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF1976D2))}}
     g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
      val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
