@@ -42,8 +42,11 @@ data class CatalogPreset(val assetId:String,val label:String,val category:String
  companion object {
   val TABLE=CatalogPreset("furniture.table.basic","Стол","furniture",1.2,0.7,0.75)
   val BED=CatalogPreset("furniture.bed.single","Кровать","furniture",2.0,0.9,0.55)
-  val COLUMN=CatalogPreset("plumbing.column","Сантехника","plumbing",0.6,0.6,0.9)
-  val all=listOf(TABLE,BED,COLUMN)
+  val SOFA=CatalogPreset("furniture.sofa.3seat","Диван","furniture",2.1,0.9,0.85)
+  val TOILET=CatalogPreset("plumbing.toilet.floor","Унитаз","plumbing",0.7,0.4,0.75)
+  val SINK=CatalogPreset("plumbing.sink.basic","Раковина","plumbing",0.6,0.5,0.85)
+  val BATH=CatalogPreset("plumbing.bath.standard","Ванна","plumbing",1.7,0.75,0.6)
+  val all=listOf(BED,SOFA,TABLE,TOILET,SINK,BATH)
  }
 }
 data class CanvasCamera(val zoom:Float=72f,val panX:Float=0f,val panY:Float=0f)
@@ -177,6 +180,15 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
     mutate("""{"type":"UpdateCatalogInstance","id":"${item.id}","x":${item.center.x},"y":${item.center.y},"widthMeters":${item.width},"depthMeters":${item.depth},"heightMeters":${item.height},"rotationRadians":${item.rotationRadians+deltaRadians}}""")
    }
   }
+ }
+ fun resizeWallEndpoint(id:String,moveStart:Boolean,x:Double,y:Double){
+  if(!listOf(x,y).all{it.isFinite()})return
+  val wall=mutableState.value.typedGeometry?.walls?.firstOrNull{it.id==id}?:return
+  val fixed=if(moveStart)wall.axisEnd else wall.axisStart
+  val start=if(moveStart)Vec2(x,y)else fixed
+  val end=if(moveStart)fixed else Vec2(x,y)
+  if(hypot(end.x-start.x,end.y-start.y)<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return}
+  mutate("""{"type":"RotateWall","id":"$id","startX":\${start.x},"startY":\${start.y},"endX":\${end.x},"endY":\${end.y}}""")
  }
  fun resizeElement(selection:EditorSelection,factor:Double){
   if(!factor.isFinite()||factor<=0.0||factor==1.0)return
