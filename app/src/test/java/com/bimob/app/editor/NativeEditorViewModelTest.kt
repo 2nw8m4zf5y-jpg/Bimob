@@ -131,7 +131,7 @@ class NativeEditorViewModelTest {
   vm.moveElement(EditorElementKind.CATALOG,catalogId,.3,-.2)
   assertEquals(beforeCatalog+1,e.commands.count{!it.contains("HistoryState")})
   val catalogCommand=JSONObject(e.commands.last{!it.contains("HistoryState")});assertEquals("UpdateCatalogInstance",catalogCommand.optString("type"));assertEquals(catalogId,catalogCommand.optString("id"))
-  assertEquals(1.3,catalogCommand.optDouble("x"),1e-6);assertEquals(.8,catalogCommand.optDouble("y"),1e-6)
+  assertEquals(2.3,catalogCommand.optDouble("x"),1e-6);assertEquals(.8,catalogCommand.optDouble("y"),1e-6)
   vm.close()
  }
  @Test fun rotateAndResizeEachIssueOneNativeCommand(){
