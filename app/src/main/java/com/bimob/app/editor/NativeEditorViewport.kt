@@ -40,7 +40,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  var showCatalogPicker by remember{mutableStateOf(false)}
- var endpointDrag by remember{mutableStateOf<Triple<String,Boolean,WorldPoint>?>(null)}\n var endpointPreview by remember{mutableStateOf<Triple<String,Boolean,WorldPoint>?>(null)}\n val endpointHitPx=with(LocalDensity.current){16.dp.toPx()}
  Column(modifier) {
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
@@ -66,7 +65,18 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     TextButton(onClick={viewModel.resizeElement(selected,.9)}){Text("−10%")}
    }
   }
-  if(showCatalogPicker) AlertDialog(onDismissRequest={showCatalogPicker=false},title={Text("Каталог элементов")},text={Column(Modifier.heightIn(max=360.dp).verticalScroll(rememberScrollState())){CatalogPreset.all.forEach{item->TextButton(onClick={preset=item;tool=EditorTool.CATALOG;showCatalogPicker=false},modifier=Modifier.fillMaxWidth()){Text("${item.label}  •  ${item.width} × ${item.depth} × ${item.height} м")}}},confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}})
+  if(showCatalogPicker) AlertDialog(
+   onDismissRequest={showCatalogPicker=false},
+   title={Text("Каталог элементов")},
+   text={Column(Modifier.heightIn(max=360.dp).verticalScroll(rememberScrollState())){
+    CatalogPreset.all.forEach{item->
+     TextButton(onClick={preset=item;tool=EditorTool.CATALOG;showCatalogPicker=false},modifier=Modifier.fillMaxWidth()){
+      Text("${item.label} • ${item.width} × ${item.depth} × ${item.height} м")
+     }
+    }
+   }},
+   confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}}
+  )
   Canvas(Modifier.fillMaxWidth().weight(1f).clipToBounds().zIndex(0f).background(Color.White)
    .pointerInput(Unit){
     awaitEachGesture {
@@ -110,7 +120,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       EditorTool.WALL->preview=origin to point
       EditorTool.SELECT->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,point.x-origin.x,point.y-origin.y)}
       EditorTool.ROTATE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,rotationRadians=(change.position.x-originScreen.x)/120f*2*Math.PI)}
-      EditorTool.RESIZE->if(endpointDrag==null)movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,scaleFactor=exp((change.position.x-originScreen.x).toDouble()/160.0).coerceIn(.2,5.0)}
+      EditorTool.RESIZE->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,scaleFactor=exp((change.position.x-originScreen.x).toDouble()/160.0).coerceIn(.2,5.0))}
       else->Unit
      }
      last=point
@@ -120,11 +130,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       EditorTool.WALL->if(from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
       EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
       EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
-      EditorTool.RESIZE->if(ep!=null)viewModel.resizeWallEndpoint(ep.first,ep.second,ep.third.x,ep.third.y)else if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
+      EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
       else->Unit
-     }}finally{preview=null;transformPreview=null;endpointPreview=null;endpointDrag=null;start=null;last=null;startScreen=null;movingSelection=null}
-    },onDragCancel={preview=null;transformPreview=null;endpointPreview=null;endpointDrag=null;start=null;last=null;startScreen=null;movingSelection=null})}
-    finally{preview=null;transformPreview=null;endpointPreview=null;endpointDrag=null;start=null;last=null;startScreen=null;movingSelection=null}
+     }}finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
+    },onDragCancel={preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null})}
+    finally{preview=null;transformPreview=null;start=null;last=null;startScreen=null;movingSelection=null}
    }
 
   ) {
@@ -138,7 +148,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     g.walls.forEach{wall->
      val tp=transformPreview?.takeIf{it.kind==EditorElementKind.WALL&&it.id==wall.id}
      val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1976D2)else Color(0xFF33465B)
-     val ep=endpointPreview?.takeIf{it.first==wall.id};drawTypedPolygon(if(ep!=null)resizeWallEndpointPreview(wall,ep.second,Vec2(ep.third.x,ep.third.y))else if(tp==null)wall.corners else transformWallPreview(wall,tp),size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)Color(0xFF1976D2)else color)\n     if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id)&&tool==EditorTool.RESIZE){val a=worldToScreen(WorldPoint(wall.axisStart.x,wall.axisStart.y),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(wall.axisEnd.x,wall.axisEnd.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1976D2),endpointHitPx,a);drawCircle(Color.White,endpointHitPx*.62f,a);drawCircle(Color(0xFF1976D2),endpointHitPx,b);drawCircle(Color.White,endpointHitPx*.62f,b)}
+     drawTypedPolygon(if(tp==null)wall.corners else transformWallPreview(wall,tp),size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null)Color(0xFF1976D2)else color)
     }
     g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF8BA3B8))}
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
@@ -171,13 +181,6 @@ private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:
  val pts=listOf(WorldPoint(a.x+nx,a.y+ny),WorldPoint(b.x+nx,b.y+ny),WorldPoint(b.x-nx,b.y-ny),WorldPoint(a.x-nx,a.y-ny))
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
  drawPath(path,Color(0xFF1976D2).copy(alpha=.35f))
-}
-internal fun resizeWallEndpointPreview(wall:WallItem,moveStart:Boolean,newPoint:Vec2):List<Vec2>{
- val a=if(moveStart)newPoint else wall.axisStart;val b=if(moveStart)wall.axisEnd else newPoint
- val dx=b.x-a.x;val dy=b.y-a.y;val len=hypot(dx,dy);if(len<1e-8)return wall.corners
- val halfThickness=hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)/2
- val nx=-dy/len*halfThickness;val ny=dx/len*halfThickness
- return listOf(Vec2(a.x+nx,a.y+ny),Vec2(b.x+nx,b.y+ny),Vec2(b.x-nx,b.y-ny),Vec2(a.x-nx,a.y-ny))
 }
 internal fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<Vec2>{
  val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val length=hypot(dx,dy);if(length<=1e-9)return wall.corners
