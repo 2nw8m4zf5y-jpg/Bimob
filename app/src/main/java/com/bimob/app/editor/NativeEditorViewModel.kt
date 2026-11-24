@@ -145,7 +145,8 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val type=when(s.kind){EditorElementKind.WALL->"DeleteWall";EditorElementKind.OPENING->"DeleteOpening";EditorElementKind.CATALOG->"DeleteCatalogInstance"}
   mutate("""{"type":"$type","id":"${s.id}"}""");if(mutableState.value.error==null)select(null)
  }
- fun selectElement(s:EditorSelection?){select(s)}\n private fun select(s:EditorSelection?){mutableState.value=mutableState.value.copy(selection=s)}
+ fun selectElement(s:EditorSelection?){select(s)}
+ private fun select(s:EditorSelection?){mutableState.value=mutableState.value.copy(selection=s)}
  fun moveWall(id:String,dx:Double,dy:Double){if(dx!=0.0||dy!=0.0)mutate("""{"type":"MoveWall","id":"$id","deltaX":$dx,"deltaY":$dy}""")}
  fun moveElement(kind:EditorElementKind,id:String,dx:Double,dy:Double){
   if(!dx.isFinite()||!dy.isFinite()||(dx==0.0&&dy==0.0))return
