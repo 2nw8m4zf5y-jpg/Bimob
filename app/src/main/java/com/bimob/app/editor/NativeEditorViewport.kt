@@ -38,7 +38,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
- var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}\n var showCatalogPicker by remember{mutableStateOf(false)}\n var endpointDrag by remember{mutableStateOf<Triple<String,Boolean,WorldPoint>?>(null)}
+ var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
+ var showCatalogPicker by remember{mutableStateOf(false)}
+ var endpointDrag by remember{mutableStateOf<Triple<String,Boolean,WorldPoint>?>(null)}
  Column(modifier) {
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
