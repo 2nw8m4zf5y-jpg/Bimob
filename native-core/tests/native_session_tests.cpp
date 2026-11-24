@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert(exportCanonicalSnapshot(h).find("Native Engine Session")!=std::string::npos);
  auto call=[&](const char*j){return dispatchCommandJson(h,j);};
  assert(call(R"({"type":"CreateLevel","id":"L1","name":"Ground","elevationMeters":0,"heightMeters":3})").find("\"ok\":true")!=std::string::npos);
@@ -19,6 +20,8 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  assert(geometry.size()==32ULL+(wc+jc+oc+cc)*32ULL);
  auto readF=[&](std::size_t offset){auto bits=readU32(offset);float v;std::memcpy(&v,&bits,sizeof(v));return v;};
  for(std::size_t i=32;i<32+wc*32;i+=4)assert(std::isfinite(readF(i)));
+ assert(std::abs(readF(32+8)-4.1f)<1e-4f&&std::abs(readF(32+9*4)-0.1f)<1e-4f);
+ assert(std::abs(readF(32+6*4)-3.9f)<1e-4f&&std::abs(readF(32+7*4)+0.1f)<1e-4f);
  const std::size_t joinOff=32+wc*32;for(int i=0;i<8;i++)assert(std::isfinite(readF(joinOff+i*4)));
  const std::size_t openingOff=joinOff+jc*32;assert(readF(openingOff+12)==0.9f&&readF(openingOff+16)==2.1f);
  const std::size_t catalogOff=openingOff+oc*32;assert(readF(catalogOff)==2.0f&&readF(catalogOff+12)==1.0f);
