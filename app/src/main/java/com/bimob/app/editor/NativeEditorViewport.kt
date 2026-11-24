@@ -76,9 +76,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
   }
-  Row(Modifier.fillMaxWidth().weight(1f)) {
-   Canvas(Modifier.weight(1f).clipToBounds().zIndex(0f).background(Color.White)
-    .pointerInput(Unit){
+  if(showCatalogPicker) AlertDialog(
    onDismissRequest={showCatalogPicker=false},
    title={Text("Каталог элементов")},
    text={Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())){
@@ -96,8 +94,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }},
    confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}}
   )
-  Canvas(Modifier.fillMaxWidth().weight(1f).clipToBounds().zIndex(0f).background(Color.White)
-   .pointerInput(Unit){
+  Row(Modifier.fillMaxWidth().weight(1f)) {
+   Canvas(Modifier.weight(1f).clipToBounds().zIndex(0f).background(Color.White)
+    .pointerInput(Unit){
     awaitEachGesture {
      var oldCentroid:Offset?=null;var oldDistance=0f
      do {
