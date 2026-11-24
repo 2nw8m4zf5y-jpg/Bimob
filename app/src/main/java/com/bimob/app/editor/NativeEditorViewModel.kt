@@ -49,7 +49,7 @@ data class NativeEditorState(val geometry:RenderGeometryBuffer?=null,val canUndo
 class NativeEditorViewModel internal constructor(private val engine:NativeEditorEngine):ViewModel() {
  constructor():this(JniNativeEditorEngine)
  private var handle=engine.createSession();private var levelId=""
- private val importMutex=Mutex();private val exportMutex=Mutex();private var requestGeneration=0L;private var activeGestureId:String?=null
+ private val snapshotIoMutex=Mutex();private val nativeSessionLock=Any();private var requestGeneration=0L;private var activeGestureId:String?=null
  private val mutableState=MutableStateFlow(NativeEditorState())
  val state:StateFlow<NativeEditorState> = mutableState.asStateFlow()
  private val mutableCamera=MutableStateFlow(CanvasCamera())
@@ -67,9 +67,9 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val r=engine.dispatch(handle,"""{"type":"CreateLevel","id":"$levelId","name":"Level 1","elevationMeters":0,"heightMeters":3}""")
   if(!isOk(r)){levelId="";publishError(errorFrom(r));return};refresh(projectId)
  }
- fun exportProjectSnapshot():String=engine.snapshot(handle)
- fun exportProjectSnapshotAsync(onResult:(Result<String>)->Unit){if(mutableState.value.isExporting)return;mutableState.value=mutableState.value.copy(isExporting=true,error=null);viewModelScope.launch{exportMutex.withLock{val gen=requestGeneration;val result=runCatching{withContext(Dispatchers.IO){if(handle==0L)error("Native session is closed.");engine.snapshot(handle)}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isExporting=false);onResult(result)}}}
- fun openProjectSnapshotAsync(json:String,onResult:(Boolean)->Unit){if(mutableState.value.isImporting)return;mutableState.value=mutableState.value.copy(isImporting=true,error=null);viewModelScope.launch{importMutex.withLock{val gen=requestGeneration;val ok=withContext(Dispatchers.IO){openProjectSnapshot(json)};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isImporting=false);onResult(gen==requestGeneration&&ok)}}}
+ fun exportProjectSnapshot():String=synchronized(nativeSessionLock){val session=handle;if(session==0L)error("Native session is closed.");engine.snapshot(session)}
+ fun exportProjectSnapshotAsync(onResult:(Result<String>)->Unit){if(mutableState.value.isExporting||mutableState.value.isImporting)return;mutableState.value=mutableState.value.copy(isExporting=true,error=null);viewModelScope.launch{snapshotIoMutex.withLock{val gen=requestGeneration;val result=runCatching{withContext(Dispatchers.IO){synchronized(nativeSessionLock){val session=handle;if(session==0L)error("Native session is closed.");engine.snapshot(session)}}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isExporting=false);onResult(result)}}}
+ fun openProjectSnapshotAsync(json:String,onResult:(Boolean)->Unit){if(mutableState.value.isImporting||mutableState.value.isExporting)return;mutableState.value=mutableState.value.copy(isImporting=true,error=null);viewModelScope.launch{snapshotIoMutex.withLock{val gen=requestGeneration;val ok=withContext(Dispatchers.IO){synchronized(nativeSessionLock){openProjectSnapshot(json)}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isImporting=false);onResult(gen==requestGeneration&&ok)}}}
  fun openProjectSnapshot(json:String):Boolean {
   val snapshot=try{JSONObject(json)}catch(e:Exception){publishError(e.message?:"Invalid canonical snapshot JSON.");return false}
   val pid=snapshot.optString("projectId").takeIf{it.isNotBlank()}
@@ -80,7 +80,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
    return false
   }
   val r=engine.importSnapshot(handle,json)
-  if(!isOk(r)){publishError(errorFrom(r));return false}
+  if(!isOk(r)){publishError(errorFrom(r));return@synchronized false}
   levelId=importedLevel
   mutableState.value=mutableState.value.copy(selection=null)
   refresh(pid)
@@ -165,6 +165,6 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  private fun isOk(s:String)=runCatching{JSONObject(s).optBoolean("ok")}.getOrDefault(false)
  private fun errorFrom(s:String)=runCatching{JSONObject(s).optString("error").takeIf{it.isNotBlank()}}.getOrNull()?:"Native command rejected."
  private fun publishError(s:String){mutableState.value=mutableState.value.copy(error=s)}
- fun close(){requestGeneration++;cancelActiveGesture();if(handle!=0L){engine.destroySession(handle);handle=0L}}
+ fun close(){requestGeneration++;synchronized(nativeSessionLock){cancelActiveGesture();if(handle!=0L){engine.destroySession(handle);handle=0L}}}
  override fun onCleared(){close();super.onCleared()}
 }
