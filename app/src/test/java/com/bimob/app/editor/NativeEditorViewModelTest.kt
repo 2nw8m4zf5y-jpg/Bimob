@@ -92,6 +92,33 @@ class NativeEditorViewModelTest {
   assertEquals(5.0,endCmd.optDouble("endX"),0.0);assertEquals(2.0,endCmd.optDouble("endY"),0.0)
   vm.close()
  }
+ @Test fun endpointResizeStartAndEndDispatchAtomicCoordinatesWithHostedOpeningPresent(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("endpoint-resize-test","Project");vm.createWall(0.0,0.0,4.0,0.0);vm.createOpening("DOOR",2.0,0.0)
+  val wallId=vm.state.value.geometry!!.wallIds.single()
+  val openingId=vm.state.value.geometry!!.openingIds.single()
+  assertEquals(wallId,vm.state.value.openingInfo[openingId]!!.hostWallId)
+  val count1=e.commands.count{!it.contains("HistoryState")}
+  vm.resizeWallEndpoint(wallId,true,-1.0,1.0)
+  assertEquals(count1+1,e.commands.count{!it.contains("HistoryState")})
+  val start=JSONObject(e.commands.last{!it.contains("HistoryState")})
+  assertEquals("RotateWall",start.optString("type"));assertEquals(-1.0,start.optDouble("startX"),0.0);assertEquals(1.0,start.optDouble("startY"),0.0)
+  assertEquals(4.0,start.optDouble("endX"),0.0);assertEquals(0.0,start.optDouble("endY"),0.0)
+  val count2=e.commands.count{!it.contains("HistoryState")}
+  vm.resizeWallEndpoint(wallId,false,5.0,2.0)
+  assertEquals(count2+1,e.commands.count{!it.contains("HistoryState")})
+  val end=JSONObject(e.commands.last{!it.contains("HistoryState")})
+  assertEquals(0.0,end.optDouble("startX"),0.0);assertEquals(0.0,end.optDouble("startY"),0.0)
+  assertEquals(5.0,end.optDouble("endX"),0.0);assertEquals(2.0,end.optDouble("endY"),0.0)
+  assertEquals(wallId,vm.state.value.openingInfo[openingId]!!.hostWallId)
+  vm.close()
+ }
+ @Test fun catalogPresetsIncludeFurnitureAndSanitaryAssetsWithRealisticDimensions(){
+  val ids=CatalogPreset.all.map{it.assetId}
+  assertTrue(ids.contains("furniture.bed.double"));assertTrue(ids.contains("furniture.sofa.3seat"))
+  assertTrue(ids.contains("furniture.table.basic"));assertTrue(ids.contains("plumbing.toilet.floor"))
+  assertTrue(ids.contains("plumbing.sink.basic"));assertTrue(ids.contains("plumbing.bath.standard"))
+  CatalogPreset.all.forEach{assertTrue(it.width>0);assertTrue(it.depth>0);assertTrue(it.height>0);assertTrue(it.category.isNotBlank())}
+ }
  @Test fun cameraZoomAndPanRemainInViewModelAndAreClamped(){
   val vm=NativeEditorViewModel(FakeEngine())
   vm.setCamera(144f,37f,-22f)
