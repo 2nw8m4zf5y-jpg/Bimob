@@ -59,7 +59,12 @@ class NativeEditorViewModelTest {
    importedSnapshot=json;undo.clear();redo.clear();revision++
    return """{"ok":true}"""
   }
-  override fun snapshot(handle:Long):String=importedSnapshot ?: """{}"""
+  override fun snapshot(handle:Long):String {
+   val elements=model.openings.entries.joinToString(","){(id,value)->
+    """{"hostWallId":"${value.first}","id":"$id","openingKind":"${value.second}"}"""
+   }
+   return """{"elements":[$elements]}"""
+  }
   override fun beginGesture(handle:Long,id:String):Boolean{gesture=id;return true}
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
