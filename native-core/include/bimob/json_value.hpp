@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <locale>
+#include <sstream>
 #include <map>
 #include <string>
 #include <string_view>
@@ -48,7 +50,7 @@ class Parser {
  else if(c=='t'){if(input_.substr(pos_,4)!="true")throw ParseError("Invalid literal");pos_+=4;v.data=true;}
  else if(c=='f'){if(input_.substr(pos_,5)!="false")throw ParseError("Invalid literal");pos_+=5;v.data=false;}
  else if(c=='n'){if(input_.substr(pos_,4)!="null")throw ParseError("Invalid literal");pos_+=4;v.data=nullptr;}
- else {std::size_t start=pos_;if(peek()=='-')++pos_;if(peek()=='0')++pos_;else{if(peek()<'1'||peek()>'9')throw ParseError("Invalid JSON number");while(peek()>='0'&&peek()<='9')++pos_;}if(peek()=='.'){++pos_;if(peek()<'0'||peek()>'9')throw ParseError("Invalid JSON fraction");while(peek()>='0'&&peek()<='9')++pos_;}if(peek()=='e'||peek()=='E'){++pos_;if(peek()=='+'||peek()=='-')++pos_;if(peek()<'0'||peek()>'9')throw ParseError("Invalid JSON exponent");while(peek()>='0'&&peek()<='9')++pos_;}double n{};auto r=std::from_chars(input_.data()+start,input_.data()+pos_,n);if(r.ec!=std::errc{}||r.ptr!=input_.data()+pos_||!std::isfinite(n))throw ParseError("JSON number out of range");v.data=n;}
+ else {std::size_t start=pos_;if(peek()=='-')++pos_;if(peek()=='0')++pos_;else{if(peek()<'1'||peek()>'9')throw ParseError("Invalid JSON number");while(peek()>='0'&&peek()<='9')++pos_;}if(peek()=='.'){++pos_;if(peek()<'0'||peek()>'9')throw ParseError("Invalid JSON fraction");while(peek()>='0'&&peek()<='9')++pos_;}if(peek()=='e'||peek()=='E'){++pos_;if(peek()=='+'||peek()=='-')++pos_;if(peek()<'0'||peek()>'9')throw ParseError("Invalid JSON exponent");while(peek()>='0'&&peek()<='9')++pos_;}const auto token=input_.substr(start,pos_-start);std::istringstream numberStream{std::string(token)};numberStream.imbue(std::locale::classic());double n{};numberStream>>n;if(numberStream.fail()||numberStream.peek()!=std::char_traits<char>::eof()||!std::isfinite(n))throw ParseError("JSON number out of range");v.data=n;}
  --depth_;return v;
  }
 public:
