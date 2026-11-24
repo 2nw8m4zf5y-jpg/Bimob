@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.*
 
 private enum class EditorTool { WALL, SELECT, DOOR, WINDOW, CATALOG }
-private data class WorldPoint(val x:Double,val y:Double)
+internal data class WorldPoint(val x:Double,val y:Double)
 
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
@@ -67,7 +67,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
    .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.geometry,preset,rotation){
     detectTapGestures { screen ->
+     if(!screen.x.isFinite()||!screen.y.isFinite())return@detectTapGestures
      val p=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
+     if(!p.x.isFinite()||!p.y.isFinite())return@detectTapGestures
      when(tool){
       EditorTool.DOOR->viewModel.createOpening("DOOR",p.x,p.y)
       EditorTool.WINDOW->viewModel.createOpening("WINDOW",p.x,p.y)
@@ -79,11 +81,17 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.geometry){
     var start:WorldPoint?=null;var last:WorldPoint?=null;var gesture:String?=null;var movingId:String?=null
     detectDragGestures(onDragStart={screen->
-     val world=snap(screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY)),state.geometry);start=world;last=world
+     if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
+     val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
+     if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
+     val world=snap(raw,state.geometry);start=world;last=world
      if(tool==EditorTool.SELECT){movingId=nearestWallId(screen,state.geometry,size,camera.zoom,Offset(camera.panX,camera.panY));if(movingId!=null)gesture=viewModel.beginGesture()}
     },onDrag={change,_->
      change.consume();val a=start?:return@detectDragGestures
-     val p=snap(screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY)),state.geometry);val prev=last?:a
+     if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
+     val raw=screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY))
+     if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
+     val p=snap(raw,state.geometry);val prev=last?:a
      if(tool==EditorTool.WALL)preview=a to p
      else if(tool==EditorTool.SELECT){movingId?.let{viewModel.moveWall(it,p.x-prev.x,p.y-prev.y)}}
      last=p
@@ -139,17 +147,31 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  }
 }
 private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:Float,pan:Offset){
- val dx=b.x-a.x;val dy=b.y-a.y;val len=hypot(dx,dy);if(len<1e-6)return
+ if(!a.x.isFinite()||!a.y.isFinite()||!b.x.isFinite()||!b.y.isFinite()||!scale.isFinite()||scale<=0f)return
+ val dx=b.x-a.x;val dy=b.y-a.y;val len=hypot(dx,dy);if(!len.isFinite()||len<1e-6)return
  val nx=-dy/len*.1;val ny=dx/len*.1
  val pts=listOf(WorldPoint(a.x+nx,a.y+ny),WorldPoint(b.x+nx,b.y+ny),WorldPoint(b.x-nx,b.y-ny),WorldPoint(a.x-nx,a.y-ny))
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
  drawPath(path,Color(0xFF1976D2).copy(alpha=.35f))
 }
 private fun DrawScope.drawPolygon(v:FloatArray,o:Int,size:Size,scale:Float,pan:Offset,color:Color){
- val p=Path();for(i in 0..3){val s=worldToScreen(WorldPoint(v[o+i*2].toDouble(),v[o+i*2+1].toDouble()),size,scale,pan);if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color.copy(alpha=.72f))
+ if(o<0||o+7>=v.size||!scale.isFinite()||scale<=0f)return
+ for(i in 0..7)if(!v[o+i].isFinite())return
+ val p=Path();for(i in 0..3){val s=worldToScreen(WorldPoint(v[o+i*2].toDouble(),v[o+i*2+1].toDouble()),size,scale,pan);if(!s.x.isFinite()||!s.y.isFinite())return;if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color.copy(alpha=.72f))
 }
-private fun worldToScreen(p:WorldPoint,size:Size,scale:Float,pan:Offset)=Offset(size.width/2f+pan.x+p.x.toFloat()*scale,size.height/2f+pan.y-p.y.toFloat()*scale)
-private fun screenToWorld(p:Offset,size:IntSize,scale:Float,pan:Offset)=WorldPoint(((p.x-size.width/2f-pan.x)/scale).toDouble(),((size.height/2f+pan.y-p.y)/scale).toDouble())
+internal fun worldToScreen(p:WorldPoint,size:Size,scale:Float,pan:Offset):Offset {
+ if(!p.x.isFinite()||!p.y.isFinite()||!scale.isFinite()||scale<=0f||!pan.x.isFinite()||!pan.y.isFinite())return Offset.Zero
+ val x=size.width/2.0+pan.x.toDouble()+p.x*scale.toDouble()
+ val y=size.height/2.0+pan.y.toDouble()-p.y*scale.toDouble()
+ if(!x.isFinite()||!y.isFinite())return Offset.Zero
+ return Offset(x.coerceIn(-1.0e7,1.0e7).toFloat(),y.coerceIn(-1.0e7,1.0e7).toFloat())
+}
+internal fun screenToWorld(p:Offset,size:IntSize,scale:Float,pan:Offset):WorldPoint {
+ if(!p.x.isFinite()||!p.y.isFinite()||!scale.isFinite()||scale<=0f||!pan.x.isFinite()||!pan.y.isFinite())return WorldPoint(Double.NaN,Double.NaN)
+ val x=(p.x.toDouble()-size.width/2.0-pan.x.toDouble())/scale.toDouble()
+ val y=(size.height/2.0+pan.y.toDouble()-p.y.toDouble())/scale.toDouble()
+ return if(x.isFinite()&&y.isFinite())WorldPoint(x,y) else WorldPoint(Double.NaN,Double.NaN)
+}
 private fun snap(p:WorldPoint,g:com.bimob.app.core.nativebridge.RenderGeometryBuffer?):WorldPoint{
  val grid=WorldPoint(round(p.x*10)/10,round(p.y*10)/10);if(g==null)return grid
  var best=grid;var dBest=.16

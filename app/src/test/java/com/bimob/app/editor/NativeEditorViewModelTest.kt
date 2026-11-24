@@ -4,6 +4,9 @@ import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 import org.junit.Assert.*
 import org.json.JSONObject
 import org.junit.Test
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
 
 class NativeEditorViewModelTest {
  private data class Model(
@@ -159,6 +162,28 @@ class NativeEditorViewModelTest {
   assertEquals(listOf("wall-a","wall-b"),vm.state.value.geometry!!.wallIds)
   assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
   assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
+  vm.close()
+ }
+
+
+ @Test fun wallDragScreenToWorldToNativeExportCycleStaysFinite(){
+  val engine=FakeEngine();val vm=NativeEditorViewModel(engine)
+  vm.resetProject("drag-cycle","Drag cycle")
+  val pan=Offset.Zero;val canvas=IntSize(400,400);val zoom=72f
+  val start=screenToWorld(Offset(100f,100f),canvas,zoom,pan)
+  val end=screenToWorld(Offset(316f,100f),canvas,zoom,pan)
+  assertTrue(start.x.isFinite()&&start.y.isFinite())
+  assertTrue(end.x.isFinite()&&end.y.isFinite())
+  vm.createWall(start.x,start.y,end.x,end.y)
+  val geometry=vm.state.value.geometry!!
+  assertEquals(1,geometry.wallIds.size)
+  assertEquals(10,geometry.walls.size)
+  assertTrue(geometry.walls.all{it.isFinite()})
+  assertTrue(engine.commands.any{JSONObject(it).optString("type")=="CreateWall"})
+  val invalid=screenToWorld(Offset(Float.NaN,100f),canvas,zoom,pan)
+  assertFalse(invalid.x.isFinite()||invalid.y.isFinite())
+  val safe=worldToScreen(WorldPoint(Double.NaN,0.0),Size(400f,400f),zoom,pan)
+  assertTrue(safe.x.isFinite()&&safe.y.isFinite())
   vm.close()
  }
 
