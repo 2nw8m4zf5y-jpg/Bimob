@@ -188,7 +188,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val start=if(moveStart)Vec2(x,y)else fixed
   val end=if(moveStart)fixed else Vec2(x,y)
   if(hypot(end.x-start.x,end.y-start.y)<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return}
-  mutate("""{"type":"RotateWall","id":"$id","startX":\${start.x},"startY":\${start.y},"endX":\${end.x},"endY":\${end.y}}""")
+  mutate("""{"type":"RotateWall","id":"$id","startX":${start.x},"startY":${start.y},"endX":${end.x},"endY":${end.y}}""")
  }
  fun resizeElement(selection:EditorSelection,factor:Double){
   if(!factor.isFinite()||factor<=0.0||factor==1.0)return
