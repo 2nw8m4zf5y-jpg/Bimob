@@ -15,7 +15,7 @@ namespace bimob::bridge {
 namespace {
 struct Session {
  Project project; CommandBus bus; std::string gesture; bool gestureHasChanges=false;
- Session():project{ModelId{"native-project"},"Native Engine Session",CowVector<Wall>{},CowVector<Level>{},CowVector<WallJoin>{},CowVector<Opening>{},CowVector<CatalogInstance>{}},bus(project){}
+ explicit Session(Project initial):project(std::move(initial)),bus(project){}
 };
 std::mutex registryMutex;std::map<std::uint64_t,std::unique_ptr<Session>> sessions;std::uint64_t nextHandle=1;
 std::string quote(const std::string&s){std::string o="\"";for(char c:s){if(c=='"'||c=='\\')o+='\\';if(c=='\n')o+="\\n";else if(c=='\r')o+="\\r";else o+=c;}return o+"\"";}
@@ -104,12 +104,44 @@ std::vector<std::uint8_t> geometryBytes(const ModelRevision&rev){
 }
 
 }
-std::uint64_t createSession(){std::lock_guard<std::mutex>g(registryMutex);if(nextHandle==0)throw std::overflow_error("Native handle space exhausted");auto h=nextHandle++;sessions.emplace(h,std::make_unique<Session>());return h;}
+
+namespace {
+const json::Value& req(const json::Value&v,const char*k){auto*p=v.get(k);if(!p)throw std::invalid_argument(std::string("Missing field: ")+k);return *p;}
+std::string js(const json::Value&v,const char*k){auto*p=req(v,k).string();if(!p)throw std::invalid_argument(std::string("Expected string: ")+k);return *p;}
+double jn(const json::Value&v,const char*k){auto*p=req(v,k).number();if(!p||!std::isfinite(*p))throw std::invalid_argument(std::string("Expected number: ")+k);return *p;}
+bool jb(const json::Value&v,const char*k){auto*p=req(v,k).boolean();if(!p)throw std::invalid_argument(std::string("Expected boolean: ")+k);return *p;}
+ModelId ji(const json::Value&v,const char*k){return ModelId{js(v,k)};}
+ModelId jni(const json::Value&v,const char*k){const auto&x=req(v,k);if(std::holds_alternative<std::nullptr_t>(x.data))return {};auto*p=x.string();if(!p)throw std::invalid_argument("Expected nullable ID");return ModelId{*p};}
+Point2 jp(const json::Value&v,const char*k){const auto&x=req(v,k);return {Meters{jn(x,"xMeters")},Meters{jn(x,"yMeters")}};}
+DimensionBounds jbounds(const json::Value&v,const char*k){const auto&x=req(v,k);return {Meters{jn(x,"min")},Meters{jn(x,"max")}};}
+Project parseSnapshot(const std::string&s){
+ auto root=json::parse(s);if(!root.object()||jn(root,"schemaVersion")!=1)throw std::invalid_argument("Unsupported canonical schema");
+ Project p{ji(root,"projectId"),js(root,"name"),{},{},{},{},{}};
+ auto*ls=req(root,"levels").array();auto*joins=req(root,"joins").array();auto*es=req(root,"elements").array();
+ if(!ls||!joins||!es||ls->size()>10000||joins->size()>100000||es->size()>250000)throw std::invalid_argument("Invalid snapshot collections or entity budget");
+ for(const auto&v:*ls)p.levels.push_back({ji(v,"id"),js(v,"name"),Meters{jn(v,"elevationMeters")},Meters{jn(v,"heightMeters")}});
+ for(const auto&v:*joins)p.joins.push_back({ji(v,"id"),ji(v,"wallA"),jb(v,"endA"),ji(v,"wallB"),jb(v,"endB"),jp(v,"point")});
+ for(const auto&v:*es){auto k=js(v,"kind");
+ if(k=="wall"){const auto&a=req(v,"axis");p.walls.push_back({ji(v,"id"),{jp(a,"start"),jp(a,"end")},Meters{jn(v,"heightMeters")},Meters{jn(v,"thicknessMeters")},jni(v,"levelId")});}
+ else if(k=="opening"){auto t=js(v,"openingKind");OpeningKind kind=t=="DOOR"?OpeningKind::Door:t=="WINDOW"?OpeningKind::Window:t=="GENERIC"?OpeningKind::Generic:throw std::invalid_argument("Invalid opening kind");p.openings.push_back({ji(v,"id"),ji(v,"hostWallId"),kind,Meters{jn(v,"offsetAlongWallMeters")},Meters{jn(v,"widthMeters")},Meters{jn(v,"heightMeters")},Meters{jn(v,"sillHeightMeters")}});}
+ else if(k=="catalogInstance"){CatalogInstance c{};c.id=ji(v,"id");c.assetId=js(v,"assetId");c.position=jp(v,"position");c.rotationRadians=jn(v,"rotationRadians");c.levelId=jni(v,"levelId");c.hostWallId=jni(v,"hostWallId");c.targetWidth=Meters{jn(v,"targetWidthMeters")};c.targetDepth=Meters{jn(v,"targetDepthMeters")};c.targetHeight=Meters{jn(v,"targetHeightMeters")};auto m=js(v,"scalingMode");c.scalingMode=m=="FREE_STRETCH"?ScalingMode::FreeStretch:m=="UNIFORM"?ScalingMode::Uniform:m=="PRESETS"?ScalingMode::Presets:throw std::invalid_argument("Invalid scaling mode");c.widthBounds=jbounds(v,"widthBounds");c.depthBounds=jbounds(v,"depthBounds");c.heightBounds=jbounds(v,"heightBounds");c.category=js(v,"category");c.scheduleTag=js(v,"scheduleTag");p.catalogInstances.push_back(std::move(c));}
+ else throw std::invalid_argument("Unknown element kind");}
+ auto errors=validate(p);if(!errors.empty())throw std::invalid_argument(errors.front().message);
+ for(const auto&j:p.joins){auto r=solveWallJoinGeometry(p,j);if(!r.ok())throw std::invalid_argument(r.error()->message);}
+ return p;
+}
+}
+
+std::uint64_t createSession(){std::lock_guard<std::mutex>g(registryMutex);if(nextHandle==0)throw std::overflow_error("Native handle space exhausted");auto h=nextHandle++;sessions.emplace(h,std::make_unique<Session>(Project{ModelId{"native-project"},"Native Engine Session",CowVector<Wall>{},CowVector<Level>{},CowVector<WallJoin>{},CowVector<Opening>{},CowVector<CatalogInstance>{}}));return h;}
 bool destroySession(std::uint64_t h)noexcept{if(!h)return false;std::lock_guard<std::mutex>g(registryMutex);return sessions.erase(h)==1;}
 bool beginGesture(std::uint64_t h,const std::string&id){std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end()||id.empty()||!it->second->gesture.empty())return false;it->second->gesture=id;it->second->gestureHasChanges=false;return true;}
 bool commitGesture(std::uint64_t h,const std::string&id){std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end()||it->second->gesture!=id)return false;it->second->gesture.clear();it->second->gestureHasChanges=false;return true;}
 bool cancelGesture(std::uint64_t h,const std::string&id){std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end()||it->second->gesture!=id)return false;auto r=it->second->gestureHasChanges?it->second->bus.undo():bimob::Result<std::shared_ptr<const bimob::ModelRevision>>::success(it->second->bus.snapshot());it->second->gesture.clear();it->second->gestureHasChanges=false;return r.ok();}
 std::string exportCanonicalSnapshot(std::uint64_t h){std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end())return errorJson("Invalid native handle");return canonicalProjectJson(*it->second->bus.snapshot()->project);}
+std::string importCanonicalSnapshot(std::uint64_t h,const std::string&source){
+ std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end())return errorJson("Invalid native handle");
+ try{if(!it->second->gesture.empty())return errorJson("Active gesture prevents project replacement");auto candidate=parseSnapshot(source);auto next=std::make_unique<Session>(std::move(candidate));(void)next->bus.snapshot();it->second.swap(next);return "{\"ok\":true}";}catch(const std::exception&e){return errorJson(e.what());}
+}
 std::vector<std::uint8_t> exportRenderGeometry(std::uint64_t h){std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end())return {};return geometryBytes(*it->second->bus.snapshot());}
 std::string dispatchCommandJson(std::uint64_t h,const std::string&j){std::lock_guard<std::mutex>g(registryMutex);auto it=sessions.find(h);if(it==sessions.end())return errorJson("Invalid native handle");auto&s=*it->second;try{auto parsed=json::parse(j);if(!parsed.object())return response(s,false,"Command JSON must be an object");auto type=field(j,"type");if(type=="HistoryState")return response(s,true);if(type=="Undo"||type=="Redo"){if(!s.gesture.empty())return response(s,false,"History operations are not allowed during an active gesture");auto r=type=="Undo"?s.bus.undo():s.bus.redo();return response(s,r.ok(),r.ok()?"":r.error()->message);}if(type=="beginGesture"){bool ok=s.gesture.empty()&&!field(j,"gestureId").empty();if(ok){s.gesture=field(j,"gestureId");s.gestureHasChanges=false;}return response(s,ok,ok?"":"Gesture already active or ID empty");}if(type=="commitGesture"){bool ok=!s.gesture.empty()&&s.gesture==field(j,"gestureId");if(ok){s.gesture.clear();s.gestureHasChanges=false;}return response(s,ok,ok?"":"Gesture mismatch");}if(type=="cancelGesture"){bool ok=!s.gesture.empty()&&s.gesture==field(j,"gestureId");if(ok){auto r=s.gestureHasChanges?s.bus.undo():bimob::Result<std::shared_ptr<const bimob::ModelRevision>>::success(s.bus.snapshot());s.gesture.clear();s.gestureHasChanges=false;return response(s,r.ok(),r.ok()?"":r.error()->message);}return response(s,false,"Gesture mismatch");}auto mutation=parseMutation(j);auto before=s.bus.snapshot()->number;auto r=s.bus.execute(mutation,{},s.gesture.empty()?std::optional<std::string>{}:std::optional<std::string>{s.gesture});if(r.ok()&&!s.gesture.empty()&&s.bus.snapshot()->number!=before)s.gestureHasChanges=true;return response(s,r.ok(),r.ok()?"":r.error()->message);}catch(const std::exception&e){return response(s,false,e.what());}}
 }

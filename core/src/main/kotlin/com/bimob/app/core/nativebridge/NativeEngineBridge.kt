@@ -88,6 +88,7 @@ object NativeEngineBridge {
     fun destroySession(handle: Long) = nativeDestroySession(handle)
     fun dispatchCommandJson(handle: Long, commandJson: String): String = nativeDispatchCommandJson(handle, commandJson)
     fun exportCanonicalSnapshot(handle: Long): String = nativeExportCanonicalSnapshot(handle)
+    fun importCanonicalSnapshot(handle: Long, snapshotJson: String): String = nativeImportCanonicalSnapshot(handle, snapshotJson)
     fun exportRenderGeometry(handle: Long): RenderGeometryBuffer = RenderGeometryBuffer.decode(nativeExportRenderGeometry(handle))
     fun beginGesture(handle: Long, gestureId: String): Boolean = nativeBeginGesture(handle, gestureId)
     fun commitGesture(handle: Long, gestureId: String): Boolean = nativeCommitGesture(handle, gestureId)
@@ -96,6 +97,7 @@ object NativeEngineBridge {
     private external fun nativeDestroySession(handle: Long)
     private external fun nativeDispatchCommandJson(handle: Long, commandJson: String): String
     private external fun nativeExportCanonicalSnapshot(handle: Long): String
+    private external fun nativeImportCanonicalSnapshot(handle: Long, snapshotJson: String): String
     private external fun nativeExportRenderGeometry(handle: Long): ByteArray
     private external fun nativeBeginGesture(handle: Long, gestureId: String): Boolean
     private external fun nativeCommitGesture(handle: Long, gestureId: String): Boolean

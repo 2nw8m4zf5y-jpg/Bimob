@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 internal interface NativeEditorEngine {
  fun createSession():Long;fun destroySession(handle:Long);fun dispatch(handle:Long,json:String):String
- fun export(handle:Long):RenderGeometryBuffer;fun snapshot(handle:Long):String
+ fun export(handle:Long):RenderGeometryBuffer;fun importSnapshot(handle:Long,json:String):String
+ fun snapshot(handle:Long):String
  fun beginGesture(handle:Long,id:String):Boolean;fun commitGesture(handle:Long,id:String):Boolean;fun cancelGesture(handle:Long,id:String):Boolean
 }
 private object JniNativeEditorEngine:NativeEditorEngine {
@@ -18,6 +19,7 @@ private object JniNativeEditorEngine:NativeEditorEngine {
  override fun dispatch(handle:Long,json:String)=NativeEngineBridge.dispatchCommandJson(handle,json)
  override fun export(handle:Long)=NativeEngineBridge.exportRenderGeometry(handle)
  override fun snapshot(handle:Long)=NativeEngineBridge.exportCanonicalSnapshot(handle)
+ override fun importSnapshot(handle:Long,json:String)=NativeEngineBridge.importCanonicalSnapshot(handle,json)
  override fun beginGesture(handle:Long,id:String)=NativeEngineBridge.beginGesture(handle,id)
  override fun commitGesture(handle:Long,id:String)=NativeEngineBridge.commitGesture(handle,id)
  override fun cancelGesture(handle:Long,id:String)=NativeEngineBridge.cancelGesture(handle,id)
@@ -49,6 +51,14 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val r=engine.dispatch(handle,"""{"type":"CreateLevel","id":"$levelId","name":"Level 1","elevationMeters":0,"heightMeters":3}""")
   if(!isOk(r)){publishError(errorFrom(r));return};refresh(projectId)
  }
+ fun exportProjectSnapshot():String=engine.snapshot(handle)
+ fun openProjectSnapshot(json:String):Boolean {
+  val r=engine.importSnapshot(handle,json);if(!isOk(r)){publishError(errorFrom(r));return false}
+  val pid=Regex(""""projectId"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1)?:return false
+  levelId=Regex(""""levels"\s*:\s*\[\s*\{[^}]*"id"\s*:\s*"([^"]+)"""").find(json)?.groupValues?.get(1).orEmpty()
+  refresh(pid);return true
+ }
+ fun closeAndReset(){if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}
  fun createWall(sx:Double,sy:Double,ex:Double,ey:Double){
   if(hypot(ex-sx,ey-sy)<0.05)return
   mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$sx,"startY":$sy,"endX":$ex,"endY":$ey,"heightMeters":2.7,"thicknessMeters":0.2}""")

@@ -45,4 +45,14 @@ int main(){using namespace bimob::bridge;auto h=createSession();assert(h);assert
  auto beforeEditCancel=exportCanonicalSnapshot(h);assert(beginGesture(h,"cancel-edit"));assert(call(R"({"type":"MoveWall","id":"W1","deltaX":3,"deltaY":0})").find("\"ok\":true")!=std::string::npos);assert(cancelGesture(h,"cancel-edit"));assert(exportCanonicalSnapshot(h)==beforeEditCancel);
  assert(call(R"({"type":"DeleteWall","id":"W1"})").find("\"ok\":true")!=std::string::npos);auto snap=exportCanonicalSnapshot(h);assert(snap.find("\"id\":\"W1\"")==std::string::npos&&snap.find("\"id\":\"O1\"")==std::string::npos);
  auto stable=exportCanonicalSnapshot(h);assert(call(R"({"type":"MoveWall","id":"W1","deltaX":0,"deltaY":0} trailing)").find("\"ok\":false")!=std::string::npos);assert(exportCanonicalSnapshot(h)==stable);assert(call(R"([{"type":"Undo"}])").find("\"ok\":false")!=std::string::npos);assert(call(R"({"type":"Undo","type":"Redo"})").find("\"ok\":false")!=std::string::npos);assert(call(R"({"type":"MoveWall","id":"W1","deltaX":1e999,"deltaY":0})").find("\"ok\":false")!=std::string::npos);assert(exportCanonicalSnapshot(h)==stable);
+
+ assert(call(R"({"type":"CreateLevel","id":"L2","name":"Upper","elevationMeters":3,"heightMeters":2.8})").find("\"ok\":true")!=std::string::npos);
+ assert(call(R"({"type":"CreateWall","id":"W3","levelId":"L2","startX":0,"startY":0,"endX":3,"endY":0,"heightMeters":2.8,"thicknessMeters":0.18})").find("\"ok\":true")!=std::string::npos);
+ const auto canonical=exportCanonicalSnapshot(h);auto restored=createSession();assert(restored);
+ assert(importCanonicalSnapshot(restored,canonical).find("\"ok\":true")!=std::string::npos);
+ assert(exportCanonicalSnapshot(restored)==canonical);
+ const auto beforeBad=exportCanonicalSnapshot(restored);
+ assert(importCanonicalSnapshot(restored,R"({"schemaVersion":1,"projectId":"broken"})").find("\"ok\":false")!=std::string::npos);
+ assert(exportCanonicalSnapshot(restored)==beforeBad);
+ assert(destroySession(restored));
  assert(destroySession(h));assert(!destroySession(h));assert(exportCanonicalSnapshot(h).find("Invalid native handle")!=std::string::npos);return 0;}

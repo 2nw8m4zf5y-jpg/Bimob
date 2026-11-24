@@ -37,7 +37,9 @@ class NativeEditorViewModelTest {
    return RenderGeometryBuffer(1,revision,model.walls.toList(),w,if(model.walls.size>=2)listOf("join-1")else emptyList(),FloatArray(if(model.walls.size>=2)9 else 0),
     model.openings.keys.toList(),op,model.catalogs.toList(),cat)
   }
-  override fun snapshot(handle:Long):String=model.openings.entries.joinToString(prefix="""{"elements":[""",postfix="]}"){(key,v)->"""{"hostWallId":"${v.first}","id":"$key","kind":"opening","openingKind":"${v.second}"}"""}
+  override fun importSnapshot(handle:Long,json:String):String { importedSnapshot=json; return """{"ok":true}""" }
+  var importedSnapshot:String?=null
+  override fun snapshot(handle:Long):String=importedSnapshot ?: model.openings.entries.joinToString(prefix="""{"elements":[""",postfix="]}"){(key,v)->"""{"hostWallId":"${v.first}","id":"$key","kind":"opening","openingKind":"${v.second}"}"""}
   override fun beginGesture(handle:Long,id:String):Boolean{gesture=id;return true}
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
