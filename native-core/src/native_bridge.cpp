@@ -9,3 +9,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_bimob_app_core_nativebridge_Native
 extern "C" JNIEXPORT jboolean JNICALL Java_com_bimob_app_core_nativebridge_NativeEngineBridge_nativeBeginGesture(JNIEnv*e,jobject,jlong h,jstring id){return bimob::bridge::beginGesture(static_cast<std::uint64_t>(h),fromJString(e,id));}
 extern "C" JNIEXPORT jboolean JNICALL Java_com_bimob_app_core_nativebridge_NativeEngineBridge_nativeCommitGesture(JNIEnv*e,jobject,jlong h,jstring id){return bimob::bridge::commitGesture(static_cast<std::uint64_t>(h),fromJString(e,id));}
 extern "C" JNIEXPORT jboolean JNICALL Java_com_bimob_app_core_nativebridge_NativeEngineBridge_nativeCancelGesture(JNIEnv*e,jobject,jlong h,jstring id){return bimob::bridge::cancelGesture(static_cast<std::uint64_t>(h),fromJString(e,id));}
+
+extern "C" JNIEXPORT jbyteArray JNICALL Java_com_bimob_app_core_nativebridge_NativeEngineBridge_nativeExportRenderGeometry(JNIEnv*e,jobject,jlong h){
+ try{auto bytes=bimob::bridge::exportRenderGeometry(static_cast<std::uint64_t>(h));if(bytes.empty())return e->NewByteArray(0);auto out=e->NewByteArray(static_cast<jsize>(bytes.size()));if(out)e->SetByteArrayRegion(out,0,static_cast<jsize>(bytes.size()),reinterpret_cast<const jbyte*>(bytes.data()));return out;}catch(...){return e->NewByteArray(0);}
+}
