@@ -16,6 +16,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Verify fixed debug signing identity
+        run: |
+          test -s ci/bimob-debug.keystore
+          keytool -list -keystore ci/bimob-debug.keystore -storepass android -alias bimob-debug
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
