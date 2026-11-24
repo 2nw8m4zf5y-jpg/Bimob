@@ -69,7 +69,7 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
  std::array<Point2,4>v{{{Meters{w.axis.start.x.value+nx*half},Meters{w.axis.start.y.value+ny*half}},{Meters{w.axis.end.x.value+nx*half},Meters{w.axis.end.y.value+ny*half}},{Meters{w.axis.end.x.value-nx*half},Meters{w.axis.end.y.value-ny*half}},{Meters{w.axis.start.x.value-nx*half},Meters{w.axis.start.y.value-ny*half}}}};
  for(const auto&r:joins){
   const bool isA=r.join.wallA==w.id,isB=r.join.wallB==w.id;if(!isA&&!isB)continue;
-  const bool atEnd=isA?r.join.endA:r.join.endB;if(!atEnd)continue;
+  const double jx=r.join.joint.x.value-w.axis.start.x.value,jy=r.join.joint.y.value-w.axis.start.y.value,projection=(jx*dx+jy*dy)/(len*len);const bool atEnd=projection>=1-1e-7;if(projection>1e-7&&projection<1-1e-7)continue;
   const Wall*other=nullptr;for(const auto&candidate:p.walls)if(candidate.id==(isA?r.join.wallB:r.join.wallA)){other=&candidate;break;}if(!other)continue;
   const double odx=other->axis.end.x.value-other->axis.start.x.value,ody=other->axis.end.y.value-other->axis.start.y.value,olen=std::hypot(odx,ody);if(olen<=kMinWallLength)continue;
   const double oux=odx/olen,ouy=ody/olen,onx=-ouy,ony=oux,den=ux*ouy-uy*oux;if(std::abs(den)<1e-12)continue;
