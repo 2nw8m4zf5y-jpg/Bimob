@@ -19,7 +19,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp\nimport androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.*
 
 private enum class EditorTool { WALL, SELECT, DOOR, WINDOW, CATALOG }
@@ -29,7 +30,8 @@ internal data class TransformPreviewState(val kind:EditorElementKind,val id:Stri
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
  val state by viewModel.state.collectAsState()
- val camera by viewModel.camera.collectAsState()\n val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
+ val camera by viewModel.camera.collectAsState()
+ val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
