@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.*
 
 private enum class EditorTool { WALL, SELECT, DOOR, WINDOW, CATALOG }
-internal data class WorldPoint(val x:Double,val y:Double)\ninternal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val deltaX:Double,val deltaY:Double)
+internal data class WorldPoint(val x:Double,val y:Double)
+internal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val deltaX:Double,val deltaY:Double)
 
 @Composable
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
@@ -32,7 +33,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
- var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}\n var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
+ var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
+ var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  Column(modifier) {
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
