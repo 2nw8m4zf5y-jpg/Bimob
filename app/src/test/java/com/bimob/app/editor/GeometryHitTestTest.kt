@@ -15,6 +15,16 @@ class GeometryHitTestTest {
    assertNull(hitTestTypedGeometry(Offset(200f,260f),geom(),IntSize(400,400),zoom,Offset.Zero,24f))
   }
  }
+ @Test fun wallTransformPreviewRotationAndScaleArePure(){
+  val scaled=transformWallPreview(wall,TransformPreviewState(EditorElementKind.WALL,"w",scaleFactor=2.0))
+  val startCenter=Vec2((scaled[0].x+scaled[3].x)/2,(scaled[0].y+scaled[3].y)/2)
+  val endCenter=Vec2((scaled[1].x+scaled[2].x)/2,(scaled[1].y+scaled[2].y)/2)
+  assertEquals(0.0,startCenter.x,1e-6);assertEquals(4.0,endCenter.x,1e-6)
+  val rotated=transformWallPreview(wall,TransformPreviewState(EditorElementKind.WALL,"w",rotationRadians=Math.PI/2))
+  val center=Vec2((rotated.map{it.x}.average()),(rotated.map{it.y}.average()))
+  assertEquals(1.0,center.x,1e-6);assertEquals(0.0,center.y,1e-6)
+  assertEquals(2.0,wall.axisEnd.x,1e-6)
+ }
  @Test fun rotatedCatalogBoundsAreHitTestable(){
   val item=CatalogItem("c",Vec2(1.0,1.0),Math.PI/4,1.0,1.0,1.0,0.0,false,"")
   val g=geom(listOf(item));val center=screen(item.center,100f)
