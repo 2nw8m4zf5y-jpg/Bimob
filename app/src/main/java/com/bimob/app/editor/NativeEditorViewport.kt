@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.*
 
@@ -257,7 +259,7 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
  val selected=state.selection?:return
  val g=state.typedGeometry
  val details=when(selected.kind){
-  EditorElementKind.WALL->g?.walls?.firstOrNull{it.id==selected.id}?.let{wall->listOf("Длина" to "%.3f м".format(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y),"Высота" to "%.3f м".format(wall.height),"Отметка" to "%.3f м".format(wall.baseElevation))}
+  EditorElementKind.WALL->g?.walls?.firstOrNull{it.id==selected.id}?.let{wall->listOf("Длина" to "%.3f м".format(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)),"Высота" to "%.3f м".format(wall.height),"Отметка" to "%.3f м".format(wall.baseElevation))}
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf("Тип" to (if(item.kind=="DOOR")"Дверь" else "Окно"),"Ширина" to "%.3f м".format(item.width),"Высота" to "%.3f м".format(item.height),"Подоконник" to "%.3f м".format(item.sill),"Положение" to "%.3f м".format(item.offsetAlongWall))}
   EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->val name=CatalogPreset.all.firstOrNull{it.assetId==item.assetId}?.label?:item.assetId;listOf("Объект" to name,"Ширина" to "%.3f м".format(item.width),"Глубина" to "%.3f м".format(item.depth),"Высота" to "%.3f м".format(item.height),"Поворот" to "%.1f°".format(Math.toDegrees(item.rotationRadians))) }
  }
