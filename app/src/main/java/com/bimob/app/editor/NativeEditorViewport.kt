@@ -1,6 +1,7 @@
 package com.bimob.app.editor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -10,6 +11,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -32,12 +34,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.*
 
-private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, DOOR, WINDOW, CATALOG }
+private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, CATALOG }
 internal data class WorldPoint(val x:Double,val y:Double)
 internal data class TransformPreviewState(val kind:EditorElementKind,val id:String,val dx:Double=0.0,val dy:Double=0.0,val rotationRadians:Double=0.0,val scaleFactor:Double=1.0)
 
 @Composable
-fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier) {
+fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier,projectTitle:String="Проект",onProjects:()->Unit={},onSave:()->Unit={},onExport:()->Unit={},onImport:()->Unit={}) {
  val state by viewModel.state.collectAsState()
  val camera by viewModel.camera.collectAsState()
  val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
@@ -47,47 +49,51 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
  var showCatalogPicker by remember{mutableStateOf(false)}
  var showProperties by remember{mutableStateOf(false)}
+ var catalogCategory by remember{mutableStateOf("openings")}
+ var homeMenuExpanded by remember{mutableStateOf(false)}
+ var editingProperty by remember{mutableStateOf<Pair<String,String>?>(null)}
+ var editValue by remember{mutableStateOf("")}
  LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
-  Surface(color=MaterialTheme.colorScheme.surface,tonalElevation=1.dp,shape=MaterialTheme.shapes.small,modifier=Modifier.fillMaxWidth().zIndex(1f)) {
-   Column(Modifier.padding(horizontal=3.dp,vertical=2.dp),verticalArrangement=Arrangement.spacedBy(1.dp)) {
-    Row(horizontalArrangement=Arrangement.spacedBy(1.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-     DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
-     DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT}
-     DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE}
-     DesktopToolButton("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE}
-     DesktopToolButton("▯","Дверь",tool==EditorTool.DOOR){tool=EditorTool.DOOR}
-     DesktopToolButton("▣","Окно",tool==EditorTool.WINDOW){tool=EditorTool.WINDOW}
-     DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}
-    }
-    HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant,thickness=0.5.dp)
-    Row(horizontalArrangement=Arrangement.spacedBy(0.dp),verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-     CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
-     CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
-     CompactActionButton("×","Удалить выбранный элемент",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
-     CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
-     state.selection?.let{selected->
-      val selectedName=when(selected.kind){
-       EditorElementKind.WALL->"Стена"
-       EditorElementKind.OPENING->state.typedGeometry?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?: "Проём"
-       EditorElementKind.CATALOG->state.typedGeometry?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label}?: "Объект"
-      }
-      Text(selectedName,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,maxLines=1)
+  Surface(color=MaterialTheme.colorScheme.surface,tonalElevation=1.dp,shape=MaterialTheme.shapes.small,modifier=Modifier.fillMaxWidth().zIndex(2f)) {
+   Row(Modifier.fillMaxWidth().padding(horizontal=2.dp,vertical=2.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically) {
+    DesktopToolButton("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}
+    DesktopToolButton("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT}
+    DesktopToolButton("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE}
+    DesktopToolButton("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE}
+    DesktopToolButton("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}
+    CompactActionButton("↶","Отменить действие",enabled=state.canUndo,onClick=viewModel::undo)
+    CompactActionButton("↷","Повторить действие",enabled=state.canRedo,onClick=viewModel::redo)
+    CompactActionButton("▤","Свойства",enabled=state.selection!=null,onClick={showProperties=!showProperties},selected=showProperties)
+    CompactActionButton("×","Удалить выбранный элемент",enabled=state.selection!=null,onClick=viewModel::deleteSelection,danger=true)
+    Box {
+     CompactActionButton("⌂","Меню проекта",onClick={homeMenuExpanded=true})
+     DropdownMenu(expanded=homeMenuExpanded,onDismissRequest={homeMenuExpanded=false}) {
+      DropdownMenuItem(text={Text("Проекты")},leadingIcon={Text("▣")},onClick={homeMenuExpanded=false;onProjects()})
+      DropdownMenuItem(text={Text("Сохранить")},leadingIcon={Text("▤")},onClick={homeMenuExpanded=false;onSave()})
+      DropdownMenuItem(text={Text("Экспорт")},leadingIcon={Text("⇧")},onClick={homeMenuExpanded=false;onExport()})
+      DropdownMenuItem(text={Text("Импорт")},leadingIcon={Text("⇩")},onClick={homeMenuExpanded=false;onImport()})
      }
     }
    }
   }
   if(showCatalogPicker) AlertDialog(
    onDismissRequest={showCatalogPicker=false},
-   title={Text("Каталог элементов")},
-   text={Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())){
-    CatalogPreset.all.groupBy{it.category}.forEach{(category,items)->
-     Text(if(category=="furniture")"Мебель" else "Сантехника",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,modifier=Modifier.padding(top=8.dp,bottom=2.dp))
-     items.forEach{item->
+   title={Text("Каталог")},
+   text={Column(Modifier.heightIn(max=420.dp)){
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(2.dp)) {
+     listOf("openings" to "Двери и окна","furniture" to "Мебель","plumbing" to "Сантехника").forEach{(category,label)->
+      TextButton(onClick={catalogCategory=category},modifier=Modifier.weight(1f)){Text(label,style=MaterialTheme.typography.labelSmall,color=if(catalogCategory==category)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)}
+     }
+    }
+    HorizontalDivider()
+    Column(Modifier.heightIn(max=350.dp).verticalScroll(rememberScrollState())) {
+     CatalogPreset.all.filter{it.category==catalogCategory}.forEach{item->
       TextButton(onClick={preset=item;tool=EditorTool.CATALOG;showCatalogPicker=false},modifier=Modifier.fillMaxWidth()){
        Column(Modifier.fillMaxWidth()){
-        Text(item.label,style=MaterialTheme.typography.bodyLarge)
-        Text("${item.width} × ${item.depth} × ${item.height} м",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(item.label,style=MaterialTheme.typography.bodyMedium)
+        val desc=if(item.category=="openings")"${item.width} м × ${item.height} м" else "${item.width} × ${item.depth} × ${item.height} м"
+        Text(desc,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
        }
       }
      }
@@ -95,8 +101,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }},
    confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}}
   )
-  Row(Modifier.fillMaxWidth().weight(1f)) {
-   Canvas(Modifier.weight(1f).fillMaxHeight().clipToBounds().zIndex(0f).background(Color.White)
+  Box(Modifier.fillMaxWidth().weight(1f)) {
+   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(Color.White)
     .pointerInput(Unit){
     awaitEachGesture {
      var oldCentroid:Offset?=null;var oldDistance=0f
@@ -118,7 +124,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      when(tool){
       EditorTool.DOOR->viewModel.createOpening("DOOR",p.x,p.y)
       EditorTool.WINDOW->viewModel.createOpening("WINDOW",p.x,p.y)
-      EditorTool.CATALOG->viewModel.createCatalog(preset,p.x,p.y,0.0)
+      EditorTool.CATALOG->{if(preset.category=="openings"){val kind=if(preset.assetId.contains("door"))"DOOR" else "WINDOW";viewModel.createOpening(kind,p.x,p.y,preset.width,preset.height,preset.depth)}else viewModel.createCatalog(preset,p.x,p.y,0.0)}
       else->{val hit=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)};viewModel.selectElement(hit)}
      }
     }
@@ -189,10 +195,12 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
    }
-   if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.width(152.dp).fillMaxHeight(),onClose={showProperties=false})
+   if(showProperties&&state.selection!=null) SelectionInspector(state,Modifier.align(Alignment.TopEnd).width(92.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
+   Text(projectTitle,style=MaterialTheme.typography.labelSmall,color=Color.Black.copy(alpha=.4f),modifier=Modifier.align(Alignment.BottomEnd).padding(6.dp))
   }
-  state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(4.dp))}
-  Text("BGR1 • ревизия ${state.geometry?.revision?:0} • стен ${state.geometry?.wallIds?.size?:0} • проёмов ${state.geometry?.openingIds?.size?:0} • объектов ${state.geometry?.catalogInstanceIds?.size?:0}",style=MaterialTheme.typography.labelSmall,color=Color.Gray)
+  state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(3.dp),style=MaterialTheme.typography.labelSmall)}
+  if(editingProperty!=null)AlertDialog(onDismissRequest={editingProperty=null},title={Text("Изменить ${editingProperty!!.second}")},text={OutlinedTextField(value=editValue,onValueChange={editValue=it},singleLine=true,label={Text("Число")})},confirmButton={TextButton(onClick={val parsed=editValue.replace(',','.').toDoubleOrNull();if(parsed!=null){viewModel.updateSelectedProperty(editingProperty!!.first,parsed);editingProperty=null}else editValue=editValue}){Text("ОК")}},dismissButton={TextButton(onClick={editingProperty=null}){Text("Отмена")}})
+
  }
 }
 private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:Float,pan:Offset){
@@ -242,21 +250,18 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 
 @Composable
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,onClick:()->Unit){
- Surface(onClick=onClick,shape=MaterialTheme.shapes.small,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.width(50.dp).height(46.dp)){
-  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxSize().padding(1.dp)){
-   Text(symbol,fontSize=20.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)
-   Text(label,style=MaterialTheme.typography.labelSmall,maxLines=1,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+ CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
+  Surface(onClick=onClick,shape=MaterialTheme.shapes.small,color=if(selected)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=label;role=Role.Button}){
+   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=if(selected)MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)}
   }
  }
 }
 
 @Composable
 private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,onClick:()->Unit){
- Surface(onClick=onClick,enabled=enabled,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(44.dp).semantics{contentDescription=description;role=Role.Button}){
-  Box(contentAlignment=Alignment.Center){
-   Surface(shape=MaterialTheme.shapes.small,color=when{selected->MaterialTheme.colorScheme.secondaryContainer;danger&&enabled->MaterialTheme.colorScheme.errorContainer;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(38.dp)){
-    Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=20.sp,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;else->MaterialTheme.colorScheme.onSurfaceVariant})}
-   }
+ CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
+  Surface(onClick=onClick,enabled=enabled,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription=description;role=Role.Button}){
+   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=19.sp,color=when{danger&&enabled->MaterialTheme.colorScheme.error;selected->MaterialTheme.colorScheme.onSecondaryContainer;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
   }
  }
 }
@@ -268,29 +273,32 @@ internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String =
 }
 
 @Composable
-private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier,onClose:()->Unit){
+private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier,onClose:()->Unit,onEdit:(String,String,String)->Unit){
  val selected=state.selection?:return
  val g=state.typedGeometry
  val typeName=when(selected.kind){
   EditorElementKind.WALL->"Стена"
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?:"Проём"
-  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label?.let{if(it.contains("кровать",true))"Кровать" else it}}?:"Элемент"
+  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label?.let{when{it.contains("кровать",true)->"Кровать";it.contains("диван",true)->"Диван";it.contains("стол",true)->"Стол";it.contains("шкаф",true)->"Шкаф";it.contains("унитаз",true)->"Унитаз";it.contains("раков",true)->"Раковина";it.contains("ванн",true)->"Ванна";it.contains("душ",true)->"Душ";else->"Мебель"}}}?: "Мебель"
  }
- val details=when(selected.kind){
-  EditorElementKind.WALL->g?.walls?.firstOrNull{it.id==selected.id}?.let{wall->listOf("Длина" to "%.3f м".format(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)),"Высота" to "%.3f м".format(wall.height),"Отметка" to "%.3f м".format(wall.baseElevation))}
-  EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf("Ширина" to "%.3f м".format(item.width),"Высота" to "%.3f м".format(item.height),"Подоконник" to "%.3f м".format(item.sill),"Положение" to "%.3f м".format(item.offsetAlongWall))}
-  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->listOf("Ширина" to "%.3f м".format(item.width),"Глубина" to "%.3f м".format(item.depth),"Высота" to "%.3f м".format(item.height),"Поворот" to "%.1f°".format(Math.toDegrees(item.rotationRadians))) }
+ val details:List<Triple<String,String,String>>?=when(selected.kind){
+  EditorElementKind.WALL->g?.walls?.firstOrNull{it.id==selected.id}?.let{wall->listOf(Triple("Длина","length","%.3f".format(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)),),Triple("Высота","height","%.3f".format(wall.height)),Triple("Отметка","elevation","%.3f".format(wall.baseElevation)))}
+  EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Высота","height","%.3f".format(item.height)),Triple("Подоконник","sill","%.3f".format(item.sill)),Triple("Положение","offset","%.3f".format(item.offsetAlongWall)))}
+  EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Глубина","depth","%.3f".format(item.depth)),Triple("Высота","height","%.3f".format(item.height)),Triple("Поворот","rotation","%.1f".format(Math.toDegrees(item.rotationRadians))))}
  }
- if(details!=null)Surface(modifier.fillMaxHeight(),color=MaterialTheme.colorScheme.surfaceVariant,tonalElevation=1.dp){
-  Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=5.dp,vertical=4.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+ if(details!=null)Surface(modifier,color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.96f),tonalElevation=2.dp,shape=MaterialTheme.shapes.small){
+  Column(Modifier.padding(horizontal=4.dp,vertical=3.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
-    Text(typeName,style=MaterialTheme.typography.labelMedium,maxLines=1,modifier=Modifier.weight(1f))
-    Surface(onClick=onClose,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(30.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
-     Box(contentAlignment=Alignment.Center){Text("×",fontSize=18.sp)}
+    Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,modifier=Modifier.weight(1f))
+    Surface(onClick=onClose,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
+     Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
     }
    }
-   HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant,thickness=0.5.dp)
-   details.forEach{(label,value)->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.width(20.dp));Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1)}}
+   HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant,thickness=.5.dp)
+   details.forEach{(label,field,value)->Row(Modifier.fillMaxWidth().clickable{onEdit(field,label,value)},verticalAlignment=Alignment.CenterVertically){
+    Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.width(18.dp))
+    Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1,color=MaterialTheme.colorScheme.primary)
+   }}
   }
  }
 }

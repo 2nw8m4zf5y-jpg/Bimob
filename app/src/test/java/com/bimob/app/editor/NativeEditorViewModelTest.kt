@@ -131,7 +131,37 @@ class NativeEditorViewModelTest {
   assertEquals(2.0,CatalogPreset.DOUBLE_BED.width,0.0);assertEquals(1.6,CatalogPreset.DOUBLE_BED.depth,0.0);assertEquals(0.55,CatalogPreset.DOUBLE_BED.height,0.0)
   assertTrue(ids.contains("furniture.table.basic"));assertTrue(ids.contains("plumbing.toilet.floor"))
   assertTrue(ids.contains("plumbing.sink.basic"));assertTrue(ids.contains("plumbing.bath.standard"))
-  CatalogPreset.all.forEach{assertTrue(it.width>0);assertTrue(it.depth>0);assertTrue(it.height>0);assertTrue(it.category.isNotBlank())}
+  CatalogPreset.all.forEach{assertTrue(it.width>0);assertTrue(it.height>0);assertTrue(it.category.isNotBlank());if(it.category!="openings")assertTrue(it.depth>0)}
+  assertEquals(setOf("openings","furniture","plumbing"),CatalogPreset.all.map{it.category}.toSet())
+  assertEquals(listOf("opening.door.single","opening.door.double","opening.window.standard","opening.window.wide"),CatalogPreset.all.filter{it.category=="openings"}.map{it.assetId})
+  assertEquals(4,CatalogPreset.all.count{it.category=="openings"})
+  assertTrue(CatalogPreset.all.any{it.assetId=="furniture.wardrobe.standard"})
+  assertTrue(CatalogPreset.all.any{it.assetId=="plumbing.shower.standard"})
+ }
+ @Test fun selectedPropertyEditsDispatchSingleAtomicNativeCommand(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("property-edit","Project");vm.createWall(0.0,0.0,4.0,0.0)
+  val wallId=vm.state.value.geometry!!.wallIds.single();vm.selectElement(EditorSelection(EditorElementKind.WALL,wallId))
+  var before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("length",5.0)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("ResizeWall",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("height",3.2)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateWallHeight",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("elevation",0.25)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("MoveLevel",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  vm.createOpening("WINDOW",2.0,0.0);val openingId=vm.state.value.geometry!!.openingIds.single();vm.selectElement(EditorSelection(EditorElementKind.OPENING,openingId))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("width",1.4)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateOpening",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("sill",0.7)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateOpening",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("offset",0.6)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateOpening",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  vm.createCatalog(CatalogPreset.TABLE,1.0,1.0,0.0);val catalogId=vm.state.value.geometry!!.catalogInstanceIds.single();vm.selectElement(EditorSelection(EditorElementKind.CATALOG,catalogId))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("rotation",90.0)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateCatalogInstance",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("depth",0.8)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateCatalogInstance",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  before=e.commands.count{!it.contains("HistoryState")};vm.updateSelectedProperty("height",0.9)
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")});assertEquals("UpdateCatalogInstance",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  vm.close()
  }
  @Test fun cameraZoomAndPanRemainInViewModelAndAreClamped(){
   val vm=NativeEditorViewModel(FakeEngine())

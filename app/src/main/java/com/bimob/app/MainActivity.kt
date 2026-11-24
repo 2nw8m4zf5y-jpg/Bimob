@@ -72,14 +72,16 @@ class MainActivity:ComponentActivity(){
       prefs.all.keys.sorted().forEach{n->OutlinedButton(onClick={loadSaved(n)},modifier=Modifier.fillMaxWidth()){Text(n)}}
      }
     }else{
-     Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA)).padding(8.dp)){
-      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
-       Column(Modifier.weight(1f)){Text(prefs.getString("active_name","Проект")?:"Проект",style=MaterialTheme.typography.titleMedium);Text("NativeSession • ревизия ${state.geometry?.revision?:0}",fontSize=12.sp,color=Color.Gray)}
-       TextButton(onClick={editor.exportProjectSnapshotAsync{result->result.onSuccess{pendingJson=it;exporter.launch("bimob-project.json")}.onFailure{toast(it.message?:"Ошибка экспорта")}}},enabled=!state.isExporting){Text(if(state.isExporting)"Экспорт…" else "Экспорт")}
-       TextButton(onClick={saveCurrent()}){Text("Сохранить")}
-       TextButton(onClick=editor::closeAndReset){Text("Проекты")}
-      }
-      NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth())
+     Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
+      NativeEditorViewport(
+       editor,
+       Modifier.weight(1f).fillMaxWidth(),
+       projectTitle=prefs.getString("active_name","Проект")?:"Проект",
+       onProjects=editor::closeAndReset,
+       onSave=::saveCurrent,
+       onExport={editor.exportProjectSnapshotAsync{result->result.onSuccess{pendingJson=it;exporter.launch("bimob-project.json")}.onFailure{toast(it.message?:"Ошибка экспорта")}}},
+       onImport={opener.launch(arrayOf("application/json","text/plain"))}
+      )
      }
     }
    }

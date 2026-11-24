@@ -44,10 +44,16 @@ data class CatalogPreset(val assetId:String,val label:String,val category:String
   val BED=CatalogPreset("furniture.bed.single","Кровать","furniture",2.0,0.9,0.55)
   val DOUBLE_BED=CatalogPreset("furniture.bed.double","Двуспальная кровать","furniture",2.0,1.6,0.55)
   val SOFA=CatalogPreset("furniture.sofa.3seat","Диван","furniture",2.1,0.9,0.85)
+  val WARDROBE=CatalogPreset("furniture.wardrobe.standard","Шкаф","furniture",1.2,0.6,2.1)
   val TOILET=CatalogPreset("plumbing.toilet.floor","Унитаз","plumbing",0.7,0.4,0.75)
   val SINK=CatalogPreset("plumbing.sink.basic","Раковина","plumbing",0.6,0.5,0.85)
   val BATH=CatalogPreset("plumbing.bath.standard","Ванна","plumbing",1.7,0.75,0.6)
-  val all=listOf(BED,DOUBLE_BED,SOFA,TABLE,TOILET,SINK,BATH)
+  val SHOWER=CatalogPreset("plumbing.shower.standard","Душ","plumbing",0.9,0.9,2.1)
+  val DOOR=CatalogPreset("opening.door.single","Дверь","openings",0.9,0.0,2.1)
+  val DOUBLE_DOOR=CatalogPreset("opening.door.double","Двустворчатая дверь","openings",1.6,0.0,2.1)
+  val WINDOW=CatalogPreset("opening.window.standard","Окно","openings",1.2,0.9,1.2)
+  val WIDE_WINDOW=CatalogPreset("opening.window.wide","Широкое окно","openings",2.0,0.9,1.4)
+  val all=listOf(DOOR,DOUBLE_DOOR,WINDOW,WIDE_WINDOW,BED,DOUBLE_BED,SOFA,TABLE,WARDROBE,TOILET,SINK,BATH,SHOWER)
  }
 }
 data class CanvasCamera(val zoom:Float=72f,val panX:Float=0f,val panY:Float=0f)
@@ -101,7 +107,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   if(!length.isFinite()||length<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return}
   mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$sx,"startY":$sy,"endX":$ex,"endY":$ey,"heightMeters":2.7,"thicknessMeters":0.2}""")
  }
- fun createOpening(kind:String,x:Double,y:Double):Boolean{
+ fun createOpening(kind:String,x:Double,y:Double,widthOverride:Double?=null,heightOverride:Double?=null,sillOverride:Double?=null):Boolean{
   require(kind=="DOOR"||kind=="WINDOW");val g=mutableState.value.typedGeometry?:return false
   var best=.35;var host:WallItem?=null;var along=0.0;var length=0.0
   g.walls.forEach{wall->val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y
@@ -110,10 +116,10 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
    val d=hypot(x-wall.axisStart.x-t*dx,y-wall.axisStart.y-t*dy)
    if(d<best){best=d;host=wall;along=t*len;length=len}
   }
-  val wall=host?:return false;val width=if(kind=="DOOR")0.9 else 1.2
-  if(length<width+.02)return false
+  val wall=host?:return false;val width=widthOverride?:if(kind=="DOOR")0.9 else 1.2
+  if(!width.isFinite()||width<=0.0||length<width+.02)return false
   val offset=(along-width/2).coerceIn(.01,length-width-.01)
-  val height=if(kind=="DOOR")2.1 else 1.2;val sill=if(kind=="DOOR")0.0 else .9
+  val height=heightOverride?:if(kind=="DOOR")2.1 else 1.2;val sill=sillOverride?:if(kind=="DOOR")0.0 else .9
   mutate("""{"type":"CreateOpening","id":"opening-${UUID.randomUUID()}","hostWallId":"${wall.id}","openingKind":"$kind","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":$sill}""")
   return mutableState.value.error==null
  }
@@ -190,6 +196,39 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   val end=if(moveStart)fixed else Vec2(x,y)
   if(hypot(end.x-start.x,end.y-start.y)<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return}
   mutate("""{"type":"RotateWall","id":"$id","startX":${start.x},"startY":${start.y},"endX":${end.x},"endY":${end.y}}""")
+ }
+ fun updateSelectedProperty(field:String,value:Double){
+  if(!value.isFinite()){publishError("Размер должен быть конечным числом.");return}
+  val s=mutableState.value.selection?:return
+  val g=mutableState.value.typedGeometry?:return
+  when(s.kind){
+   EditorElementKind.WALL->{
+    val wall=g.walls.firstOrNull{it.id==s.id}?:return
+    when(field){
+     "length"->{if(value<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return};mutate("""{"type":"ResizeWall","id":"${wall.id}","lengthMeters":$value}""")}
+     "height"->{if(value<=0.0){publishError("Высота стены должна быть положительной.");return};mutate("""{"type":"UpdateWallHeight","id":"${wall.id}","heightMeters":$value}""")}
+     "elevation"->{if(levelId.isBlank()){publishError("У стены не найден уровень.");return};mutate("""{"type":"MoveLevel","id":"$levelId","elevationMeters":$value}""")}
+    }
+   }
+   EditorElementKind.OPENING->{
+    val item=g.openings.firstOrNull{it.id==s.id}?:return
+    val width=if(field=="width")value else item.width
+    val height=if(field=="height")value else item.height
+    val sill=if(field=="sill")value else item.sill
+    val offset=if(field=="offset")value else item.offsetAlongWall
+    if(width<=0||height<=0||sill<0||offset<0||offset+width>item.hostAxisLength){publishError("Размер проёма выходит за допустимые границы стены.");return}
+    mutate("""{"type":"UpdateOpening","id":"${item.id}","offsetAlongWallMeters":$offset,"widthMeters":$width,"heightMeters":$height,"sillHeightMeters":$sill}""")
+   }
+   EditorElementKind.CATALOG->{
+    val item=g.catalog.firstOrNull{it.id==s.id}?:return
+    val width=if(field=="width")value else item.width
+    val depth=if(field=="depth")value else item.depth
+    val height=if(field=="height")value else item.height
+    val rotation=if(field=="rotation")Math.toRadians(value) else item.rotationRadians
+    if(width<=0||depth<=0||height<=0){publishError("Габариты объекта должны быть положительными.");return}
+    mutate("""{"type":"UpdateCatalogInstance","id":"${item.id}","x":${item.center.x},"y":${item.center.y},"widthMeters":$width,"depthMeters":$depth,"heightMeters":$height,"rotationRadians":$rotation}""")
+   }
+  }
  }
  fun resizeElement(selection:EditorSelection,factor:Double){
   if(!factor.isFinite()||factor<=0.0||factor==1.0)return
