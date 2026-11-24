@@ -2,6 +2,7 @@ package com.bimob.app.editor
 
 import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 import org.junit.Assert.*
+import org.json.JSONObject
 import org.junit.Test
 
 class NativeEditorViewModelTest {
@@ -16,8 +17,8 @@ class NativeEditorViewModelTest {
   var model=Model();val undo=mutableListOf<Model>();val redo=mutableListOf<Model>();val commands=mutableListOf<String>()
   var importedSnapshot:String?=null
   private fun copy(m:Model)=Model(m.levels.toMutableList(),m.walls.toMutableList(),m.openings.toMutableMap(),m.catalogs.toMutableList())
-  private fun id(j:String)=Regex(""""id"\s*:\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
-  private fun field(j:String,k:String)=Regex(""""$k"\s*:\s*"([^"]+)"""").find(j)?.groupValues?.get(1)?:""
+  private fun id(j:String)=JSONObject(j).optString("id")
+  private fun field(j:String,k:String)=JSONObject(j).optString(k)
   override fun createSession()=next++
   override fun destroySession(handle:Long){destroyed++}
   override fun dispatch(handle:Long,json:String):String {
