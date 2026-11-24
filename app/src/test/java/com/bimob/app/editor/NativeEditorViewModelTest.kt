@@ -70,6 +70,22 @@ class NativeEditorViewModelTest {
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
  }
+ @Test fun firstWallInFreshProjectIsCommittedAndExported(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e)
+  vm.createWall(0.0,0.0,3.0,0.0)
+  assertTrue(vm.state.value.geometry?.wallIds.isNullOrEmpty())
+  assertTrue(vm.state.value.error!!.contains("активным уровнем"))
+  vm.resetProject("first-wall","New project")
+  vm.createWall(0.0,0.0,3.0,0.0)
+  val geometry=vm.state.value.geometry!!
+  assertEquals(1,geometry.wallIds.size)
+  assertEquals("wall",geometry.wallIds.single().substringBefore("-"))
+  assertEquals(10,geometry.walls.size)
+  assertTrue(geometry.walls.all{it.isFinite()})
+  val wallCommand=e.commands.last{it.contains("CreateWall")}
+  assertTrue(JSONObject(wallCommand).optString("levelId").isNotBlank())
+  vm.close()
+ }
  @Test fun createsWallsAndHistoryFromBgr1(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("p1","Project")
   assertTrue(e.commands.first().contains("CreateLevel"));vm.createWall(0.0,0.0,3.0,0.0);vm.createWall(3.0,0.0,3.0,2.0)
