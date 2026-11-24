@@ -153,4 +153,13 @@ Partial G2 progress only. Implemented and tested in CI: collection-level COW, bo
 - **Stage G · Step G2: IN PROGRESS** on `feature/model-core-v1`; `main` remains untouched.
 - Initial precision-drawing implementation: 48 dp offset crosshair, 22 dp screen-space snap radius, Endpoint > Edge > Ortho > Grid priority, soft 5° orthogonal snap and explicit Ortho lock, endpoint-handle preview and snap guides. Native renderer already derives endpoint/T wall joins; release remains one native wall mutation for Undo/Redo integrity.
 - Branding/app identity transition to NAGAPLAS and `.nagaplas` project file extension are in scope for this isolated G2 commit; Kotlin/C++ namespace and JNI package paths remain `com.bimob.*` by design.
-- CI and owner device validation for this G2 commit remain pending.
+- **CI VERIFIED · PENDING DEVICE QA**: Run #549 fully completed successfully on commit `e32d5341c7da0aa2961256000aa9428fde5f6142`; owner device validation remains pending.
+
+## Stage G2 CI verification (2026-11-24)
+
+- **Run #549: FULL CI SUCCESS** on `feature/model-core-v1`, commit `e32d5341c7da0aa2961256000aa9428fde5f6142`.
+- Native configure/build, native contracts, native parity, Kotlin/core and Android unit tests, Kotlin parity validation, APK assembly, and artifact upload all completed successfully.
+- APK artifact: `Nagaplas-debug-apk` (12,375,300 bytes); test reports artifact: `Nagaplas-test-reports`.
+- [GitHub Actions Run #549](https://github.com/2nw8m4zf5y-jpg/Bimob/actions/runs/45426902272).
+- **Stage G2 remains `CI VERIFIED · PENDING DEVICE QA`**. Do not proceed to G3 until owner confirms device testing of the 48 dp offset crosshair, Endpoint/T-Snap, 90° Ortho, L/T corner geometry after release, endpoint resizing and Undo/Redo.
+- Branch `feature/model-core-v1`; `main` untouched.
