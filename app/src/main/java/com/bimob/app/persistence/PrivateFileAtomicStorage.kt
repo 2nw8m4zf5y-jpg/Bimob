@@ -37,8 +37,9 @@ class PrivateFileAtomicStorage(private val root: File) : AtomicStorage {
 
     override fun writeAtomically(path: String, bytes: ByteArray) {
         val target = resolve(path)
-        require(target.parentFile.mkdirs() || target.parentFile.isDirectory)
-        val temp = File(target.parentFile, target.name + ".tmp-" + System.nanoTime())
+        val parent = target.parentFile ?: throw IllegalStateException("Repository target has no parent directory.")
+        require(parent.mkdirs() || parent.isDirectory)
+        val temp = File(parent, target.name + ".tmp-" + System.nanoTime())
         try {
             FileOutputStream(temp).use { it.write(bytes); it.flush(); it.fd.sync() }
             require(temp.length() == bytes.size.toLong() && temp.readBytes().contentEquals(bytes)) { "Staged write verification failed." }
