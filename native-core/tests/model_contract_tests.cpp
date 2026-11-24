@@ -152,6 +152,14 @@ void wallJoinCommandBusDependencyIntegration(){
  assert((project.walls[1].axis.start==Point2{Meters{3},Meters{0}}));
  assert((project.walls[1].axis.end==Point2{Meters{2},Meters{2}}));
  assert(std::get<double>(bus.snapshot()->derived->at("join:j1:geometry").data)==5.0);
+ assert(bus.undoDepth()==1);
+ assert(bus.undo().ok()&&bus.undoDepth()==0&&bus.redoDepth()==1);
+ const auto&restored=*bus.snapshot()->project;
+ assert((restored.walls[0].axis.end==Point2{Meters{2},Meters{0}}));
+ assert((restored.walls[1].axis.start==Point2{Meters{2},Meters{0}}));
+ assert(bus.redo().ok()&&bus.undoDepth()==1&&bus.redoDepth()==0);
+ assert((bus.snapshot()->project->walls[0].axis.end==Point2{Meters{3},Meters{0}}));
+ assert((bus.snapshot()->project->walls[1].axis.start==Point2{Meters{3},Meters{0}}));
  auto before=bus.snapshot();
  auto rejected=bus.execute(commands::moveWallEndpoint(ModelId{"w1"},false,Point2{Meters{2},Meters{1.5}}));
  assert(!rejected.ok()&&bus.snapshot()==before);
