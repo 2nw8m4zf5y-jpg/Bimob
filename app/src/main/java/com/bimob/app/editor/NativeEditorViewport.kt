@@ -38,7 +38,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var rotation by remember{mutableFloatStateOf(0f)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
- var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
+ var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}\n var showCatalogPicker by remember{mutableStateOf(false)}\n var endpointDrag by remember{mutableStateOf<Triple<String,Boolean,WorldPoint>?>(null)}
  Column(modifier) {
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    FilterChip(tool==EditorTool.WALL,{tool=EditorTool.WALL},{Text("Стена")})
@@ -49,7 +49,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    FilterChip(tool==EditorTool.WINDOW,{tool=EditorTool.WINDOW},{Text("Окно")})
   }
   Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
-   FilterChip(tool==EditorTool.CATALOG,{tool=EditorTool.CATALOG},{Text("Каталог")})
+   FilterChip(tool==EditorTool.CATALOG,{tool=EditorTool.CATALOG;showCatalogPicker=true},{Text("Каталог")})
    CatalogPreset.all.forEach { item -> FilterChip(preset==item,{preset=item;tool=EditorTool.CATALOG},{Text(item.label)}) }
    TextButton(onClick={rotation=(rotation+PI.toFloat()/4f)%(2f*PI.toFloat())}){Text("↻ 45°")}
   }
@@ -64,6 +64,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     TextButton(onClick={viewModel.resizeElement(selected,.9)}){Text("−10%")}
    }
   }
+  if(showCatalogPicker) AlertDialog(onDismissRequest={showCatalogPicker=false},title={Text("Каталог элементов")},text={Column(Modifier.heightIn(max=360.dp).verticalScroll(rememberScrollState())){CatalogPreset.all.forEach{item->TextButton(onClick={preset=item;tool=EditorTool.CATALOG;showCatalogPicker=false},modifier=Modifier.fillMaxWidth()){Text("${item.label}  •  ${item.width} × ${item.depth} × ${item.height} м")}}},confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}})
   Canvas(Modifier.fillMaxWidth().weight(1f).clipToBounds().zIndex(0f).background(Color.White)
    .pointerInput(Unit){
     awaitEachGesture {
