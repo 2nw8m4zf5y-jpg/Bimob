@@ -5,6 +5,8 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <thread>
+#include <atomic>
 int main(){using namespace bimob::bridge;
  auto fresh=createSession();assert(fresh);
  auto freshCall=[&](const char*j){return dispatchCommandJson(fresh,j);};
@@ -68,5 +70,10 @@ int main(){using namespace bimob::bridge;
  const auto beforeBad=exportCanonicalSnapshot(restored);
  assert(importCanonicalSnapshot(restored,R"({"schemaVersion":1,"projectId":"broken"})").find("\"ok\":false")!=std::string::npos);
  assert(exportCanonicalSnapshot(restored)==beforeBad);
+ // Optimistic generation check: two imports based on the same session generation cannot both replace it.
+ const auto concurrentJson=exportCanonicalSnapshot(h);std::atomic<int> successfulImports{0};
+ std::thread t1([&]{if(importCanonicalSnapshot(h,concurrentJson).find("\"ok\":true")!=std::string::npos)++successfulImports;});
+ std::thread t2([&]{if(importCanonicalSnapshot(h,concurrentJson).find("\"ok\":true")!=std::string::npos)++successfulImports;});t1.join();t2.join();assert(successfulImports==1);assert(exportCanonicalSnapshot(h)==concurrentJson);
+ auto removedDuringImport=createSession();std::thread t3([&]{assert(importCanonicalSnapshot(removedDuringImport,concurrentJson).find("\"ok\":true")==std::string::npos);});assert(destroySession(removedDuringImport));t3.join();
  assert(destroySession(restored));
  assert(destroySession(h));assert(!destroySession(h));assert(exportCanonicalSnapshot(h).find("Invalid native handle")!=std::string::npos);return 0;}

@@ -78,9 +78,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }
     }
    }
-   .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.geometry){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var gesture:String?=null;var movingId:String?=null
-    detectDragGestures(onDragStart={screen->
+   .pointerInput(tool,camera.zoom,camera.panX,camera.panY){
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var gesture:String?=null;var movingId:String?=null;var settled=false
+    try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val raw=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
      if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
@@ -98,9 +98,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     },onDragEnd={
      val a=start;val b=last
      if(tool==EditorTool.WALL&&a!=null&&b!=null)viewModel.createWall(a.x,a.y,b.x,b.y)
-     gesture?.let(viewModel::commitGesture)
-     preview=null;start=null;last=null;gesture=null;movingId=null
-    },onDragCancel={gesture?.let(viewModel::cancelGesture);preview=null;start=null;last=null;gesture=null;movingId=null})
+     try{gesture?.let(viewModel::commitGesture);settled=true}finally{preview=null;start=null;last=null;gesture=null;movingId=null}
+    },onDragCancel={try{gesture?.let(viewModel::cancelGesture)}finally{settled=true;preview=null;start=null;last=null;gesture=null;movingId=null}})}finally{if(!settled)gesture?.let(viewModel::cancelGesture);preview=null;start=null;last=null;gesture=null;movingId=null}
    }
   ) {
    val origin=Offset(size.width/2f+camera.panX,size.height/2f+camera.panY);val grid=(camera.zoom*.5f).coerceAtLeast(6f)

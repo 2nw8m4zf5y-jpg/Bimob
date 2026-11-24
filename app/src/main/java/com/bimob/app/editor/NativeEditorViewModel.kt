@@ -6,6 +6,12 @@ import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.hypot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,10 +45,11 @@ data class CatalogPreset(val assetId:String,val label:String,val category:String
 }
 data class CanvasCamera(val zoom:Float=72f,val panX:Float=0f,val panY:Float=0f)
 data class NativeEditorState(val geometry:RenderGeometryBuffer?=null,val canUndo:Boolean=false,val canRedo:Boolean=false,
- val error:String?=null,val projectId:String="",val selection:EditorSelection?=null,val openingInfo:Map<String,OpeningRenderInfo> = emptyMap())
+ val error:String?=null,val projectId:String="",val selection:EditorSelection?=null,val openingInfo:Map<String,OpeningRenderInfo> = emptyMap(),val isImporting:Boolean=false,val isExporting:Boolean=false)
 class NativeEditorViewModel internal constructor(private val engine:NativeEditorEngine):ViewModel() {
  constructor():this(JniNativeEditorEngine)
  private var handle=engine.createSession();private var levelId=""
+ private val importMutex=Mutex();private val exportMutex=Mutex();private var requestGeneration=0L;private var activeGestureId:String?=null
  private val mutableState=MutableStateFlow(NativeEditorState())
  val state:StateFlow<NativeEditorState> = mutableState.asStateFlow()
  private val mutableCamera=MutableStateFlow(CanvasCamera())
@@ -61,6 +68,8 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   if(!isOk(r)){levelId="";publishError(errorFrom(r));return};refresh(projectId)
  }
  fun exportProjectSnapshot():String=engine.snapshot(handle)
+ fun exportProjectSnapshotAsync(onResult:(Result<String>)->Unit){if(mutableState.value.isExporting)return;mutableState.value=mutableState.value.copy(isExporting=true,error=null);viewModelScope.launch{exportMutex.withLock{val gen=requestGeneration;val result=runCatching{withContext(Dispatchers.IO){if(handle==0L)error("Native session is closed.");engine.snapshot(handle)}};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isExporting=false);onResult(result)}}}
+ fun openProjectSnapshotAsync(json:String,onResult:(Boolean)->Unit){if(mutableState.value.isImporting)return;mutableState.value=mutableState.value.copy(isImporting=true,error=null);viewModelScope.launch{importMutex.withLock{val gen=requestGeneration;val ok=withContext(Dispatchers.IO){openProjectSnapshot(json)};if(gen==requestGeneration)mutableState.value=mutableState.value.copy(isImporting=false);onResult(gen==requestGeneration&&ok)}}}
  fun openProjectSnapshot(json:String):Boolean {
   val snapshot=try{JSONObject(json)}catch(e:Exception){publishError(e.message?:"Invalid canonical snapshot JSON.");return false}
   val pid=snapshot.optString("projectId").takeIf{it.isNotBlank()}
@@ -77,7 +86,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   refresh(pid)
   return mutableState.value.projectId==pid && mutableState.value.geometry!=null
  }
- fun closeAndReset(){if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}
+ fun closeAndReset(){requestGeneration++;cancelActiveGesture();if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}
  fun createWall(sx:Double,sy:Double,ex:Double,ey:Double){
   if(levelId.isBlank()){publishError("Сначала создайте проект с активным уровнем.");return}
   if(!listOf(sx,sy,ex,ey).all{it.isFinite()}){publishError("Координаты стены должны быть конечными числами.");return}
@@ -126,9 +135,10 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  }
  private fun select(s:EditorSelection?){mutableState.value=mutableState.value.copy(selection=s)}
  fun moveWall(id:String,dx:Double,dy:Double){if(dx!=0.0||dy!=0.0)mutate("""{"type":"MoveWall","id":"$id","deltaX":$dx,"deltaY":$dy}""")}
- fun beginGesture():String?{val id="gesture-"+UUID.randomUUID().toString();return id.takeIf{handle!=0L&&engine.beginGesture(handle,it)}}
- fun commitGesture(id:String){if(engine.commitGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture commit failed.")}
- fun cancelGesture(id:String){if(engine.cancelGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture cancellation failed.")}
+ fun beginGesture():String?{if(activeGestureId!=null)return null;val id="gesture-"+UUID.randomUUID().toString();if(handle!=0L&&engine.beginGesture(handle,id)){activeGestureId=id;return id};return null}
+ fun commitGesture(id:String){if(activeGestureId!=id)return;try{if(engine.commitGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture commit failed.")}finally{activeGestureId=null}}
+ fun cancelGesture(id:String){if(activeGestureId!=id)return;try{if(engine.cancelGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture cancellation failed.")}finally{activeGestureId=null}}
+ fun cancelActiveGesture(){activeGestureId?.let(::cancelGesture)}
  fun undo()=history("Undo");fun redo()=history("Redo")
  private fun history(t:String){if(handle==0L)return;val r=engine.dispatch(handle,"""{"type":"$t"}""");if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}
  private fun mutate(c:String){try{if(handle==0L){publishError("Native session is closed.");return};val r=engine.dispatch(handle,c);if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}catch(e:Exception){publishError(e.message?:"Native command failed safely.")}catch(e:LinkageError){publishError(e.message?:"Native engine linkage failed safely.")}}
@@ -155,6 +165,6 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  private fun isOk(s:String)=runCatching{JSONObject(s).optBoolean("ok")}.getOrDefault(false)
  private fun errorFrom(s:String)=runCatching{JSONObject(s).optString("error").takeIf{it.isNotBlank()}}.getOrNull()?:"Native command rejected."
  private fun publishError(s:String){mutableState.value=mutableState.value.copy(error=s)}
- fun close(){if(handle!=0L){engine.destroySession(handle);handle=0L}}
+ fun close(){requestGeneration++;cancelActiveGesture();if(handle!=0L){engine.destroySession(handle);handle=0L}}
  override fun onCleared(){close();super.onCleared()}
 }
