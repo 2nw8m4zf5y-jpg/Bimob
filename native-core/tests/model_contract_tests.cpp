@@ -137,7 +137,7 @@ void typedCommandsAndBatchAtomicity(){
 void wallJoinCommandBusDependencyIntegration(){
  Project p=fixture();
  p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});
- p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},false,ModelId{"w2"},true,Point2{Meters{2},Meters{0}}});
+ p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},true,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}});
  p.openings.push_back(Opening{ModelId{"O2"},ModelId{"w2"},OpeningKind::Window,Meters{1.4},Meters{.5},Meters{1},Meters{.8}});
  EvaluatorRegistry registry({
   {"wall:w1:geometry",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{2.0});}},
