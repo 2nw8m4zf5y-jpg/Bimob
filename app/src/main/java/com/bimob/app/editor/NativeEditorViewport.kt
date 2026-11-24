@@ -50,17 +50,23 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    FilterChip(tool==EditorTool.DOOR,{tool=EditorTool.DOOR},{Text("Дверь")})
    FilterChip(tool==EditorTool.WINDOW,{tool=EditorTool.WINDOW},{Text("Окно")})
   }
-  Row(horizontalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.fillMaxWidth().zIndex(1f)) {
-   FilterChip(tool==EditorTool.CATALOG,{tool=EditorTool.CATALOG;showCatalogPicker=true},{Text("Каталог")})
-   CatalogPreset.all.forEach { item -> FilterChip(preset==item,{preset=item;tool=EditorTool.CATALOG},{Text(item.label)}) }
-   TextButton(onClick={rotation=(rotation+PI.toFloat()/4f)%(2f*PI.toFloat())}){Text("↻ 45°")}
+  Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
+   Button(onClick={tool=EditorTool.CATALOG;showCatalogPicker=true}){Text("Каталог")}
+   if(tool==EditorTool.CATALOG) TextButton(onClick={rotation=(rotation+PI.toFloat()/4f)%(2f*PI.toFloat())}) {
+    Text("Поворот размещения: ${((rotation*180f/PI.toFloat()).toInt()+360)%360}°")
+   }
   }
   Row(horizontalArrangement=Arrangement.spacedBy(6.dp),modifier=Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).zIndex(1f)) {
    Button(onClick=viewModel::undo,enabled=state.canUndo){Text("↶ Undo")}
    Button(onClick=viewModel::redo,enabled=state.canRedo){Text("↷ Redo")}
    Button(onClick=viewModel::deleteSelection,enabled=state.selection!=null,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)){Text("Удалить")}
-   state.selection?.let{Text("Выбрано: "+when(it.kind){EditorElementKind.WALL->"стена";EditorElementKind.OPENING->"проём";EditorElementKind.CATALOG->"объект"},style=MaterialTheme.typography.labelSmall)}
    state.selection?.let{selected->
+    val selectedName=when(selected.kind){
+     EditorElementKind.WALL->"Стена"
+     EditorElementKind.OPENING->state.typedGeometry?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?: "Проём"
+     EditorElementKind.CATALOG->state.typedGeometry?.catalog?.firstOrNull{it.id==selected.id}?.assetId?.let{id->CatalogPreset.all.firstOrNull{it.assetId==id}?.label}?: "Объект"
+    }
+    Text("Выбрано: $selectedName",style=MaterialTheme.typography.labelSmall)
     if(selected.kind!=EditorElementKind.OPENING)TextButton(onClick={viewModel.rotateElement(selected,PI/4)}){Text("⟳ 45°")}
     TextButton(onClick={viewModel.resizeElement(selected,1.1)}){Text("+10%")}
     TextButton(onClick={viewModel.resizeElement(selected,.9)}){Text("−10%")}
@@ -69,10 +75,16 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
   if(showCatalogPicker) AlertDialog(
    onDismissRequest={showCatalogPicker=false},
    title={Text("Каталог элементов")},
-   text={Column(Modifier.heightIn(max=360.dp).verticalScroll(rememberScrollState())){
-    CatalogPreset.all.forEach{item->
-     TextButton(onClick={preset=item;tool=EditorTool.CATALOG;showCatalogPicker=false},modifier=Modifier.fillMaxWidth()){
-      Text("${item.label} • ${item.width} × ${item.depth} × ${item.height} м")
+   text={Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())){
+    CatalogPreset.all.groupBy{it.category}.forEach{(category,items)->
+     Text(if(category=="furniture")"Мебель" else "Сантехника",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,modifier=Modifier.padding(top=8.dp,bottom=2.dp))
+     items.forEach{item->
+      TextButton(onClick={preset=item;tool=EditorTool.CATALOG;showCatalogPicker=false},modifier=Modifier.fillMaxWidth()){
+       Column(Modifier.fillMaxWidth()){
+        Text(item.label,style=MaterialTheme.typography.bodyLarge)
+        Text("${item.width} × ${item.depth} × ${item.height} м",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+       }
+      }
      }
     }
    }},
