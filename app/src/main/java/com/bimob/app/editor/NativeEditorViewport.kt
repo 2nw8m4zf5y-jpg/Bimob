@@ -169,7 +169,7 @@ private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
  drawPath(path,Color(0xFF1976D2).copy(alpha=.35f))
 }
-private fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<Vec2>{
+internal fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<Vec2>{
  val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val length=hypot(dx,dy);if(length<=1e-9)return wall.corners
  val ux=dx/length;val uy=dy/length;val vx=-uy;val vy=ux;val cx=(wall.axisStart.x+wall.axisEnd.x)/2;val cy=(wall.axisStart.y+wall.axisEnd.y)/2;val co=cos(tp.rotationRadians);val si=sin(tp.rotationRadians)
  return wall.corners.map{p->val along=(p.x-wall.axisStart.x)*ux+(p.y-wall.axisStart.y)*uy;val across=(p.x-wall.axisStart.x)*vx+(p.y-wall.axisStart.y)*vy;val x=wall.axisStart.x+ux*along*tp.scaleFactor+vx*across;val y=wall.axisStart.y+uy*along*tp.scaleFactor+vy*across;Vec2(cx+(x-cx)*co-(y-cy)*si+tp.dx,cy+(x-cx)*si+(y-cy)*co+tp.dy)}
