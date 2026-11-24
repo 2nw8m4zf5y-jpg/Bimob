@@ -12,7 +12,7 @@ class GeometryHitTestTest {
  @Test fun wallHitTargetIsScreenSizedAtDifferentZooms(){
   for(zoom in listOf(24f,120f,240f)){
    assertEquals(EditorSelection(EditorElementKind.WALL,"w"),hitTestTypedGeometry(screen(Vec2(1.0,0.0),zoom),geom(),IntSize(400,400),zoom,Offset.Zero,24f))
-   assertNull(hitTestTypedGeometry(Offset(200f+zoom,200f),geom(),IntSize(400,400),zoom,Offset.Zero,24f))
+   assertNull(hitTestTypedGeometry(Offset(200f,260f),geom(),IntSize(400,400),zoom,Offset.Zero,24f))
   }
  }
  @Test fun rotatedCatalogBoundsAreHitTestable(){
