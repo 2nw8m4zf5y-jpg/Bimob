@@ -4,7 +4,8 @@ import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 
 /** Validated, immutable projection of native BGR1 geometry for UI/render/hit-test. */
 data class Vec2(val x: Double, val y: Double)
-data class WallJoinItem(val id: String, val corners: List<Vec2>, val maxHeight: Double)\ndata class WallItem(val id: String, val corners: List<Vec2>, val baseElevation: Double, val height: Double, val axisStart: Vec2, val axisEnd: Vec2)
+data class WallJoinItem(val id: String, val corners: List<Vec2>, val maxHeight: Double)
+data class WallItem(val id: String, val corners: List<Vec2>, val baseElevation: Double, val height: Double, val axisStart: Vec2, val axisEnd: Vec2)
 data class OpeningItem(
     val id: String, val center: Vec2, val offsetAlongWall: Double, val width: Double, val height: Double,
     val sill: Double, val elevation: Double, val hostAxisLength: Double, val hostWallId: String, val kind: String
