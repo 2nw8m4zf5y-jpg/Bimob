@@ -57,7 +57,7 @@ int main(){using namespace bimob::bridge;
  assert(call(R"({"type":"UpdateCatalogInstance","id":"C2","x":2,"y":1,"widthMeters":2,"depthMeters":1,"heightMeters":1})").find("\"ok\":true")!=std::string::npos);
  assert(call(R"({"type":"Batch","commands":[{"type":"MoveWall","id":"W1","deltaX":1,"deltaY":0},{"type":"ResizeWall","id":"W1","lengthMeters":6}]})").find("\"ok\":true")!=std::string::npos);
  assert(call(R"({"type":"UpdateCatalogInstance","id":"C2","x":2,"y":1,"widthMeters":2,"depthMeters":1,"heightMeters":1,"rotationRadians":1.25})").find("\"ok\":true")!=std::string::npos);
- auto rotatedCatalog=exportRenderGeometry(h);auto rotatedCatalogOffset=32ULL+readU32(16)*40ULL+readU32(20)*36ULL+readU32(24)*32ULL;assert(std::abs(readF(rotatedCatalogOffset+32+8)-1.25f)<1e-5f);
+ auto rotatedCatalog=exportRenderGeometry(h);auto rotatedCatalogOffset=32ULL+readU32(16)*40ULL+readU32(20)*36ULL+readU32(24)*32ULL;auto readRotatedF=[&](std::size_t offset){std::uint32_t bits=0;for(int i=0;i<4;i++)bits|=static_cast<std::uint32_t>(rotatedCatalog[offset+i])<<(8*i);float value;std::memcpy(&value,&bits,sizeof(value));return value;};assert(std::abs(readRotatedF(rotatedCatalogOffset+32+8)-1.25f)<1e-5f);
  assert(call(R"({"type":"CreateWall","id":"W9","levelId":"L1","startX":10,"startY":0,"endX":12,"endY":0,"heightMeters":3,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
  assert(call(R"({"type":"RotateWall","id":"W9","startX":10,"startY":0,"endX":10,"endY":2})").find("\"ok\":true")!=std::string::npos);
  assert(call(R"({"type":"Undo"})").find("\"ok\":true")!=std::string::npos);assert(call(R"({"type":"Redo"})").find("\"ok\":true")!=std::string::npos);
