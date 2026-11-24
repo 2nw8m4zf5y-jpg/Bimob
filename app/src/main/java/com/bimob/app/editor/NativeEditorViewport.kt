@@ -91,7 +91,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
      val raw=screenToWorld(change.position,size,camera.zoom,Offset(camera.panX,camera.panY))
      if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
-     val p=snap(raw,state.geometry);val prev=last?:a
+     val p=snap(raw,state.typedGeometry);val prev=last?:a
      if(tool==EditorTool.WALL)preview=a to p
      else if(tool==EditorTool.SELECT){movingId?.let{viewModel.moveWall(it,p.x-prev.x,p.y-prev.y)}}
      last=p
