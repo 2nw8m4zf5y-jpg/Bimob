@@ -15,7 +15,7 @@ data class RenderGeometryBuffer(
     val catalogInstances: FloatArray,
 ) {
     companion object {
-        private const val HEADER_BYTES = 24
+        private const val HEADER_BYTES = 32
         private const val RECORD_FLOATS = 8
 
         internal fun decode(bytes: ByteArray): RenderGeometryBuffer {
