@@ -5,7 +5,7 @@ import com.bimob.app.core.nativebridge.RenderGeometryBuffer
 import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlin.math.hypot
+import kotlin.math.hypot\nimport kotlin.math.cos\nimport kotlin.math.sin\nimport kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
