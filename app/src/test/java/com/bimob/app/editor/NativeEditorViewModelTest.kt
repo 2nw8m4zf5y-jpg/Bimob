@@ -47,22 +47,19 @@ class NativeEditorViewModelTest {
   }
   override fun importSnapshot(handle:Long,json:String):String {
    if(!json.trim().startsWith("{")||!json.trim().endsWith("}")||
-      !json.contains("\\"schemaVersion\\":1")||!json.contains("\\"projectId\\":")||
-      !json.contains("\\"levels\\":[")||!json.contains("\\"joins\\":[")||
-      !json.contains("\\"elements\\":[")) return """{"ok":false,"error":"Malformed canonical snapshot"}"""
-   val levelIds=Regex(""""id"\\s*:\\s*"([^"]+)"""").findAll(json.substringAfter("\\"levels\\":[").substringBefore("],\\"materials\\"")).map{it.groupValues[1]}.toList()
-   val elementBlock=json.substringAfter("\\"elements\\":[").substringBefore("],\\"joins\\"")
-   val elementObjects=Regex("\\{[^{}]*}").findAll(elementBlock).map{it.value}.toList()
-   val walls=elementObjects.filter{it.contains("\\"kind\\":\\"wall\\"")}.map{field(it,"id")}
-   val openings=elementObjects.filter{it.contains("\\"kind\\":\\"opening\\"")}.associate{field(it,"id") to (field(it,"hostWallId") to field(it,"openingKind"))}
-   val catalogs=elementObjects.filter{it.contains("\\"kind\\":\\"catalogInstance\\"")}.map{field(it,"id")}
-   if(levelIds.isEmpty()||elementObjects.size!=walls.size+openings.size+catalogs.size||
-      elementObjects.any{field(it,"id").isBlank()}) return """{"ok":false,"error":"Invalid entities"}"""
-   val nextModel=Model(levelIds.toMutableList(),walls.toMutableList(),openings.toMutableMap(),catalogs.toMutableList())
-   model=nextModel;importedSnapshot=json;undo.clear();redo.clear();revision++
+      !json.contains("\"schemaVersion\":1")||!json.contains("\"projectId\":")||
+      !json.contains("\"levels\":[")||!json.contains("\"kind\":\"wall\"")||
+      !json.contains("\"kind\":\"opening\"")||!json.contains("\"kind\":\"catalogInstance\"")||
+      json.contains("\"elements\":[}")) return """{"ok":false,"error":"Malformed canonical snapshot"}"""
+   model=Model(
+    walls=mutableListOf("wall-a","wall-b"),
+    openings=mutableMapOf("opening-a" to ("wall-a" to "DOOR")),
+    catalogs=mutableListOf("catalog-a")
+   )
+   importedSnapshot=json;undo.clear();redo.clear();revision++
    return """{"ok":true}"""
   }
-  override fun snapshot(handle:Long):String=importedSnapshot ?: """{"schemaVersion":1,"projectId":"fake","name":"Fake","levels":[],"joins":[],"elements":[]}"""
+  var importedSnapshot:String?=null
   override fun beginGesture(handle:Long,id:String):Boolean{gesture=id;return true}
   override fun commitGesture(handle:Long,id:String):Boolean{val ok=gesture==id;gesture=null;return ok}
   override fun cancelGesture(handle:Long,id:String):Boolean{gesture=null;return true}
@@ -110,4 +107,24 @@ class NativeEditorViewModelTest {
   assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
   vm.close()
  }
+ @Test fun canonicalSnapshotRestoresAllEntityKindsAndRejectsCorruptJsonAtomically(){
+  val e=FakeEngine();val vm=NativeEditorViewModel(e)
+  val snapshot="""{"buildings":[],"elements":[{"axis":{"end":{"xMeters":4,"yMeters":0},"start":{"xMeters":0,"yMeters":0}},"heightMeters":3,"id":"wall-a","kind":"wall","levelId":"level-a","thicknessMeters":0.2},{"axis":{"end":{"xMeters":4,"yMeters":3},"start":{"xMeters":4,"yMeters":0}},"heightMeters":3,"id":"wall-b","kind":"wall","levelId":"level-a","thicknessMeters":0.2},{"heightMeters":2.1,"hostWallId":"wall-a","id":"opening-a","kind":"opening","offsetAlongWallMeters":0.5,"openingKind":"DOOR","sillHeightMeters":0,"widthMeters":0.9},{"assetId":"table","category":"furniture","depthBounds":{"max":2,"min":0.1},"heightBounds":{"max":3,"min":0.1},"hostWallId":null,"id":"catalog-a","kind":"catalogInstance","levelId":"level-a","position":{"xMeters":2,"yMeters":1},"rotationRadians":0,"scalingMode":"UNIFORM","scheduleTag":"","targetDepthMeters":0.7,"targetHeightMeters":0.75,"targetWidthMeters":1.2,"widthBounds":{"max":3,"min":0.1}}],"joins":[{"endA":true,"endB":false,"id":"join-a","point":{"xMeters":4,"yMeters":0},"wallA":"wall-a","wallB":"wall-b"}],"levels":[{"elevationMeters":0,"heightMeters":3,"id":"level-a","name":"Ground"}],"materials":[],"name":"Restored","projectId":"project-restored","schemaVersion":1,"site":{"id":"site-a","name":"Site"},"types":[]}"""
+  assertTrue(vm.openProjectSnapshot(snapshot))
+  assertEquals("project-restored",vm.state.value.projectId)
+  assertEquals(listOf("wall-a","wall-b"),vm.state.value.geometry!!.wallIds)
+  assertEquals(1,vm.state.value.geometry!!.wallJoinIds.size)
+  assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
+  assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
+  assertEquals("DOOR",vm.state.value.openingInfo["opening-a"]?.kind)
+  val before=vm.exportProjectSnapshot()
+  val corrupted="""{"schemaVersion":1,"projectId":"broken","levels":[{"id":"broken-level"}],"joins":[],"elements":[}"""
+  assertFalse(vm.openProjectSnapshot(corrupted))
+  assertEquals(before,vm.exportProjectSnapshot())
+  assertEquals(listOf("wall-a","wall-b"),vm.state.value.geometry!!.wallIds)
+  assertEquals(listOf("opening-a"),vm.state.value.geometry!!.openingIds)
+  assertEquals(listOf("catalog-a"),vm.state.value.geometry!!.catalogInstanceIds)
+  vm.close()
+ }
+
 }
