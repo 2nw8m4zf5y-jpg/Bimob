@@ -148,7 +148,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val selectedWall=state.selection?.takeIf{it.kind==EditorElementKind.WALL}?.let{s->state.typedGeometry?.walls?.firstOrNull{it.id==s.id}}
      endpointDrag=if(tool==EditorTool.SELECT&&selectedWall!=null)hitWallEndpoint(screen,selectedWall,size,camera.zoom,canvasOffset,hitRadiusPx)else null
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}} 
+     val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} 
      val snap=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen
      snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
@@ -162,7 +162,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val canvasOffset=Offset(camera.panX,camera.panY)
      val cross=if(tool==EditorTool.WALL||endpointDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
-     val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?:origin
+     val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)}?:origin
      val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
      val point=snapped.point;snapPreview=snapped
      when{
