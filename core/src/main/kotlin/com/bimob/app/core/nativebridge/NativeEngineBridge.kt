@@ -5,7 +5,7 @@ import java.nio.ByteOrder
 import java.nio.charset.CodingErrorAction
 
 /** Version-1 render export in world-space metres.
- * Walls/joins: 4 XY vertices (8 floats/record); openings/catalogue: 8-float records.
+ * Walls: 4 XY vertices + base elevation + height (10 floats); joins: 4 XY + height (9 floats); openings/catalogue: 8 floats.
  * IDs are length-prefixed UTF-8 strings after all float sections, sorted in record order.
  */
 data class RenderGeometryBuffer(
@@ -22,7 +22,7 @@ data class RenderGeometryBuffer(
 ) {
     companion object {
         private const val HEADER_BYTES = 32
-        private const val RECORD_FLOATS = 8
+        private const val WALL_FLOATS = 10\n        private const val JOIN_FLOATS = 9\n        private const val OPENING_FLOATS = 8\n        private const val CATALOG_FLOATS = 8
 
         internal fun decode(bytes: ByteArray): RenderGeometryBuffer {
             require(bytes.size >= HEADER_BYTES) { "Native render geometry unavailable or truncated." }
@@ -35,14 +35,14 @@ data class RenderGeometryBuffer(
             require(version == 1) { "Unsupported render geometry format version: $version" }
             val revision = b.long
             val counts = IntArray(4) { b.int }
-            require(counts.all { it >= 0 && it <= Int.MAX_VALUE / RECORD_FLOATS }) {
+            require(counts.all { it >= 0 && it <= Int.MAX_VALUE / maxOf(WALL_FLOATS, JOIN_FLOATS, OPENING_FLOATS, CATALOG_FLOATS) }) {
                 "Invalid render geometry section count."
             }
             val numericEnd = counts.fold(HEADER_BYTES.toLong()) { total, count ->
                 total + count.toLong() * RECORD_FLOATS * Float.SIZE_BYTES
             }
             require(numericEnd <= bytes.size.toLong()) { "Render geometry buffer truncated." }
-            fun readSection(count: Int): FloatArray = FloatArray(count * RECORD_FLOATS) { b.float }
+            fun readSection(count: Int, recordFloats: Int): FloatArray = FloatArray(count * recordFloats) { b.float }
             fun readIds(count: Int): List<String> = List(count) {
                 require(b.remaining() >= 4) { "Truncated geometry ID length." }
                 val size = b.int
