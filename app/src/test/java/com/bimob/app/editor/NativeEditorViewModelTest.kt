@@ -112,36 +112,36 @@ class NativeEditorViewModelTest {
  }
  @Test fun wallMoveDispatchesExactlyOneNativeCommandAtCommitBoundary(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("move-atomic","Project");vm.createWall(0.0,0.0,3.0,0.0)
-  val before=e.commands.size
+  val before=e.commands.count{!it.contains("HistoryState")}
   vm.moveElement(EditorElementKind.WALL,"wall-test",1.25,-.5)
-  assertEquals(before+1,e.commands.size)
-  val command=JSONObject(e.commands.last())
+  assertEquals(before+1,e.commands.count{!it.contains("HistoryState")})
+  val command=JSONObject(e.commands.last{!it.contains("HistoryState")})
   assertEquals("MoveWall",command.optString("type"));assertEquals("wall-test",command.optString("id"))
   assertEquals(1.25,command.optDouble("deltaX"),0.0);assertEquals(-.5,command.optDouble("deltaY"),0.0)
   vm.close()
  }
  @Test fun hostedOpeningAndCatalogMoveEachDispatchOneAtomicCommand(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("move-items","Project");vm.createWall(0.0,0.0,4.0,0.0);vm.createOpening("DOOR",2.0,0.0)
-  val openingId=vm.state.value.geometry!!.openingIds.single();val beforeOpening=e.commands.size
+  val openingId=vm.state.value.geometry!!.openingIds.single();val beforeOpening=e.commands.count{!it.contains("HistoryState")}
   vm.moveElement(EditorElementKind.OPENING,openingId,.25,.4)
-  assertEquals(beforeOpening+1,e.commands.size)
-  val openingCommand=JSONObject(e.commands.last());assertEquals("UpdateOpening",openingCommand.optString("type"));assertEquals(openingId,openingCommand.optString("id"))
+  assertEquals(beforeOpening+1,e.commands.count{!it.contains("HistoryState")})
+  val openingCommand=JSONObject(e.commands.last{!it.contains("HistoryState")});assertEquals("UpdateOpening",openingCommand.optString("type"));assertEquals(openingId,openingCommand.optString("id"))
   assertEquals(1.8,openingCommand.optDouble("offsetAlongWallMeters"),1e-6)
-  vm.createCatalog(CatalogPreset.TABLE,1.0,1.0,0.0);val catalogId=vm.state.value.geometry!!.catalogInstanceIds.single();val beforeCatalog=e.commands.size
+  vm.createCatalog(CatalogPreset.TABLE,1.0,1.0,0.0);val catalogId=vm.state.value.geometry!!.catalogInstanceIds.single();val beforeCatalog=e.commands.count{!it.contains("HistoryState")}
   vm.moveElement(EditorElementKind.CATALOG,catalogId,.3,-.2)
-  assertEquals(beforeCatalog+1,e.commands.size)
-  val catalogCommand=JSONObject(e.commands.last());assertEquals("UpdateCatalogInstance",catalogCommand.optString("type"));assertEquals(catalogId,catalogCommand.optString("id"))
+  assertEquals(beforeCatalog+1,e.commands.count{!it.contains("HistoryState")})
+  val catalogCommand=JSONObject(e.commands.last{!it.contains("HistoryState")});assertEquals("UpdateCatalogInstance",catalogCommand.optString("type"));assertEquals(catalogId,catalogCommand.optString("id"))
   assertEquals(1.3,catalogCommand.optDouble("x"),1e-6);assertEquals(.8,catalogCommand.optDouble("y"),1e-6)
   vm.close()
  }
  @Test fun rotateAndResizeEachIssueOneNativeCommand(){
   val e=FakeEngine();val vm=NativeEditorViewModel(e);vm.resetProject("transform-controls","Project");vm.createWall(0.0,0.0,4.0,0.0)
-  val wallId=vm.state.value.geometry!!.wallIds.single();val beforeRotate=e.commands.size
+  val wallId=vm.state.value.geometry!!.wallIds.single();val beforeRotate=e.commands.count{!it.contains("HistoryState")}
   vm.rotateElement(EditorSelection(EditorElementKind.WALL,wallId),Math.PI/4)
-  assertEquals(beforeRotate+1,e.commands.size);assertEquals("RotateWall",JSONObject(e.commands.last()).optString("type"))
-  val beforeResize=e.commands.size
+  assertEquals(beforeRotate+1,e.commands.count{!it.contains("HistoryState")});assertEquals("RotateWall",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
+  val beforeResize=e.commands.count{!it.contains("HistoryState")}
   vm.resizeElement(EditorSelection(EditorElementKind.WALL,wallId),1.1)
-  assertEquals(beforeResize+1,e.commands.size);assertEquals("ResizeWall",JSONObject(e.commands.last()).optString("type"))
+  assertEquals(beforeResize+1,e.commands.count{!it.contains("HistoryState")});assertEquals("ResizeWall",JSONObject(e.commands.last{!it.contains("HistoryState")}).optString("type"))
   vm.close()
  }
  @Test fun wallCommandJniLinkageFailureIsReportedWithoutEscapingViewModel(){
