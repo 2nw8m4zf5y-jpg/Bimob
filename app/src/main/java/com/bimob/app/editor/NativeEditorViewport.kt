@@ -122,8 +122,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val p=screenToWorld(screen,size,camera.zoom,Offset(camera.panX,camera.panY))
      if(!p.x.isFinite()||!p.y.isFinite())return@detectTapGestures
      when(tool){
-      EditorTool.DOOR->viewModel.createOpening("DOOR",p.x,p.y)
-      EditorTool.WINDOW->viewModel.createOpening("WINDOW",p.x,p.y)
       EditorTool.CATALOG->{if(preset.category=="openings"){val kind=if(preset.assetId.contains("door"))"DOOR" else "WINDOW";viewModel.createOpening(kind,p.x,p.y,preset.width,preset.height,preset.depth)}else viewModel.createCatalog(preset,p.x,p.y,0.0)}
       else->{val hit=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,Offset(camera.panX,camera.panY),hitRadiusPx)};viewModel.selectElement(hit)}
      }
