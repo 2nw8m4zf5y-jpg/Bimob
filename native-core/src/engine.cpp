@@ -154,7 +154,14 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  }
  double cx=0,cy=0;for(auto&p:v){cx+=p.x.value;cy+=p.y.value;}cx/=4;cy/=4;std::sort(v.begin(),v.end(),[&](const Point2&x,const Point2&y){return std::atan2(x.y.value-cy,x.x.value-cx)<std::atan2(y.y.value-cy,y.x.value-cx);});
  double area=0;for(size_t i=0;i<4;i++){auto&p=v[i];auto&q=v[(i+1)%4];area+=p.x.value*q.y.value-q.x.value*p.y.value;}area=std::abs(area)*.5;
- if(!std::isfinite(area)||area<=1e-12){return buttFallback();}
+ if(!std::isfinite(area)||area<=1e-12){
+  const double fallbackHalf=std::max(a->thickness.value*.5,b->thickness.value*.5);
+  v={Point2{Meters{join.joint.x.value-fallbackHalf},Meters{join.joint.y.value-fallbackHalf}},
+     Point2{Meters{join.joint.x.value+fallbackHalf},Meters{join.joint.y.value-fallbackHalf}},
+     Point2{Meters{join.joint.x.value+fallbackHalf},Meters{join.joint.y.value+fallbackHalf}},
+     Point2{Meters{join.joint.x.value-fallbackHalf},Meters{join.joint.y.value+fallbackHalf}}};
+  return Result<WallJoinGeometry>::success({topology,angle,v});
+ }
  return Result<WallJoinGeometry>::success({topology,angle,v});
 }
 Result<Project> solveWallJoin(const Project&source,const ModelId&movedWall,bool movedStart,Point2 newJoint){
