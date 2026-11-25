@@ -94,4 +94,21 @@ class GeometryHitTestTest {
   val outside=Offset(center.x+80f,center.y+180f)
   assertNull(hitTestTypedGeometry(outside,g,IntSize(400,400),100f,Offset.Zero,24f))
  }
+ @Test fun catalogGripResizeKeepsOppositeFaceFixedForAllFourSidesAndRotation(){
+  val item=CatalogItem("desk",Vec2(3.0,-2.0),Math.PI/3,2.0,1.2,0.8,0.0,false,"")
+  for(grip in CatalogGrip.values()){
+   val fixed=catalogGripFixedPoint(item,grip);val axis=catalogGripAxis(item,grip);val sign=catalogGripSign(grip);val old=catalogGripDimension(item,grip);val drag=catalogGripPoint(item,grip)
+   val target=Vec2(drag.x+axis.x*sign*.75,drag.y+axis.y*sign*.75);val result=resizeCatalogGrip(item,grip,target)!!
+   val dim=if(grip==CatalogGrip.WIDTH_POSITIVE||grip==CatalogGrip.WIDTH_NEGATIVE)result.width else result.depth
+   val fixedAfter=Vec2(result.center.x-axis.x*sign*dim/2,result.center.y-axis.y*sign*dim/2)
+   assertEquals(fixed.x,fixedAfter.x,1e-9);assertEquals(fixed.y,fixedAfter.y,1e-9);assertEquals(old+.75,dim,1e-9)
+  }
+ }
+ @Test fun catalogGripResizeClampsBoundsAndRejectsInvalidPoint(){
+  val item=CatalogItem("cabinet",Vec2(0.0,0.0),0.0,1.0,2.0,1.0,0.0,false,"")
+  val min=resizeCatalogGrip(item,CatalogGrip.WIDTH_POSITIVE,Vec2(-10.0,0.0))!!;assertEquals(.05,min.width,1e-9);assertEquals(.475,min.center.x,1e-9)
+  val max=resizeCatalogGrip(item,CatalogGrip.DEPTH_POSITIVE,Vec2(0.0,100.0))!!;assertEquals(50.0,max.depth,1e-9)
+  assertNull(resizeCatalogGrip(item,CatalogGrip.DEPTH_NEGATIVE,Vec2(Double.NaN,0.0)))
+ }
+
 }

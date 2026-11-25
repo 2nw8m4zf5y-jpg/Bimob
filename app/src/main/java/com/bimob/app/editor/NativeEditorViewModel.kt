@@ -188,6 +188,12 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
    }
   }
  }
+
+ fun resizeCatalogGrip(item:CatalogItem,preview:CatalogGripPreview){
+  if(!listOf(preview.center.x,preview.center.y,preview.width,preview.depth).all{it.isFinite()}||preview.width !in 0.05..50.0||preview.depth !in 0.05..50.0)return
+  if(preview.width==item.width&&preview.depth==item.depth&&preview.center==item.center)return
+  mutate("""{"type":"UpdateCatalogInstance","id":"\${item.id}","x":\${preview.center.x},"y":\${preview.center.y},"widthMeters":\${preview.width},"depthMeters":\${preview.depth},"heightMeters":\${item.height},"rotationRadians":\${item.rotationRadians}}""")
+ }
  fun resizeWallEndpoint(id:String,moveStart:Boolean,x:Double,y:Double){
   if(!listOf(x,y).all{it.isFinite()})return
   val wall=mutableState.value.typedGeometry?.walls?.firstOrNull{it.id==id}?:return

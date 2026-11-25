@@ -50,10 +50,14 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  val state by viewModel.state.collectAsState()
  val camera by viewModel.camera.collectAsState()
  val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
+ val catalogGripHitRadiusPx=with(LocalDensity.current){22.dp.toPx()}
+ val catalogGripSizePx=with(LocalDensity.current){8.dp.toPx()}
+ val catalogGripCenterSizePx=with(LocalDensity.current){3.dp.toPx()}
  var tool by remember{mutableStateOf(EditorTool.WALL)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
+ var catalogGripPreview by remember{mutableStateOf<Pair<String,CatalogGripPreview>?>(null)
  var endpointPreview by remember{mutableStateOf<EndpointPreview?>(null)}
  var snapPreview by remember{mutableStateOf<SnapResult?>(null)}
  var wallStartSnap by remember{mutableStateOf<SnapResult?>(null)}
@@ -167,21 +171,24 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,hitRadiusPx){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null;var catalogGripDrag:Pair<CatalogItem,CatalogGrip>?=null
     try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val canvasOffset=Offset(camera.panX,camera.panY)
      val cross=if(tool==EditorTool.WALL)Offset(screen.x,screen.y-crosshairOffsetPx)else screen
      val selectedWall=state.selection?.takeIf{it.kind==EditorElementKind.WALL}?.let{s->state.typedGeometry?.walls?.firstOrNull{it.id==s.id}}
      endpointDrag=if(tool==EditorTool.SELECT&&selectedWall!=null)hitWallEndpoint(screen,selectedWall,size,camera.zoom,canvasOffset,hitRadiusPx)else null
+     val selectedCatalog=state.selection?.takeIf{it.kind==EditorElementKind.CATALOG}?.let{s->state.typedGeometry?.catalog?.firstOrNull{it.id==s.id}}
+     val gripProbe=Offset(screen.x,screen.y-crosshairOffsetPx)
+     catalogGripDrag=if(tool==EditorTool.SELECT&&endpointDrag==null&&selectedCatalog!=null)listOf(CatalogGrip.WIDTH_POSITIVE,CatalogGrip.WIDTH_NEGATIVE,CatalogGrip.DEPTH_POSITIVE,CatalogGrip.DEPTH_NEGATIVE).firstOrNull{grip->val p=catalogGripPoint(selectedCatalog,grip);val sc=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,canvasOffset);hypot(gripProbe.x-sc.x,gripProbe.y-sc.y)<=catalogGripHitRadiusPx}?.let{selectedCatalog to it}else null
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
-     val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} 
-     val snap=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
+     val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} ?:catalogGripDrag?.let{catalogGripFixedPoint(it.first,it.second)} 
+     val snap=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen;hudWorldPoint=world
      snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
      wallStartSnap=if(tool==EditorTool.WALL)snap else null
      endpointPreview=endpointDrag?.copy(point=world)
-     if(tool!=EditorTool.WALL&&endpointDrag==null)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,canvasOffset,hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
+     if(tool!=EditorTool.WALL&&endpointDrag==null&&catalogGripDrag==null)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,canvasOffset,hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
     },onDrag={change,_->
      change.consume();val origin=start?:return@detectDragGestures;val originScreen=startScreen?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
@@ -193,6 +200,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val point=snapped.point;hudWorldPoint=point;snapPreview=snapped
      when{
+      catalogGripDrag!=null->{val (item,grip)=catalogGripDrag!!;catalogGripPreview=resizeCatalogGrip(item,grip,Vec2(point.x,point.y))?.let{item.id to it}}
       endpointDrag!=null->endpointPreview=endpointDrag!!.copy(point=point)
       tool==EditorTool.WALL->preview=origin to point
       tool==EditorTool.SELECT->movingSelection?.let{sel->transformPreview=TransformPreviewState(sel.kind,sel.id,point.x-origin.x,point.y-origin.y)}
@@ -203,14 +211,15 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     },onDragEnd={
      val from=start;val to=last;val tp=transformPreview;val sel=movingSelection;val ep=endpointPreview?:endpointDrag
      try{when{
+      catalogGripDrag!=null&&catalogGripPreview!=null->{val (item,grip)=catalogGripDrag!!;viewModel.resizeCatalogGrip(item,catalogGripPreview!!.second)}
       ep!=null&&from!=null&&to!=null&&hypot(to.x-from.x,to.y-from.y)>1e-6->viewModel.resizeWallEndpoint(ep.wallId,ep.moveStart,to.x,to.y)
       ep!=null->Unit
       tool==EditorTool.WALL->if(from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
       tool==EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
       tool==EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
       tool==EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
-     }}finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
-    },onDragCancel={preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null})}
+     }}finally{preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null;catalogGripDrag=null}
+    },onDragCancel={preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null;catalogGripDrag=null})}
     finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
    }
 
@@ -246,10 +255,12 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
     g.catalog.forEach{item->
-     val tp=transformPreview?.takeIf{it.kind==EditorElementKind.CATALOG&&it.id==item.id};val scale=tp?.scaleFactor?:1.0;val hw=item.width*scale/2;val hd=item.depth*scale/2;val angle=item.rotationRadians+(tp?.rotationRadians?:0.0);val cx=item.center.x+(tp?.dx?:0.0);val cy=item.center.y+(tp?.dy?:0.0)
+     val tp=transformPreview?.takeIf{it.kind==EditorElementKind.CATALOG&&it.id==item.id};val gp=catalogGripPreview?.takeIf{it.first==item.id}?.second
+     val width=gp?.width?:item.width*(tp?.scaleFactor?:1.0);val depth=gp?.depth?:item.depth*(tp?.scaleFactor?:1.0);val hw=width/2;val hd=depth/2;val angle=item.rotationRadians+(tp?.rotationRadians?:0.0);val cx=gp?.center?.x?:item.center.x+(tp?.dx?:0.0);val cy=gp?.center?.y?:item.center.y+(tp?.dy?:0.0)
      val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(cx+x*cos(angle)-y*sin(angle),cy+x*sin(angle)+y*cos(angle))}
      val path=Path();corners.forEachIndexed{k,v->val s=worldToScreen(WorldPoint(v.x,v.y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
-     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1E90FF)else Color(0xFF3A789A),style=Stroke(2f))
+     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1E6BB8)else Color(0xFF3A789A),style=Stroke(2f))
+     if(selected){val handleItem=item.copy(center=Vec2(cx,cy),width=width,depth=depth);listOf(CatalogGrip.WIDTH_POSITIVE,CatalogGrip.WIDTH_NEGATIVE,CatalogGrip.DEPTH_POSITIVE,CatalogGrip.DEPTH_NEGATIVE).forEach{grip->val p=catalogGripPoint(handleItem,grip);val sc=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawRect(Color(0xFF1E6BB8),topLeft=Offset(sc.x-catalogGripSizePx/2,sc.y-catalogGripSizePx/2),size=Size(catalogGripSizePx,catalogGripSizePx));drawRect(Color.White,topLeft=Offset(sc.x-catalogGripCenterSizePx/2,sc.y-catalogGripCenterSizePx/2),size=Size(catalogGripCenterSizePx,catalogGripCenterSizePx))}}
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
@@ -287,6 +298,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
     val hudFmt:(Double)->String={v->if(v.isFinite())String.format(java.util.Locale.US,"%.2f",v)else "0.00"}
     val telemetry=when{
+     catalogGripPreview!=null->{val cp=catalogGripPreview!!.second;"Объект · Ш: ${hudFmt(cp.width)} м   Г: ${hudFmt(cp.depth)} м"}
      preview!=null->{val (a,b)=preview!!;val dx=b.x-a.x;val dy=b.y-a.y; "L: ${hudFmt(hypot(dx,dy))} м   ∠ ${Math.round(Math.toDegrees(atan2(dy,dx))).toInt()}°"}
      endpointPreview!=null->{val ep=endpointPreview!!;val wall=state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId};if(wall!=null){val anchor=if(ep.moveStart)wall.axisEnd else wall.axisStart;val dx=ep.point.x-anchor.x;val dy=ep.point.y-anchor.y;"L: ${hudFmt(hypot(dx,dy))} м   ∠ ${Math.round(Math.toDegrees(atan2(dy,dx))).toInt()}°"}else "Шаг сетки: 0.10 м"}
      state.selection?.kind==EditorElementKind.WALL->{val w=state.typedGeometry?.walls?.firstOrNull{it.id==state.selection!!.id};if(w!=null)"Стена · L: ${hudFmt(hypot(w.axisEnd.x-w.axisStart.x,w.axisEnd.y-w.axisStart.y))} м · Ш: ${hudFmt(hypot(w.corners[0].x-w.corners[3].x,w.corners[0].y-w.corners[3].y))} м" else "Шаг сетки: 0.10 м"}
