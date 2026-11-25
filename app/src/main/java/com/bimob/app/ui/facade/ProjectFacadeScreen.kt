@@ -22,7 +22,7 @@ import com.bimob.app.ui.blueprint.BlueprintTheme as BP
 data class FacadeProject(val id:String,val name:String,val modified:String,val nodeCount:Int)
 
 @Composable
-fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->Unit,onOpen:(String)->Unit,onImport:()->Unit,onTool:(String)->Unit) {
+fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->Unit,onOpen:(String)->Unit,onImport:()->Unit,onTool:(String)->Unit,onOpenLast:()->Unit) {
  BoxWithConstraints(Modifier.fillMaxSize().background(BP.BgPrimary)) {
   val width=maxWidth;val height=maxHeight
   Canvas(Modifier.fillMaxSize()){
