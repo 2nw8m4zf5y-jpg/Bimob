@@ -100,10 +100,11 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
  BackHandler{editor.closeAndReset();onBack()}
  val state by editor.state.collectAsState()
  val context=LocalContext.current
- var importHandled by remember{mutableStateOf(false)}
+ var importHandled by remember(projectId,importJson){mutableStateOf(false)}
+ var projectInitialized by remember(projectId,importJson){mutableStateOf(false)}
  LaunchedEffect(projectId,importJson){
-  if(importJson!=null&&!importHandled){importHandled=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
-  else if(projectId.isNotBlank()&&state.projectId.isBlank())editor.resetProject(projectId,projectName)
+  if(importJson!=null&&!importHandled){importHandled=true;projectInitialized=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
+  else if(importJson==null&&projectId.isNotBlank()&&!projectInitialized){projectInitialized=true;editor.resetProject(projectId,projectName)}
  }
  Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
   NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
