@@ -28,8 +28,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModelProvider
-import androidx.compose.ui.platform.LocalView
-import androidx.lifecycle.ViewModelStoreOwner
 import com.bimob.app.editor.NativeEditorViewModel
 import com.bimob.app.editor.NativeEditorViewport
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
@@ -94,7 +92,8 @@ class MainActivity:ComponentActivity(){
 @Composable
 private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
  // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
- val owner=LocalContext.current as ComponentActivity\n val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
+ val owner=LocalContext.current as ComponentActivity
+ val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
  BackHandler{editor.closeAndReset();onBack()}
  val state by editor.state.collectAsState()
  val context=LocalContext.current
