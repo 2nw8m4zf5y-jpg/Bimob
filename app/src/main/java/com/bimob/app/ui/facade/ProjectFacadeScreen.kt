@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.CircleShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Path
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
