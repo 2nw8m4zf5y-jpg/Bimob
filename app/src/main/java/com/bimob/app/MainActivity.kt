@@ -70,7 +70,7 @@ class MainActivity:ComponentActivity(){
      "launcher"->ProgramLauncherScreen(onCad={route="facade"})
      "facade"->{
       BackHandler{route="launcher"}
-      val recent=prefs.all.keys.filter{prefs.getString(it,null)=="saved"}.sorted().take(3).map{FacadeProject(it,it,"ЛОКАЛЬНЫЙ ПРОЕКТ",0)}
+      val activeName=prefs.getString("active_name","");val recent=prefs.all.keys.filter{prefs.getString(it,null)=="saved"}.sortedByDescending{it==activeName}.take(3).map{FacadeProject(it,it,"ЛОКАЛЬНЫЙ ПРОЕКТ",0,it==activeName)}
       ProjectFacadeScreen(recent,onBack={route="launcher"},onNew={dialog=true},onOpen={name->loadSavedProject(name){json->importJson=json;projectId=name;projectName=name;route="workspace"}},onImport={opener.launch(arrayOf("application/json","text/plain"))},onTool={tool->android.widget.Toast.makeText(this@MainActivity,"$tool · модуль в разработке",android.widget.Toast.LENGTH_SHORT).show()},onOpenLast={val last=prefs.getString("active_name","");if(!last.isNullOrBlank()&&prefs.getString(last,null)=="saved"){loadSavedProject(last){json->importJson=json;projectId=last;projectName=last;route="workspace"}}else dialog=true})
      }
      "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="facade"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
