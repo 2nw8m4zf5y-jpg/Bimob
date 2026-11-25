@@ -9,6 +9,19 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 
 class NativeEditorViewModelTest {
+ @Test fun editPropertyDialogTitlesUseCorrectRussianCasesAndUnits(){
+  assertEquals("Изменить длину (м)",editPropertyDialogTitle("Длина"))
+  assertEquals("Изменить длину (м)",editPropertyDialogTitle("Длина (м)"))
+  assertEquals("Изменить ширину (м)",editPropertyDialogTitle("Ширина"))
+  assertEquals("Изменить ширину (м)",editPropertyDialogTitle("Ширина (м)"))
+  assertEquals("Изменить высоту (м)",editPropertyDialogTitle("Высота"))
+  assertEquals("Изменить высоту (м)",editPropertyDialogTitle("Высота (м)"))
+  assertEquals("Изменить отметку от пола (м)",editPropertyDialogTitle("Отметка"))
+  assertEquals("Изменить высоту подоконника (м)",editPropertyDialogTitle("Подоконник"))
+  assertEquals("Изменить положение (м)",editPropertyDialogTitle("Положение"))
+  assertEquals("Изменить глубину (м)",editPropertyDialogTitle("Глубина"))
+  assertEquals("Изменить угол поворота (°)",editPropertyDialogTitle("Поворот"))
+ }
  @Test fun compactPropertyLabelsMatchCadNotation(){
   assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина"))
   assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина (м)"))

@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -109,7 +110,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
     }else{
      RibbonGroup("История",listOf(RibbonItem("↶","Отменить",false,state.canUndo){viewModel.undo()},RibbonItem("↷","Повторить",false,state.canRedo){viewModel.redo()}),showTooltip)
-     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked){orthoLocked=!orthoLocked},RibbonItem("S","Snap",snapEnabled){snapEnabled=!snapEnabled}),showTooltip)
+     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked,tooltipOverride="Орто 90° (прямые углы)"){orthoLocked=!orthoLocked},RibbonItem("S","Привязка",snapEnabled,tooltipOverride=if(snapEnabled)"Магнитная привязка ВЫКЛ" else "Магнитная привязка ВКЛ"){snapEnabled=!snapEnabled}),showTooltip)
      RibbonGroup("Инспектор",listOf(RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
     }
    }
@@ -282,11 +283,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
        activeTooltip?.let { label -> Surface(color=Color(0xFF1E293B),shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.align(Alignment.TopStart).padding(start=6.dp,top=6.dp).zIndex(3f)){Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=Color.White,style=MaterialTheme.typography.labelSmall)} }
     if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().width(164.dp).padding(top=2.dp,start=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
-   Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("Zoom ${(camera.zoom*100).toInt()}%",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B));Text("Grid 0.10 m · Snap ${if(snapEnabled)"ON" else "OFF"}",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B))}
+   Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("Zoom ${(camera.zoom*100).toInt()}%",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B));Text("Grid 0.10 m · Привязка: ${if(snapEnabled)"ВКЛ" else "ВЫКЛ"}",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B))}
    Text("NAGAPLAS · Nagaplezhev Aslan",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f),modifier=Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp))
   }
   state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(3.dp),style=MaterialTheme.typography.labelSmall)}
-  if(editingProperty!=null)AlertDialog(onDismissRequest={editingProperty=null},title={Text("Изменить ${editingProperty!!.second}")},text={OutlinedTextField(value=editValue,onValueChange={editValue=it},singleLine=true,label={Text("Число")})},confirmButton={TextButton(onClick={val parsed=editValue.replace(',','.').toDoubleOrNull();if(parsed!=null&&parsed.isFinite()&&(editingProperty!!.first!="thickness"||(parsed>0.01&&parsed<=5.0))){viewModel.updateSelectedProperty(editingProperty!!.first,parsed);editingProperty=null}else editValue=editValue}){Text("ОК")}},dismissButton={TextButton(onClick={editingProperty=null}){Text("Отмена")}})
+  if(editingProperty!=null)AlertDialog(onDismissRequest={editingProperty=null},title={Text(editPropertyDialogTitle(editingProperty!!.second))},text={OutlinedTextField(value=editValue,onValueChange={editValue=it},singleLine=true,label={Text("Число")})},confirmButton={TextButton(onClick={val parsed=editValue.replace(',','.').toDoubleOrNull();if(parsed!=null&&parsed.isFinite()&&(editingProperty!!.first!="thickness"||(parsed>0.01&&parsed<=5.0))){viewModel.updateSelectedProperty(editingProperty!!.first,parsed);editingProperty=null}else editValue=editValue}){Text("ОК")}},dismissButton={TextButton(onClick={editingProperty=null}){Text("Отмена")}})
 
  }
 }
@@ -402,7 +403,7 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 
 
 @Composable
-private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val action:()->Unit)
+private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
 @Composable private fun RibbonQuickButton(glyph:String,label:String,enabled:Boolean,action:()->Unit,tooltip:(String)->Unit){
  Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=Color(0xFFF5F6F8),modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)Color(0xFF0F172A)else Color(0xFF94A3B8))}}
 }
@@ -411,7 +412,7 @@ private data class RibbonItem(val glyph:String,val label:String,val active:Boole
   Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
    Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){
     items.forEach{item->
-     Surface(onClick={tooltip(item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else null,modifier=Modifier.size(46.dp)){
+     Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else null,modifier=Modifier.size(46.dp)){
       Column(horizontalAlignment=Alignment.Center,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=18.sp,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A))}
      }
     }
@@ -421,7 +422,7 @@ private data class RibbonItem(val glyph:String,val label:String,val active:Boole
   Box(Modifier.padding(start=4.dp).width(1.dp).height(54.dp).background(Color(0xFFCBD5E1)))
  }
 }
-private fun Modifier.borderBottomEngineering()=this.then(Modifier)
+private fun Modifier.borderBottomEngineering()=drawBehind { drawLine(Color(0xFFCBD5E1),Offset(0f,size.height-1.dp.toPx()),Offset(size.width,size.height-1.dp.toPx()),strokeWidth=1.dp.toPx()) }
 private fun ToolbarDivider(){Box(Modifier.width(1.dp).height(24.dp).background(Color(0xFFCBD5E1)))}
 
 @Composable
@@ -440,6 +441,18 @@ private fun CompactActionButton(symbol:String,description:String,enabled:Boolean
    Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=when{(danger&&enabled)||selected->Color.White;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
   }
  }
+}
+
+internal fun editPropertyDialogTitle(field:String):String = when(field){
+ "Длина","Длина (м)"->"Изменить длину (м)"
+ "Ширина","Ширина (м)"->"Изменить ширину (м)"
+ "Высота","Высота (м)"->"Изменить высоту (м)"
+ "Отметка"->"Изменить отметку от пола (м)"
+ "Подоконник"->"Изменить высоту подоконника (м)"
+ "Положение"->"Изменить положение (м)"
+ "Глубина"->"Изменить глубину (м)"
+ "Поворот"->"Изменить угол поворота (°)"
+ else->"Изменить $field"
 }
 
 internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String = when(kind){
@@ -473,7 +486,7 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
    }
    HorizontalDivider(color=Color(0xFFCBD5E1),thickness=1.dp)
    details.forEach{(label,field,value)->Row(Modifier.fillMaxWidth().clickable{onEdit(field,label,value)},verticalAlignment=Alignment.CenterVertically){
-    Text(if(label=="Ширина (м)")label else compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF475569),modifier=Modifier.width(if(label=="Ширина (м)")64.dp else 18.dp))
+    Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF475569),modifier=Modifier.width(18.dp))
     Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF1E90FF))
    }}
   }
