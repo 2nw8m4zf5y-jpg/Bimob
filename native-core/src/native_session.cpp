@@ -97,12 +97,12 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
   auto ccwDelta=[&](double angle){double d=angle-ownAngle;while(d<0)d+=twoPi;while(d>=twoPi)d-=twoPi;return d;};
   for(int side:{-1,1}){
    const auto best=std::min_element(rays.begin(),rays.end(),[&](const NeighborRay&a,const NeighborRay&b){const double da=side>0?ccwDelta(a.angle):ccwDelta(2*ownAngle-a.angle),db=side>0?ccwDelta(b.angle):ccwDelta(2*ownAngle-b.angle);return da<db;});
-   const double den=dirOwnX*best->dy-dirOwnY*best->dx;if(std::abs(den)<0.30)continue;const double otherSide=-side,ownNx=-dirOwnY,ownNy=dirOwnX,otherNx=-best->dy,otherNy=best->dx;
+   const double den=dirOwnX*best->dy-dirOwnY*best->dx;if(std::abs(den)<0.30)continue;const double otherSide=-side*(den>0?1:-1),ownNx=-dirOwnY,ownNy=dirOwnX,otherNx=-best->dy,otherNy=best->dx;
    const double ownOff=side*half,otherOff=otherSide*best->wall->thickness.value*.5;
    const double px=joint.x.value+ownNx*ownOff,py=joint.y.value+ownNy*ownOff,qx=joint.x.value+otherNx*otherOff,qy=joint.y.value+otherNy*otherOff;
    const double t=((qx-px)*best->dy-(qy-py)*best->dx)/den;Point2 m{Meters{px+t*dirOwnX},Meters{py+t*dirOwnY}};
    const double maxRadius=2.5*std::max(half,best->wall->thickness.value*.5),radius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);if(!std::isfinite(radius)||radius>maxRadius)continue;
-   const std::size_t index=ownAtEnd?(side>0?1:2):(side>0?0:3);v[index]=m;
+   const std::size_t index=ownAtEnd?(side>0?2:1):(side>0?0:3);v[index]=m;
   }
  }
  return v;
