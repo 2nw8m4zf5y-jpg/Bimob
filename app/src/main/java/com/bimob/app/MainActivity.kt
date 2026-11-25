@@ -29,6 +29,10 @@ import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import android.view.WindowManager
 
 class MainActivity:ComponentActivity(){
  private val editor by viewModels<NativeEditorViewModel>()
@@ -38,6 +42,7 @@ class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){
   CrashReporter.install(applicationContext)
   super.onCreate(savedInstanceState)
+  configureImmersiveWindow()
   setContent{MaterialTheme(colorScheme=darkColorScheme(primary=Color(0xFF1E90FF),secondary=Color(0xFF00B4D8),tertiary=Color(0xFFFFB300),background=Color(0xFF12151A),surface=Color(0xFF191E24),surfaceVariant=Color(0xFF191E24),outline=Color(0xFF303947),error=Color(0xFFE53935),onPrimary=Color.White,onSecondary=Color.White,onBackground=Color(0xFFE6EDF5),onSurface=Color(0xFFE6EDF5)),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
    val state by editor.state.collectAsState()
    var crashLog by remember { mutableStateOf(CrashReporter.readLastCrash(this@MainActivity)) }
@@ -91,6 +96,25 @@ class MainActivity:ComponentActivity(){
     confirmButton={TextButton(onClick={showNew=false;editor.resetProject("project-"+System.currentTimeMillis(),projectName);prefs.edit().putString("active_name",projectName).apply()}){Text("Создать")}},
     dismissButton={TextButton(onClick={showNew=false}){Text("Отмена")}})
   }}
+ }
+ private fun configureImmersiveWindow(){
+  WindowCompat.setDecorFitsSystemWindows(window,false)
+  if(android.os.Build.VERSION.SDK_INT>=28){
+   window.attributes=window.attributes.apply{
+    layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+   }
+  }
+  hideSystemBars()
+ }
+ private fun hideSystemBars(){
+  WindowInsetsControllerCompat(window,window.decorView).apply{
+   hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+   systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+  }
+ }
+ override fun onWindowFocusChanged(hasFocus:Boolean){
+  super.onWindowFocusChanged(hasFocus)
+  if(hasFocus)hideSystemBars()
  }
  private fun fileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas")
  private fun legacyFileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.json")
