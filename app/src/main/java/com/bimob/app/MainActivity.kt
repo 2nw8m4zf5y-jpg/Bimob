@@ -73,13 +73,13 @@ class MainActivity:ComponentActivity(){
       val recent=prefs.all.keys.filter{prefs.getString(it,null)=="saved"}.sorted().take(3).map{FacadeProject(it,it,"ЛОКАЛЬНЫЙ ПРОЕКТ",0)}
       ProjectFacadeScreen(recent,onBack={route="launcher"},onNew={dialog=true},onOpen={name->loadSavedProject(name){json->importJson=json;projectId=name;projectName=name;route="workspace"}},onImport={opener.launch(arrayOf("application/json","text/plain"))},onTool={tool->android.widget.Toast.makeText(this@MainActivity,"$tool · модуль в разработке",android.widget.Toast.LENGTH_SHORT).show()},onOpenLast={val last=prefs.getString("active_name","");if(last.isNotBlank()&&prefs.getString(last,null)=="saved"){loadSavedProject(last){json->importJson=json;projectId=last;projectName=last;route="workspace"}}else dialog=true})
      }
-     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="facade"},onSaved={name->prefs.edit().putString(name,"saved").putString("active_name",name).apply()},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
+     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="facade"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
     }
     if(dialog)AlertDialog(onDismissRequest={dialog=false},title={Text("Новый проект")},text={OutlinedTextField(projectName,{projectName=it},label={Text("Название проекта")})},confirmButton={TextButton(onClick={dialog=false;projectId="project-"+System.currentTimeMillis();route="workspace"}){Text("Создать")}},dismissButton={TextButton(onClick={dialog=false}){Text("Отмена")}})
    }
   }
  }
- private fun loadSavedProject(name:String,done:(String)->Unit){lifecycleScope.launch{val file=File(dir,"\${name.hashCode().toUInt().toString(16)}.nagaplas");val legacy=File(dir,"\${name.hashCode().toUInt().toString(16)}.json");val result=runCatching{withContext(Dispatchers.IO){(if(file.exists())file else legacy).readText()}};result.onSuccess(done).onFailure{toast(it.message?: "Не удалось открыть проект")}}}
+ private fun saveSnapshot(name:String,json:String){lifecycleScope.launch{val file=File(dir,"\${name.hashCode().toUInt().toString(16)}.nagaplas");val tmp=File(dir,file.name+".tmp");val saved=runCatching{withContext(Dispatchers.IO){tmp.writeText(json);if(!tmp.renameTo(file))error("Atomic save failed")}};saved.onSuccess{prefs.edit().putString(name,"saved").putString("active_name",name).apply();toast("Сохранено")}.onFailure{toast(it.message?: "Ошибка сохранения")}}}\n private fun loadSavedProject(name:String,done:(String)->Unit){lifecycleScope.launch{val file=File(dir,"\${name.hashCode().toUInt().toString(16)}.nagaplas");val legacy=File(dir,"\${name.hashCode().toUInt().toString(16)}.json");val result=runCatching{withContext(Dispatchers.IO){(if(file.exists())file else legacy).readText()}};result.onSuccess(done).onFailure{toast(it.message?: "Не удалось открыть проект")}}}
  private fun readImport(uri:Uri,done:(String,String)->Unit){lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Файл пуст")}};result.onSuccess{json->val name=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?: "Импортированный проект";done(json,name)}.onFailure{toast(it.message?: "Не удалось прочитать файл")}}}
  private fun writeJson(uri:Uri,json:String){runCatching{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл")}.onSuccess{toast("Экспорт готов")}.onFailure{toast(it.message?: "Ошибка экспорта")}}
  private fun toast(s:String)=android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show()
@@ -90,7 +90,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable
-private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
+private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
  // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
  val editor:NativeEditorViewModel=viewModel()
  val state by editor.state.collectAsState()
@@ -101,6 +101,6 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
   else if(projectId.isNotBlank()&&state.projectId.isBlank())editor.resetProject(projectId,projectName)
  }
  Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
-  NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{onSaved(projectName)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
+  NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
  }
 }
