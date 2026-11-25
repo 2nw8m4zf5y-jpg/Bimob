@@ -1,7 +1,7 @@
 package com.bimob.app.core.extensions
 
+import java.util.ArrayDeque
 import java.util.Collections
-import java.util.PriorityQueue
 
 /**
  * Kernel API version used for extension compatibility checks.
@@ -285,29 +285,58 @@ class ExtensionRegistry private constructor(
     )
 
     private fun findCycleMembers(manifests: Map<String, ExtensionManifest>): List<String> {
-        val remainingDependencies = manifests.mapValues { (_, manifest) -> manifest.dependencies.size }.toMutableMap()
-        val dependents = manifests.keys.associateWith { mutableListOf<String>() }.toMutableMap()
-        manifests.values.forEach { manifest ->
-            manifest.dependencies.forEach { dependency ->
-                dependents.getValue(dependency.extensionId).add(manifest.id)
-            }
+        val graph = manifests.mapValues { (_, manifest) ->
+            manifest.dependencies.map { it.extensionId }.sorted()
         }
-        val ready = PriorityQueue<String>()
-        remainingDependencies.filterValues { it == 0 }.keys.forEach(ready::add)
-        var visited = 0
-        while (ready.isNotEmpty()) {
-            val resolved = ready.remove()
-            visited++
-            dependents.getValue(resolved).sorted().forEach { dependent ->
-                val count = remainingDependencies.getValue(dependent) - 1
-                remainingDependencies[dependent] = count
-                if (count == 0) ready.add(dependent)
-            }
+        val reverseGraph = manifests.keys.associateWith { mutableListOf<String>() }.toMutableMap()
+        graph.forEach { (extensionId, dependencies) ->
+            dependencies.forEach { dependencyId -> reverseGraph.getValue(dependencyId).add(extensionId) }
         }
-        return if (visited == manifests.size) emptyList()
-        else remainingDependencies.filterValues { it > 0 }.keys.sorted()
-    }
+        reverseGraph.values.forEach { it.sort() }
 
+        // Iterative DFS avoids recursion depth failures for long extension chains.
+        data class DfsFrame(val node: String, var nextNeighborIndex: Int)
+        val visited = mutableSetOf<String>()
+        val finishOrder = mutableListOf<String>()
+        for (start in manifests.keys.sorted()) {
+            if (!visited.add(start)) continue
+            val stack = ArrayDeque<DfsFrame>()
+            stack.addLast(DfsFrame(start, 0))
+            while (stack.isNotEmpty()) {
+                val frame = stack.peekLast()
+                val neighbors = graph.getValue(frame.node)
+                if (frame.nextNeighborIndex < neighbors.size) {
+                    val neighbor = neighbors[frame.nextNeighborIndex++]
+                    if (visited.add(neighbor)) stack.addLast(DfsFrame(neighbor, 0))
+                } else {
+                    finishOrder.add(frame.node)
+                    stack.removeLast()
+                }
+            }
+        }
+
+        // Kosaraju's second pass identifies actual strongly connected components,
+        // excluding acyclic extensions that merely depend on a cycle.
+        val assigned = mutableSetOf<String>()
+        val cycleMembers = mutableSetOf<String>()
+        for (start in finishOrder.asReversed()) {
+            if (!assigned.add(start)) continue
+            val component = mutableListOf<String>()
+            val stack = ArrayDeque<String>()
+            stack.addLast(start)
+            while (stack.isNotEmpty()) {
+                val node = stack.removeLast()
+                component.add(node)
+                reverseGraph.getValue(node).forEach { predecessor ->
+                    if (assigned.add(predecessor)) stack.addLast(predecessor)
+                }
+            }
+            if (component.size > 1 || graph.getValue(start).contains(start)) {
+                cycleMembers.addAll(component)
+            }
+        }
+        return cycleMembers.sorted()
+    }
     private fun freezeManifest(manifest: ExtensionManifest): ExtensionManifest =
         manifest.copy(
             dependencies = Collections.unmodifiableList(ArrayList(manifest.dependencies)),
