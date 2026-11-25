@@ -105,21 +105,32 @@ Result<Project> deleteLevelCascade(const Project&source,const ModelId&levelId){
 }
 Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJoin&join){
  auto find=[&](const ModelId&id)->const Wall*{auto i=std::find_if(project.walls.begin(),project.walls.end(),[&](const Wall&w){return w.id==id;});return i==project.walls.end()?nullptr:&*i;};
- const Wall*a=find(join.wallA),*b=find(join.wallB);if(!a||!b||!join.joint.finite()||!a->axis.valid()||!b->axis.valid())return Result<WallJoinGeometry>::failure({ErrorCode::InvalidArgument,"Invalid WallJoin geometry input",join.id.value,{},0,0});
- auto info=[&](const Wall&w){double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy),ux=dx/len,uy=dy/len,nx=-uy,ny=ux,px=join.joint.x.value-w.axis.start.x.value,py=join.joint.y.value-w.axis.start.y.value,t=(px*dx+py*dy)/(len*len),dist=std::abs(px*uy-py*ux);return std::array<double,6>{ux,uy,nx,ny,t,dist};};
- const auto A=info(*a),B=info(*b);constexpr double tol=1e-6;if(A[5]>tol||B[5]>tol||A[4]<-tol||A[4]>1+tol||B[4]<-tol||B[4]>1+tol)return Result<WallJoinGeometry>::failure({ErrorCode::InvalidArgument,"Join point is outside finite axes",join.id.value,{},0,0});
- bool ea=A[4]<=tol||A[4]>=1-tol,eb=B[4]<=tol||B[4]>=1-tol;auto topology=ea&&eb?WallJoinTopology::L:(ea!=eb?WallJoinTopology::T:WallJoinTopology::X);double angle=std::acos(std::clamp(A[0]*B[0]+A[1]*B[1],-1.0,1.0))*180/std::acos(-1.0),den=A[0]*B[1]-A[1]*B[0];
- const double maxThickness=std::max(a->thickness.value,b->thickness.value),maxHalfThickness=maxThickness*.5,miterLimit=2.5*maxHalfThickness; // Hard geometric safety bound: no join vertex may exceed 2.5 half-thicknesses.
- auto buttFallback=[&](){const double h=maxThickness*.5;std::array<Point2,4>fallback;
- fallback[0]={Meters{join.joint.x.value+(A[0]+A[2])*h},Meters{join.joint.y.value+(A[1]+A[3])*h}};
- fallback[1]={Meters{join.joint.x.value+(-A[0]+A[2])*h},Meters{join.joint.y.value+(-A[1]+A[3])*h}};
- fallback[2]={Meters{join.joint.x.value+(-A[0]-A[2])*h},Meters{join.joint.y.value+(-A[1]-A[3])*h}};
- fallback[3]={Meters{join.joint.x.value+(A[0]-A[2])*h},Meters{join.joint.y.value+(A[1]-A[3])*h}};
- return Result<WallJoinGeometry>::success({topology,angle,fallback});};
- const double normalSum=std::hypot(A[2]+B[2],A[3]+B[3]);if(std::abs(den)<0.30||normalSum<1e-3)return buttFallback();
- std::array<Point2,4>v{};size_t k=0;for(double sa:{-1.,1.})for(double sb:{-1.,1.}){double ax=join.joint.x.value+A[2]*a->thickness.value*.5*sa,ay=join.joint.y.value+A[3]*a->thickness.value*.5*sa,bx=join.joint.x.value+B[2]*b->thickness.value*.5*sb,by=join.joint.y.value+B[3]*b->thickness.value*.5*sb,t=((bx-ax)*B[1]-(by-ay)*B[0])/den;v[k++]={Meters{ax+t*A[0]},Meters{ay+t*A[1]}};}
- for(const auto&p:v){double d=std::hypot(p.x.value-join.joint.x.value,p.y.value-join.joint.y.value);if(!std::isfinite(d)||d>miterLimit)return buttFallback();}
- double cx=0,cy=0;for(auto&p:v){cx+=p.x.value;cy+=p.y.value;}cx/=4;cy/=4;std::sort(v.begin(),v.end(),[&](const Point2&x,const Point2&y){return std::atan2(x.y.value-cy,x.x.value-cx)<std::atan2(y.y.value-cy,y.x.value-cx);});double area=0;for(size_t i=0;i<4;i++){auto&p=v[i];auto&q=v[(i+1)%4];area+=p.x.value*q.y.value-q.x.value*p.y.value;}area=std::abs(area)*.5;if(!std::isfinite(area)||area<=1e-12)return buttFallback();return Result<WallJoinGeometry>::success({topology,angle,v});
+ const Wall*a=find(join.wallA),*b=find(join.wallB);
+ if(!a||!b||!join.joint.finite()||!a->axis.valid()||!b->axis.valid())return Result<WallJoinGeometry>::failure({ErrorCode::InvalidArgument,"Invalid WallJoin geometry input",join.id.value,{},0,0});
+ auto outward=[&](const Wall&w,bool atEnd){double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy);return std::array<double,4>{atEnd?-dx/len:dx/len,atEnd?-dy/len:dy/len,-(atEnd?-dy/len:dy/len),(atEnd?-dx/len:dx/len)};};
+ auto projection=[&](const Wall&w){double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len2=dx*dx+dy*dy;return ((join.joint.x.value-w.axis.start.x.value)*dx+(join.joint.y.value-w.axis.start.y.value)*dy)/len2;};
+ const double pa=projection(*a),pb=projection(*b);constexpr double tol=1e-6;
+ auto distanceToAxis=[&](const Wall&w){double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy);return std::abs((join.joint.x.value-w.axis.start.x.value)*dy-(join.joint.y.value-w.axis.start.y.value)*dx)/len;};
+ if(distanceToAxis(*a)>tol||distanceToAxis(*b)>tol||pa<-tol||pa>1+tol||pb<-tol||pb>1+tol)return Result<WallJoinGeometry>::failure({ErrorCode::InvalidArgument,"Join point is outside finite axes",join.id.value,{},0,0});
+ bool ea=pa<=tol||pa>=1-tol,eb=pb<=tol||pb>=1-tol;auto topology=ea&&eb?WallJoinTopology::L:(ea!=eb?WallJoinTopology::T:WallJoinTopology::X);
+ const auto A=outward(*a,pa>=1-tol),B=outward(*b,pb>=1-tol);
+ const double cross=A[0]*B[1]-A[1]*B[0],angle=std::acos(std::clamp(A[0]*B[0]+A[1]*B[1],-1.0,1.0))*180/std::acos(-1.0);
+ const double maxRadius=3.5*std::max(a->thickness.value*.5,b->thickness.value*.5);
+ auto buttFallback=[&](){const double h=std::max(a->thickness.value,b->thickness.value)*.5;std::array<Point2,4>f{{{Meters{join.joint.x.value+A[0]*h+A[2]*h},Meters{join.joint.y.value+A[1]*h+A[3]*h}}, {Meters{join.joint.x.value-A[0]*h+A[2]*h},Meters{join.joint.y.value-A[1]*h+A[3]*h}}, {Meters{join.joint.x.value-A[0]*h-A[2]*h},Meters{join.joint.y.value-A[1]*h-A[3]*h}}, {Meters{join.joint.x.value+A[0]*h-A[2]*h},Meters{join.joint.y.value-A[1]*h-A[3]*h}}}};return Result<WallJoinGeometry>::success({topology,angle,f});};
+ if(std::abs(cross)<0.25)return buttFallback();
+ std::array<Point2,4>v{};size_t k=0;
+ for(int sideA:{-1,1})for(int sideB:{-1,1}){
+  const double off1=sideA*a->thickness.value*.5,off2=(cross>0.0?-1.0:1.0)*static_cast<double>(sideA)*b->thickness.value*.5;
+  const double p1x=join.joint.x.value+A[2]*off1,p1y=join.joint.y.value+A[3]*off1,p2x=join.joint.x.value+B[2]*off2,p2y=join.joint.y.value+B[3]*off2;
+  const double t=((p2x-p1x)*B[1]-(p2y-p1y)*B[0])/cross;
+  Point2 m{Meters{p1x+t*A[0]},Meters{p1y+t*A[1]}};
+  const double radius=std::hypot(m.x.value-join.joint.x.value,m.y.value-join.joint.y.value);
+  if(!std::isfinite(radius)||radius>maxRadius)return buttFallback();
+  v[k++]=m;
+ }
+ double cx=0,cy=0;for(auto&p:v){cx+=p.x.value;cy+=p.y.value;}cx/=4;cy/=4;std::sort(v.begin(),v.end(),[&](const Point2&x,const Point2&y){return std::atan2(x.y.value-cy,x.x.value-cx)<std::atan2(y.y.value-cy,y.x.value-cx);});
+ double area=0;for(size_t i=0;i<4;i++){auto&p=v[i];auto&q=v[(i+1)%4];area+=p.x.value*q.y.value-q.x.value*p.y.value;}area=std::abs(area)*.5;
+ if(!std::isfinite(area)||area<=1e-12)return buttFallback();return Result<WallJoinGeometry>::success({topology,angle,v});
 }
 Result<Project> solveWallJoin(const Project&source,const ModelId&movedWall,bool movedStart,Point2 newJoint){
  if(!newJoint.finite())return Result<Project>::failure({ErrorCode::InvalidArgument,"WallJoin point must be finite",movedWall.value,{},0,0});
