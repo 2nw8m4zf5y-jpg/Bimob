@@ -54,7 +54,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.TextStyle
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+import java.util.Locale\nimport com.bimob.app.ui.blueprint.BlueprintTheme as BP
 
 private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, CATALOG }
 internal data class WorldPoint(val x:Double,val y:Double)
@@ -132,11 +132,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var editValue by remember{mutableStateOf("")}
  LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
-  Column(Modifier.fillMaxWidth().background(Color(0xFFE8ECF0)).zIndex(2f)) {
+  Column(Modifier.fillMaxWidth().background(BP.EditorSurface).zIndex(2f)) {
    Row(Modifier.fillMaxWidth().height(32.dp).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(horizontal=2.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
     Box {
-     Surface(onClick={homeMenuExpanded=true},shape=RectangleShape,color=Color(0xFF1E6BB8),modifier=Modifier.height(32.dp)) {
-      Box(Modifier.padding(horizontal=12.dp),contentAlignment=Alignment.Center){Text("Файл",fontSize=12.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color.White)}
+     Surface(onClick={homeMenuExpanded=true},shape=RectangleShape,color=BP.AccentCyan,modifier=Modifier.height(32.dp)) {
+      Box(Modifier.padding(horizontal=12.dp),contentAlignment=Alignment.Center){Text("Файл",fontSize=12.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText)}
      }
      DropdownMenu(expanded=homeMenuExpanded,onDismissRequest={homeMenuExpanded=false},shape=RectangleShape) {
       DropdownMenuItem(text={Text("Проекты")},onClick={homeMenuExpanded=false;onProjects()})
@@ -150,23 +150,23 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     RibbonQuickButton("↷","Повторить",state.canRedo,viewModel::redo,showTooltip)
     CompactActionButton("×","Удалить",enabled=state.selection!=null,danger=true,tooltip=showTooltip){viewModel.deleteSelection()}
    }
-   Row(Modifier.fillMaxWidth().height(30.dp).background(Color(0xFFE8ECF0)).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically) {
+   Row(Modifier.fillMaxWidth().height(30.dp).background(BP.EditorSurface).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically) {
     listOf("Архитектура","Конструкция","Системы","Каталог","Правка").forEach{tab->
      val active=ribbonTab==tab
-     Box(Modifier.height(30.dp).background(if(active)Color(0xFFF5F6F8)else Color(0xFFE8ECF0)).drawBehind{
+     Box(Modifier.height(30.dp).background(if(active)BP.EditorBarelse BP.EditorSurface).drawBehind{
       val edge=1.dp.toPx()
       if(active){
-       drawLine(Color(0xFF1E6BB8),Offset(0f,0f),Offset(size.width,0f),2.dp.toPx())
-       drawLine(Color(0xFFCBD5E1),Offset(0f,0f),Offset(0f,size.height),edge)
-       drawLine(Color(0xFFCBD5E1),Offset(size.width-edge,0f),Offset(size.width-edge,size.height),edge)
-      }else drawLine(Color(0xFFCBD5E1),Offset(0f,size.height-edge),Offset(size.width,size.height-edge),edge)
+       drawLine(BP.AccentCyan,Offset(0f,0f),Offset(size.width,0f),2.dp.toPx())
+       drawLine(BP.EditorGridMajor,Offset(0f,0f),Offset(0f,size.height),edge)
+       drawLine(BP.EditorGridMajor,Offset(size.width-edge,0f),Offset(size.width-edge,size.height),edge)
+      }else drawLine(BP.EditorGridMajor,Offset(0f,size.height-edge),Offset(size.width,size.height-edge),edge)
      }.clickable{if(active)ribbonCollapsed=!ribbonCollapsed else{ribbonTab=tab;ribbonCollapsed=false}}.padding(horizontal=12.dp),contentAlignment=Alignment.Center){
-      Text(tab,fontSize=11.sp,fontWeight=if(active)androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,color=if(active)Color(0xFF0F172A)else Color(0xFF475569),maxLines=1)
+      Text(tab,fontSize=11.sp,fontWeight=if(active)androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,color=if(active)BP.EditorTextelse BP.EditorTextMuted,maxLines=1)
      }
     }
-    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=Color(0xFF0F172A))}
+    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=BP.EditorText)}
    }
-   if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
+   if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(BP.EditorBar).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
     when(ribbonTab){
      "Архитектура"->RibbonGroup(listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}),showTooltip)
      "Конструкция"->RibbonGroup(listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("⌑","Узлы",highlightJoins){tool=EditorTool.SELECT;highlightJoins=!highlightJoins}),showTooltip)
@@ -201,7 +201,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}}
   )
   Box(Modifier.fillMaxWidth().weight(1f)) {
-   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(Color.White)
+   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(BP.EditorText)
     .pointerInput(Unit){
     awaitEachGesture {
      var oldCentroid:Offset?=null;var oldDistance=0f
@@ -290,27 +290,27 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
 
    ) {
    val origin=Offset(size.width/2f+camera.panX,size.height/2f+camera.panY);val minor=(camera.zoom*.1f).coerceAtLeast(3f);val major=(camera.zoom*.5f).coerceAtLeast(6f)
-   var gx=origin.x%minor;while(gx<size.width){drawLine(Color(0xFFE8EEF5),Offset(gx,0f),Offset(gx,size.height),1.dp.toPx());gx+=minor}
-   var gy=origin.y%minor;while(gy<size.height){drawLine(Color(0xFFE2E8F0),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx());gy+=minor}
-   gx=origin.x%major;while(gx<size.width){drawLine(Color(0xFFCBD5E1),Offset(gx,0f),Offset(gx,size.height),1.dp.toPx());gx+=major}
-   gy=origin.y%major;while(gy<size.height){drawLine(Color(0xFFCBD5E1),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx());gy+=major}
-   drawLine(Color(0xFF94A3B8),Offset(origin.x,0f),Offset(origin.x,size.height),1.5f)
-   drawLine(Color(0xFF94A3B8),Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
+   var gx=origin.x%minor;while(gx<size.width){drawLine(BP.EditorGridMinor,Offset(gx,0f),Offset(gx,size.height),1.dp.toPx());gx+=minor}
+   var gy=origin.y%minor;while(gy<size.height){drawLine(BP.EditorGridMinor,Offset(0f,gy),Offset(size.width,gy),1.dp.toPx());gy+=minor}
+   gx=origin.x%major;while(gx<size.width){drawLine(BP.EditorGridMajor,Offset(gx,0f),Offset(gx,size.height),1.dp.toPx());gx+=major}
+   gy=origin.y%major;while(gy<size.height){drawLine(BP.EditorGridMajor,Offset(0f,gy),Offset(size.width,gy),1.dp.toPx());gy+=major}
+   drawLine(BP.EditorAxis,Offset(origin.x,0f),Offset(origin.x,size.height),1.5f)
+   drawLine(BP.EditorAxis,Offset(0f,origin.y),Offset(size.width,origin.y),1.5f)
    val g=state.typedGeometry
    if(g!=null){
     g.walls.forEach{wall->
      val tp=transformPreview?.takeIf{it.kind==EditorElementKind.WALL&&it.id==wall.id}
-     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1E6BB8)else Color(0xFF0A0A0A)
+     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))BP.AccentCyanelse BP.EditorWall
      val ep=endpointPreview?.takeIf{it.wallId==wall.id}
      val corners=when{ep!=null->wallEndpointPreviewCorners(wall,ep.moveStart,ep.point);tp!=null->transformWallPreview(wall,tp);else->wall.corners}
-     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)Color(0xFF1E6BB8)else color)
+     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)BP.AccentCyanelse color)
      if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id)){
-      listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1E90FF),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
+      listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(BP.EditorSelection,radius=6f,center=s);drawCircle(BP.EditorText,radius=2.5f,center=s)}
      }
     }
     g.joins.forEach{join->
      val connectedSelected=state.selection?.kind==EditorElementKind.WALL
-     val joinColor=if(highlightJoins||connectedSelected)Color(0xFF1E6BB8)else Color(0xFF0A0A0A)
+     val joinColor=if(highlightJoins||connectedSelected)BP.AccentCyanelse BP.EditorWall
      drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),joinColor)
     }
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
@@ -319,7 +319,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val movedAlong=tp?.let{it.dx*ux+it.dy*uy}?:0.0;val newOffset=(item.offsetAlongWall+item.width/2-width/2).coerceIn(0.0,(len-width).coerceAtLeast(0.0));val along=movedAlong+newOffset+width/2-(item.offsetAlongWall+item.width/2)
      val cx=item.center.x+ux*along;val cy=item.center.y+uy*along
      val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
-     drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1E90FF)else Color(0xFF00A859)
+     drawLine(BP.EditorText,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)BP.EditorSelectionelse BP.EditorSnap
      if(item.kind=="DOOR"){drawLine(color,a,b,2f);val radius=(item.width*camera.zoom.toDouble()).coerceAtLeast(4.0).toFloat();drawArc(color,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2f,radius*2f),style=Stroke(1.5f))}
      else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
@@ -328,8 +328,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val width=gp?.width?:item.width*(tp?.scaleFactor?:1.0);val depth=gp?.depth?:item.depth*(tp?.scaleFactor?:1.0);val hw=width/2;val hd=depth/2;val angle=item.rotationRadians+(tp?.rotationRadians?:0.0);val cx=gp?.center?.x?:item.center.x+(tp?.dx?:0.0);val cy=gp?.center?.y?:item.center.y+(tp?.dy?:0.0)
      val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(cx+x*cos(angle)-y*sin(angle),cy+x*sin(angle)+y*cos(angle))}
      val path=Path();corners.forEachIndexed{k,v->val s=worldToScreen(WorldPoint(v.x,v.y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
-     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1E6BB8)else Color(0xFF3A789A),style=Stroke(2f))
-     if(selected){val handleItem=item.copy(center=Vec2(cx,cy),width=width,depth=depth);listOf(CatalogGrip.WIDTH_POSITIVE,CatalogGrip.WIDTH_NEGATIVE,CatalogGrip.DEPTH_POSITIVE,CatalogGrip.DEPTH_NEGATIVE).forEach{grip->val p=catalogGripPoint(handleItem,grip);val sc=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawRect(Color(0xFF1E6BB8),topLeft=Offset(sc.x-catalogGripSizePx/2,sc.y-catalogGripSizePx/2),size=Size(catalogGripSizePx,catalogGripSizePx));drawRect(Color.White,topLeft=Offset(sc.x-catalogGripCenterSizePx/2,sc.y-catalogGripCenterSizePx/2),size=Size(catalogGripCenterSizePx,catalogGripCenterSizePx))}}
+     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)BP.EditorSelection.copy(alpha=.2f)else BP.LinePrimary.copy(alpha=.13f));drawPath(path,if(selected)BP.AccentCyanelse BP.LinePrimary,style=Stroke(2f))
+     if(selected){val handleItem=item.copy(center=Vec2(cx,cy),width=width,depth=depth);listOf(CatalogGrip.WIDTH_POSITIVE,CatalogGrip.WIDTH_NEGATIVE,CatalogGrip.DEPTH_POSITIVE,CatalogGrip.DEPTH_NEGATIVE).forEach{grip->val p=catalogGripPoint(handleItem,grip);val sc=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawRect(BP.AccentCyan,topLeft=Offset(sc.x-catalogGripSizePx/2,sc.y-catalogGripSizePx/2),size=Size(catalogGripSizePx,catalogGripSizePx));drawRect(BP.EditorText,topLeft=Offset(sc.x-catalogGripCenterSizePx/2,sc.y-catalogGripCenterSizePx/2),size=Size(catalogGripCenterSizePx,catalogGripCenterSizePx))}}
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
@@ -338,31 +338,31 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val point=sn.point;val host=g?.walls?.minByOrNull{wallAxisDistance(point,it)}
      if(host!=null&&wallAxisDistance(point,host)<1e-5){
       val join=previewJoinCorners(host,pair.first,pair.second,point,.2)
-      if(join!=null)drawTypedPolygon(join,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF00A859))
+      if(join!=null)drawTypedPolygon(join,size,camera.zoom,Offset(camera.panX,camera.panY),BP.EditorSnap)
      }
     }
    }
    val finger=fingerScreen
    val crossTarget=if(finger!=null)Offset(finger.x,finger.y-crosshairOffsetPx)else null
    if(finger!=null&&crossTarget!=null&&(tool==EditorTool.WALL||endpointPreview!=null)){
-    drawLine(Color(0xFF1E293B),finger,crossTarget,1f)
-    drawCircle(Color(0xFF1E90FF),radius=7f,center=crossTarget,style=Stroke(1.5f))
-    drawLine(Color(0xFF1E90FF),Offset(crossTarget.x-9,crossTarget.y),Offset(crossTarget.x+9,crossTarget.y),1.5f)
-    drawLine(Color(0xFF1E90FF),Offset(crossTarget.x,crossTarget.y-9),Offset(crossTarget.x,crossTarget.y+9),1.5f)
+    drawLine(BP.EditorTextMuted,finger,crossTarget,1f)
+    drawCircle(BP.EditorSelection,radius=7f,center=crossTarget,style=Stroke(1.5f))
+    drawLine(BP.EditorSelection,Offset(crossTarget.x-9,crossTarget.y),Offset(crossTarget.x+9,crossTarget.y),1.5f)
+    drawLine(BP.EditorSelection,Offset(crossTarget.x,crossTarget.y-9),Offset(crossTarget.x,crossTarget.y+9),1.5f)
    }
    wallStartSnap?.takeIf{it.kind!=SnapKind.NONE&&tool==EditorTool.WALL}?.let{sn->
     val startPoint=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
-    drawCircle(Color(0xFF00A859),radius=6f,center=startPoint);drawCircle(Color.White,radius=2.5f,center=startPoint)
+    drawCircle(BP.EditorSnap,radius=6f,center=startPoint);drawCircle(BP.EditorText,radius=2.5f,center=startPoint)
    }
    snapPreview?.takeIf{it.kind!=SnapKind.NONE}?.let{sn->
     val target=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
-    drawCircle(Color(0xFF00A859),radius=7f,center=target)
-    drawCircle(Color.White,radius=3f,center=target)
-    drawLine(Color(0xFF00A859),Offset(target.x,0f),Offset(target.x,size.height),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
-    drawLine(Color(0xFF00A859),Offset(0f,target.y),Offset(size.width,target.y),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
+    drawCircle(BP.EditorSnap,radius=7f,center=target)
+    drawCircle(BP.EditorText,radius=3f,center=target)
+    drawLine(BP.EditorSnap,Offset(target.x,0f),Offset(target.x,size.height),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
+    drawLine(BP.EditorSnap,Offset(0f,target.y),Offset(size.width,target.y),1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,5f)))
    }
    }
-       activeTooltip?.let { label -> Surface(color=Color(0xFF1E293B),shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.align(Alignment.TopStart).padding(start=6.dp,top=6.dp).zIndex(3f)){Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=Color.White,style=MaterialTheme.typography.labelSmall)} }
+       activeTooltip?.let { label -> Surface(color=BP.EditorTextMuted,shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.align(Alignment.TopStart).padding(start=6.dp,top=6.dp).zIndex(3f)){Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=BP.EditorText,style=MaterialTheme.typography.labelSmall)} }
     if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopEnd).imePadding().width(164.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
    Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
     val hudFmt:(Double)->String={v->if(v.isFinite())String.format(java.util.Locale.US,"%.2f",v)else "0.00"}
@@ -375,17 +375,17 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      state.selection?.kind==EditorElementKind.CATALOG->{val o=state.typedGeometry?.catalog?.firstOrNull{it.id==state.selection!!.id};"Объект · Ш: ${hudFmt(o?.width?:0.0)} м · Г: ${hudFmt(o?.depth?:0.0)} м"}
      else->"Шаг сетки: 0.10 м"
     }
-    Column(Modifier,verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.78f));Text(telemetry,fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.78f))}
+    Column(Modifier,verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=BP.EditorText.copy(alpha=.78f));Text(telemetry,fontSize=10.sp,color=BP.EditorText.copy(alpha=.78f))}
    }
    Row(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(bottom=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-    Text(hudTime,fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.72f),style=TextStyle(fontFeatureSettings="tnum"))
-    Text("·",fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.72f))
-    Text(if(charging)"⚡ $batteryPercent%" else "$batteryPercent%",fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.72f),style=TextStyle(fontFeatureSettings="tnum"))
+    Text(hudTime,fontSize=10.sp,color=BP.EditorText.copy(alpha=.72f),style=TextStyle(fontFeatureSettings="tnum"))
+    Text("·",fontSize=10.sp,color=BP.EditorText.copy(alpha=.72f))
+    Text(if(charging)"⚡ $batteryPercent%" else "$batteryPercent%",fontSize=10.sp,color=BP.EditorText.copy(alpha=.72f),style=TextStyle(fontFeatureSettings="tnum"))
    }
    Row(Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-    Text("NAGAPLAS",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f))
-    Surface(onClick={ribbonCollapsed=!ribbonCollapsed},shape=RectangleShape,color=Color(0xFFE8ECF0),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF64748B)),modifier=Modifier.size(28.dp)){
-     Box(Modifier.padding(2.dp),contentAlignment=Alignment.Center){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=22.sp,color=Color(0xFF1E293B),lineHeight=22.sp)}
+    Text("NAGAPLAS",style=MaterialTheme.typography.labelSmall,color=BP.EditorTextMuted.copy(alpha=.25f))
+    Surface(onClick={ribbonCollapsed=!ribbonCollapsed},shape=RectangleShape,color=BP.EditorSurface,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorAxis),modifier=Modifier.size(28.dp)){
+     Box(Modifier.padding(2.dp),contentAlignment=Alignment.Center){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=22.sp,color=BP.EditorTextMuted,lineHeight=22.sp)}
     }
    }
   }
@@ -400,7 +400,7 @@ private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:
  val nx=-dy/len*.1;val ny=dx/len*.1
  val pts=listOf(WorldPoint(a.x+nx,a.y+ny),WorldPoint(b.x+nx,b.y+ny),WorldPoint(b.x-nx,b.y-ny),WorldPoint(a.x-nx,a.y-ny))
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
- drawPath(path,Color(0xFF1E90FF).copy(alpha=.35f))
+ drawPath(path,BP.EditorSelection.copy(alpha=.35f))
 }
 internal fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<Vec2>{
  val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val length=hypot(dx,dy);if(length<=1e-9)return wall.corners
@@ -573,7 +573,7 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 
 @Composable
 private fun WifiStatusGlyph(active:Boolean){
- val tint=if(active)Color(0xFF64748B).copy(alpha=.55f)else Color(0xFF94A3B8).copy(alpha=.35f)
+ val tint=if(active)BP.EditorAxis.copy(alpha=.55f)else BP.EditorAxis.copy(alpha=.35f)
  Canvas(Modifier.size(14.dp)){
   val stroke=1.35.dp.toPx()
   drawArc(tint,225f,90f,false,topLeft=Offset(size.width*.08f,size.height*.08f),size=Size(size.width*.84f,size.height*.84f),style=Stroke(stroke))
@@ -583,7 +583,7 @@ private fun WifiStatusGlyph(active:Boolean){
 }
 @Composable
 private fun CellularStatusGlyph(active:Boolean){
- val tint=if(active)Color(0xFF64748B).copy(alpha=.55f)else Color(0xFF94A3B8).copy(alpha=.35f)
+ val tint=if(active)BP.EditorAxis.copy(alpha=.55f)else BP.EditorAxis.copy(alpha=.35f)
  Canvas(Modifier.size(width=12.dp,height=10.dp)){
   val gap=size.width*.12f
   val bw=(size.width-gap*3)/4
@@ -593,39 +593,39 @@ private fun CellularStatusGlyph(active:Boolean){
 
 private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
 @Composable private fun RibbonToggleButton(glyph:String,label:String,active:Boolean,onClick:()->Unit){
- Surface(onClick=onClick,shape=RectangleShape,color=if(active)Color(0xFFDCEBFA)else Color(0xFFF5F6F8),border=if(active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
-  Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=if(glyph=="90°")9.sp else 13.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color(0xFF0F172A))}
+ Surface(onClick=onClick,shape=RectangleShape,color=if(active)BP.EditorSurfaceelse BP.EditorBar,border=if(active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
+  Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=if(glyph=="90°")9.sp else 13.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText)}
  }
 }
 @Composable private fun RibbonQuickButton(glyph:String,label:String,enabled:Boolean,action:()->Unit,tooltip:(String)->Unit){
- Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=Color(0xFFF5F6F8),modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)Color(0xFF0F172A)else Color(0xFF94A3B8))}}
+ Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=BP.EditorBar,modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)BP.EditorTextelse BP.EditorAxis)}}
 }
 @Composable private fun RibbonGroup(items:List<RibbonItem>,tooltip:(String)->Unit){
  Row(Modifier.height(68.dp).padding(horizontal=3.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){
   items.forEach{item->
-   Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.size(44.dp)){
-    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=17.sp,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A))}
+   Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->BP.BgSurface;item.active->BP.EditorSurface;else->BP.EditorBar},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentAmber)else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(44.dp)){
+    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=17.sp,color=if(item.danger)BP.AccentAmberelse BP.EditorText);Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmberelse BP.EditorText)}
    }
   }
-  Box(Modifier.padding(start=3.dp).width(1.dp).height(68.dp).background(Color(0xFFCBD5E1)))
+  Box(Modifier.padding(start=3.dp).width(1.dp).height(68.dp).background(BP.EditorGridMajor))
  }
 }
 @Composable private fun CursorQuickButton(selected:Boolean,tooltip:(String)->Unit,onClick:()->Unit){
- Surface(onClick={tooltip("Выбор");onClick()},shape=RectangleShape,color=if(selected)Color(0xFFDCEBFA)else Color(0xFFE8ECF0),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.size(28.dp).semantics{contentDescription="Выбор";role=Role.Button}){
+ Surface(onClick={tooltip("Выбор");onClick()},shape=RectangleShape,color=if(selected)BP.EditorSurfaceelse BP.EditorSurface,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription="Выбор";role=Role.Button}){
   Canvas(Modifier.fillMaxSize().padding(3.dp)){
    val p=Path().apply{moveTo(size.width*.08f,size.height*.05f);lineTo(size.width*.12f,size.height*.86f);lineTo(size.width*.36f,size.height*.63f);lineTo(size.width*.53f,size.height*.96f);lineTo(size.width*.68f,size.height*.88f);lineTo(size.width*.49f,size.height*.55f);lineTo(size.width*.82f,size.height*.51f);close()}
-   drawPath(p,Color.White);drawPath(p,Color(0xFF0F172A),style=Stroke(width=1.5.dp.toPx()))
+   drawPath(p,BP.EditorText);drawPath(p,BP.EditorText,style=Stroke(width=1.5.dp.toPx()))
   }
  }
 }
-private fun Modifier.borderBottomEngineering()=drawBehind { drawLine(Color(0xFFCBD5E1),Offset(0f,size.height-1.dp.toPx()),Offset(size.width,size.height-1.dp.toPx()),strokeWidth=1.dp.toPx()) }
-@Composable private fun ToolbarDivider(){Box(Modifier.width(1.dp).height(24.dp).background(Color(0xFFCBD5E1)))}
+private fun Modifier.borderBottomEngineering()=drawBehind { drawLine(BP.EditorGridMajor,Offset(0f,size.height-1.dp.toPx()),Offset(size.width,size.height-1.dp.toPx()),strokeWidth=1.dp.toPx()) }
+@Composable private fun ToolbarDivider(){Box(Modifier.width(1.dp).height(24.dp).background(BP.EditorGridMajor))}
 
 @Composable
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)Color(0xFF1E90FF)else MaterialTheme.colorScheme.surface,modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}){
-   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=if(selected)Color.White else MaterialTheme.colorScheme.onSurface)}
+  Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)BP.EditorSelectionelse MaterialTheme.colorScheme.surface,modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}){
+   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=if(selected)BP.EditorText else MaterialTheme.colorScheme.onSurface)}
   }
  }
 }
@@ -633,8 +633,8 @@ private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,toolti
 @Composable
 private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->Color(0xFFE53935);selected->Color(0xFF00B4D8);else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
-   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=when{(danger&&enabled)||selected->Color.White;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
+  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->Color(0xFFE53935);selected->BP.AccentCyan;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
+   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=when{(danger&&enabled)||selected->BP.EditorText;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
   }
  }
 }
@@ -661,7 +661,7 @@ internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String =
 private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier,onClose:()->Unit,onEdit:(String,String,String)->Unit){
  val selected=state.selection
  val g=state.typedGeometry
- if(selected==null){Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),shape=RectangleShape){Column(Modifier.padding(5.dp)){Row(Modifier.fillMaxWidth().background(Color(0xFFE8ECF0)).padding(horizontal=8.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Text("Свойства",fontSize=11.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color(0xFF0F172A),modifier=Modifier.weight(1f));TextButton(onClick=onClose,contentPadding=PaddingValues(0.dp)){Text("×",color=Color(0xFF0F172A))}};Spacer(Modifier.height(4.dp));Text("Не выбрано",fontSize=11.sp,color=Color(0xFF0F172A));Text("Выберите элемент на чертеже",fontSize=9.sp,color=Color(0xFF475569))}};return}
+ if(selected==null){Surface(modifier,color=BP.EditorBar,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),shape=RectangleShape){Column(Modifier.padding(5.dp)){Row(Modifier.fillMaxWidth().background(BP.EditorSurface).padding(horizontal=8.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Text("Свойства",fontSize=11.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText,modifier=Modifier.weight(1f));TextButton(onClick=onClose,contentPadding=PaddingValues(0.dp)){Text("×",color=BP.EditorText)}};Spacer(Modifier.height(4.dp));Text("Не выбрано",fontSize=11.sp,color=BP.EditorText);Text("Выберите элемент на чертеже",fontSize=9.sp,color=BP.EditorTextMuted)}};return}
  val typeName=when(selected.kind){
   EditorElementKind.WALL->"Стена"
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?:"Проём"
@@ -672,18 +672,18 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Высота","height","%.3f".format(item.height)),Triple("Подоконник","sill","%.3f".format(item.sill)),Triple("Положение","offset","%.3f".format(item.offsetAlongWall)))}
   EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Глубина","depth","%.3f".format(item.depth)),Triple("Высота","height","%.3f".format(item.height)),Triple("Поворот","rotation","%.1f".format(Math.toDegrees(item.rotationRadians))))}
  }
- if(details!=null)Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),tonalElevation=0.dp,shape=RectangleShape){
+ if(details!=null)Surface(modifier,color=BP.EditorBar,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),tonalElevation=0.dp,shape=RectangleShape){
   Column(Modifier.padding(horizontal=8.dp,vertical=4.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
-    Column(Modifier.weight(1f)){Text("Свойства",style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A))}
-    Surface(onClick=onClose,shape=RectangleShape,color=Color(0xFFE8ECF0),modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
+    Column(Modifier.weight(1f)){Text("Свойства",style=MaterialTheme.typography.labelSmall,maxLines=1,color=BP.EditorText)}
+    Surface(onClick=onClose,shape=RectangleShape,color=BP.EditorSurface,modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
      Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
     }
    }
-   HorizontalDivider(color=Color(0xFFCBD5E1),thickness=1.dp)
+   HorizontalDivider(color=BP.EditorGridMajor,thickness=1.dp)
    details.forEach{(label,field,value)->Row(Modifier.fillMaxWidth().clickable{onEdit(field,label,value)},verticalAlignment=Alignment.CenterVertically){
-    Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF475569),modifier=Modifier.width(18.dp))
-    Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF1E90FF))
+    Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,maxLines=1,color=BP.EditorTextMuted,modifier=Modifier.width(18.dp))
+    Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1,color=BP.EditorSelection)
    }}
   }
  }
