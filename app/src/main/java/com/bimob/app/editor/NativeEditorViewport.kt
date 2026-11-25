@@ -97,6 +97,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
   }
   ContextCompat.registerReceiver(context,receiver,filter,ContextCompat.RECEIVER_EXPORTED)
   onDispose{runCatching{context.unregisterReceiver(receiver)}}
+ }
  val camera by viewModel.camera.collectAsState()
  val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
  val catalogGripHitRadiusPx=with(LocalDensity.current){22.dp.toPx()}
