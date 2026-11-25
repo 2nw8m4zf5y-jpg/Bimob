@@ -202,7 +202,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    confirmButton={TextButton(onClick={showCatalogPicker=false}){Text("Закрыть")}}
   )
   Box(Modifier.fillMaxWidth().weight(1f)) {
-   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(BP.EditorText)
+   Canvas(Modifier.fillMaxSize().clipToBounds().zIndex(0f).background(BP.EditorCanvas)
     .pointerInput(Unit){
     awaitEachGesture {
      var oldCentroid:Offset?=null;var oldDistance=0f
