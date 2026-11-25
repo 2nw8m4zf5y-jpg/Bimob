@@ -79,7 +79,8 @@ class MainActivity:ComponentActivity(){
    }
   }
  }
- private fun loadSavedProject(name:String,done:(String)->Unit){lifecycleScope.launch{val file=File(dir,"\${name.hashCode().toUInt().toString(16)}.nagaplas");val legacy=File(dir,"\${name.hashCode().toUInt().toString(16)}.json");val result=runCatching{withContext(Dispatchers.IO){(if(file.exists())file else legacy).readText()}};result.onSuccess(done).onFailure{toast(it.message?: "Не удалось открыть проект")}}}\n private fun readImport(uri:Uri,done:(String,String)->Unit){lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Файл пуст")}};result.onSuccess{json->val name=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?: "Импортированный проект";done(json,name)}.onFailure{toast(it.message?: "Не удалось прочитать файл")}}}
+ private fun loadSavedProject(name:String,done:(String)->Unit){lifecycleScope.launch{val file=File(dir,"\${name.hashCode().toUInt().toString(16)}.nagaplas");val legacy=File(dir,"\${name.hashCode().toUInt().toString(16)}.json");val result=runCatching{withContext(Dispatchers.IO){(if(file.exists())file else legacy).readText()}};result.onSuccess(done).onFailure{toast(it.message?: "Не удалось открыть проект")}}}
+ private fun readImport(uri:Uri,done:(String,String)->Unit){lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Файл пуст")}};result.onSuccess{json->val name=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?: "Импортированный проект";done(json,name)}.onFailure{toast(it.message?: "Не удалось прочитать файл")}}}
  private fun writeJson(uri:Uri,json:String){runCatching{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл")}.onSuccess{toast("Экспорт готов")}.onFailure{toast(it.message?: "Ошибка экспорта")}}
  private fun toast(s:String)=android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show()
  private fun applyImmersiveFullscreen(){WindowCompat.setDecorFitsSystemWindows(window,false);if(android.os.Build.VERSION.SDK_INT>=28)window.attributes=window.attributes.apply{layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES};hideSystemBars()}
@@ -92,7 +93,8 @@ class MainActivity:ComponentActivity(){
 private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
  // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
  val editor:NativeEditorViewModel=viewModel()
- val state by editor.state.collectAsState()\n val context=LocalContext.current
+ val state by editor.state.collectAsState()
+ val context=LocalContext.current
  var importHandled by remember{mutableStateOf(false)}
  LaunchedEffect(projectId,importJson){
   if(importJson!=null&&!importHandled){importHandled=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
