@@ -506,7 +506,7 @@ internal fun snapPoint(p:WorldPoint,anchor:WorldPoint?,g:TypedGeometry?,size:Int
     }
     bestIntersection?.let{return SnapResult(it,SnapKind.EDGE,it)}
     if(gridStep>0){
-     val q=WorldPoint(round(locked.x/gridStep)*gridStep,round(locked.y/gridStep)*gridStep)
+     val q=if(nearestDir==0.0||nearestDir==PI)WorldPoint(round(locked.x/gridStep)*gridStep,anchor.y)else WorldPoint(anchor.x,round(locked.y/gridStep)*gridStep)
      if((worldToScreen(q,screenSize,zoom,pan)-rawScreen).getDistance()<=thresholdPx)return SnapResult(q,SnapKind.GRID,q)
     }
     return SnapResult(locked,SnapKind.ORTHO,locked)
