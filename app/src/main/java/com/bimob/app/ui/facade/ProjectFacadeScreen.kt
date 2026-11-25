@@ -77,7 +77,6 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
   }
   Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.13f),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
    listOf("А","Б","В","Г","Д").forEach{axis->Box(Modifier.size(18.dp).border(1.dp,BP.AccentAmber,CircleShape),contentAlignment=Alignment.Center){Text(axis,fontSize=8.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)}}}
-  }
   Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.48f),horizontalArrangement=Arrangement.spacedBy(6.dp)){
    listOf("КАРКАС / ОСИ","СОПРЯЖЕНИЯ","СЕЧЕНИЯ","АРХИВ").forEach{FacadeCard(it,"CAD TOOLS",false,Modifier.weight(1f)){onTool(it)}}
   }
