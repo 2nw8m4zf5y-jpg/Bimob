@@ -207,6 +207,7 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
     when(field){
      "length"->{if(value<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return};mutate("""{"type":"ResizeWall","id":"${wall.id}","lengthMeters":$value}""")}
      "height"->{if(value<=0.0){publishError("Высота стены должна быть положительной.");return};mutate("""{"type":"UpdateWallHeight","id":"${wall.id}","heightMeters":$value}""")}
+     "thickness"->{if(value<=0.01||value>5.0){publishError("Ширина стены должна быть > 0,01 и <= 5,0 м.");return};mutate("""{"type":"UpdateWallThickness","id":"${wall.id}","thicknessMeters":$value}""")}
      "elevation"->{if(levelId.isBlank()){publishError("У стены не найден уровень.");return};mutate("""{"type":"MoveLevel","id":"$levelId","elevationMeters":$value}""")}
     }
    }

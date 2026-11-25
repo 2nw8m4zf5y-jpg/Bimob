@@ -90,6 +90,7 @@ Mutation moveWall(ModelId id, Point2 delta);
 Mutation moveWallEndpoint(ModelId id, bool movedStart, Point2 joint);
 Mutation resizeWall(ModelId id, Meters length);
 Mutation setWallHeight(ModelId id, Meters height);
+Mutation setWallThickness(ModelId id, Meters thickness);
 Mutation deleteWall(ModelId id);
 Mutation createOpening(Opening value);
 Mutation moveOpening(ModelId id, Meters offsetAlongWall, Meters sillHeight);
