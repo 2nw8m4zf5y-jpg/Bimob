@@ -81,12 +81,13 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
   const double jx=r.join.joint.x.value-w.axis.start.x.value,jy=r.join.joint.y.value-w.axis.start.y.value,projection=(jx*dx+jy*dy)/(len*len);const bool atEnd=projection>=1-1e-7;if(projection>1e-7&&projection<1-1e-7)continue;
   const Wall*other=nullptr;for(const auto&candidate:p.walls)if(candidate.id==(isA?r.join.wallB:r.join.wallA)){other=&candidate;break;}if(!other)continue;
   const double odx=other->axis.end.x.value-other->axis.start.x.value,ody=other->axis.end.y.value-other->axis.start.y.value,olen=std::hypot(odx,ody);if(olen<=kMinWallLength)continue;
-  const double oux=odx/olen,ouy=ody/olen,onx=-ouy,ony=oux,den=ux*ouy-uy*oux;if(std::abs(den)<1e-12)continue;
+  const double oux=odx/olen,ouy=ody/olen,onx=-ouy,ony=oux,den=ux*ouy-uy*oux;if(std::abs(den)<0.30)continue;
   for(int side:{-1,1}){
    const double ownOff=side*half,otherSide=-side*(den>0?1:-1),otherOff=otherSide*other->thickness.value*.5;
    const double px=r.join.joint.x.value+nx*ownOff,py=r.join.joint.y.value+ny*ownOff;
    const double qx=r.join.joint.x.value+onx*otherOff,qy=r.join.joint.y.value+ony*otherOff;
    const double t=((qx-px)*ouy-(qy-py)*oux)/den;Point2 m{Meters{px+t*ux},Meters{py+t*uy}};
+   const double maxRadius=2.5*std::max(half,other->thickness.value*.5),radius=std::hypot(m.x.value-r.join.joint.x.value,m.y.value-r.join.joint.y.value);if(!std::isfinite(radius)||radius>maxRadius)continue;
    const std::size_t index=atEnd?(side>0?1:2):(side>0?0:3);v[index]=m;
   }
  }
