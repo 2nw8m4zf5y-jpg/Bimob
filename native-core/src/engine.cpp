@@ -129,10 +129,7 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  const double denBase=axisUx*axisVy-axisUy*axisVx;
  for(int sideA:{-1,1})for(int sideB:{-1,1}){
   const double ownOff=static_cast<double>(sideA)*a->thickness.value*.5;
-  const double proj1=(n1x*sideA)*dir2x+(n1y*sideA)*dir2y;
-  const double proj2=n2x*dir1x+n2y*dir1y;
-  const double otherBaseSide=((proj1*proj2)>=0.0)?1.0:-1.0;
-  const double otherOff=otherBaseSide*b->thickness.value*.5;
+  const double otherOff=static_cast<double>(sideB)*b->thickness.value*.5;
   const double px=join.joint.x.value+n1x*ownOff,py=join.joint.y.value+n1y*ownOff;
   const double qx=join.joint.x.value+n2x*otherOff,qy=join.joint.y.value+n2y*otherOff;
   bool useBevel=(std::abs(cross)<0.34||std::abs(denBase)<1e-9);
