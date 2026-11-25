@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -56,10 +57,10 @@ class MainActivity:ComponentActivity(){
   applyImmersiveFullscreen()
   window.decorView.postDelayed({applyImmersiveFullscreen()},120L)
   setContent{
-   var route by remember{mutableStateOf(routeState)}
-   var projectId by remember{mutableStateOf(selectedProject)}
+   var route by rememberSaveable{mutableStateOf(routeState)}
+   var projectId by rememberSaveable{mutableStateOf(selectedProject)}
    var dialog by remember{mutableStateOf(false)}
-   var projectName by remember{mutableStateOf(newProjectName)}
+   var projectName by rememberSaveable{mutableStateOf(newProjectName)}
    var importJson by remember{mutableStateOf<String?>(null)}
    val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->uri?.let{readImport(it){json,name->importJson=json;projectName=name;projectId="import-"+System.currentTimeMillis();route="workspace"}}}
    val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}
@@ -78,8 +79,10 @@ class MainActivity:ComponentActivity(){
    }
   }
  }
- private fun saveSnapshot(name:String,json:String){lifecycleScope.launch{val file=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas");val tmp=File(dir,file.name+".tmp");val saved=runCatching{withContext(Dispatchers.IO){tmp.writeText(json);if(!tmp.renameTo(file))error("Atomic save failed")}};saved.onSuccess{prefs.edit().putString(name,"saved").putString("active_name",name).apply();toast("Сохранено")}.onFailure{toast(it.message?: "Ошибка сохранения")}}}
- private fun loadSavedProject(name:String,done:(String)->Unit){lifecycleScope.launch{val file=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas");val legacy=File(dir,"${name.hashCode().toUInt().toString(16)}.json");val result=runCatching{withContext(Dispatchers.IO){(if(file.exists())file else legacy).readText()}};result.onSuccess(done).onFailure{toast(it.message?: "Не удалось открыть проект")}}}
+ private fun projectFileName(name:String)=java.security.MessageDigest.getInstance("SHA-256").digest(name.toByteArray(Charsets.UTF_8)).joinToString(""){ "%02x".format(it) }.take(24)
+ private fun legacyHash(name:String)=name.hashCode().toUInt().toString(16)
+ private fun saveSnapshot(name:String,json:String){lifecycleScope.launch{val file=File(dir,"${projectFileName(name)}.nagaplas");val tmp=File(dir,file.name+".tmp");val saved=runCatching{withContext(Dispatchers.IO){tmp.writeText(json);if(!tmp.renameTo(file))error("Atomic save failed")}};saved.onSuccess{prefs.edit().putString(name,"saved").putString("active_name",name).apply();toast("Сохранено")}.onFailure{toast(it.message?: "Ошибка сохранения")}}}
+ private fun loadSavedProject(name:String,done:(String)->Unit){lifecycleScope.launch{val modern=File(dir,"${projectFileName(name)}.nagaplas");val legacyNagaplas=File(dir,"${legacyHash(name)}.nagaplas");val legacyJson=File(dir,"${legacyHash(name)}.json");val result=runCatching{withContext(Dispatchers.IO){(if(modern.exists())modern else if(legacyNagaplas.exists())legacyNagaplas else legacyJson).readText()}};result.onSuccess(done).onFailure{toast(it.message?: "Не удалось открыть проект")}}}
  private fun readImport(uri:Uri,done:(String,String)->Unit){lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Файл пуст")}};result.onSuccess{json->val name=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?: "Импортированный проект";done(json,name)}.onFailure{toast(it.message?: "Не удалось прочитать файл")}}}
  private fun writeJson(uri:Uri,json:String){runCatching{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл")}.onSuccess{toast("Экспорт готов")}.onFailure{toast(it.message?: "Ошибка экспорта")}}
  private fun toast(s:String)=android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show()
