@@ -3,6 +3,8 @@ name: Build NAGAPLAS APK
 on:
   push:
     branches: [ main, feature/model-core-v1 ]
+  pull_request:
+    branches: [ feature/model-core-v1 ]
   workflow_dispatch:
 
 jobs:
