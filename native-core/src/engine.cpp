@@ -109,7 +109,7 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  auto info=[&](const Wall&w){double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy),ux=dx/len,uy=dy/len,nx=-uy,ny=ux,px=join.joint.x.value-w.axis.start.x.value,py=join.joint.y.value-w.axis.start.y.value,t=(px*dx+py*dy)/(len*len),dist=std::abs(px*uy-py*ux);return std::array<double,6>{ux,uy,nx,ny,t,dist};};
  const auto A=info(*a),B=info(*b);constexpr double tol=1e-6;if(A[5]>tol||B[5]>tol||A[4]<-tol||A[4]>1+tol||B[4]<-tol||B[4]>1+tol)return Result<WallJoinGeometry>::failure({ErrorCode::InvalidArgument,"Join point is outside finite axes",join.id.value,{},0,0});
  bool ea=A[4]<=tol||A[4]>=1-tol,eb=B[4]<=tol||B[4]>=1-tol;auto topology=ea&&eb?WallJoinTopology::L:(ea!=eb?WallJoinTopology::T:WallJoinTopology::X);double angle=std::acos(std::clamp(A[0]*B[0]+A[1]*B[1],-1.0,1.0))*180/std::acos(-1.0),den=A[0]*B[1]-A[1]*B[0];
- const double maxThickness=std::max(a->thickness.value,b->thickness.value),maxHalfThickness=maxThickness*.5,miterLimit=2.5*maxHalfThickness;
+ const double maxThickness=std::max(a->thickness.value,b->thickness.value),maxHalfThickness=maxThickness*.5,miterLimit=3.86*maxHalfThickness; // Preserve architectural miters; reject needle-like acute spikes below ~30 degrees.
  auto buttFallback=[&](){const double h=maxThickness*.5;std::array<Point2,4>fallback;
  fallback[0]={Meters{join.joint.x.value+(A[0]+A[2])*h},Meters{join.joint.y.value+(A[1]+A[3])*h}};
  fallback[1]={Meters{join.joint.x.value+(-A[0]+A[2])*h},Meters{join.joint.y.value+(-A[1]+A[3])*h}};
