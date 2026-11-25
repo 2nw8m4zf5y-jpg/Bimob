@@ -118,7 +118,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var wallStartSnap by remember{mutableStateOf<SnapResult?>(null)}
  var fingerScreen by remember{mutableStateOf<Offset?>(null)}
  var hudWorldPoint by remember{mutableStateOf(WorldPoint(0.0,0.0))}
- var orthoLocked by remember{mutableStateOf(false)}
+ var orthoLocked by remember{mutableStateOf(true)}
  var snapEnabled by remember{mutableStateOf(true)}
  var activeTooltip by remember{mutableStateOf<String?>(null)}
  var tooltipNonce by remember{mutableStateOf(0)}
@@ -472,6 +472,47 @@ internal fun snapPoint(p:WorldPoint,anchor:WorldPoint?,g:TypedGeometry?,size:Int
  val screenSize=Size(size.width.toFloat(),size.height.toFloat())
  val rawScreen=worldToScreen(p,screenSize,zoom,pan)
  val walls=g?.walls?.filter{it.id!=excludeWallId}.orEmpty()
+ if(anchor!=null){
+  val dx=p.x-anchor.x;val dy=p.y-anchor.y;val len=hypot(dx,dy)
+  if(len>1e-9){
+   val dirs=listOf(0.0,PI/2,PI,-PI/2)
+   val angle=atan2(dy,dx);val nearestDir=dirs.minBy{abs(atan2(sin(angle-it),cos(angle-it)))}
+   val locked=WorldPoint(anchor.x+cos(nearestDir)*len,anchor.y+sin(nearestDir)*len)
+   if(ortho){
+    val lockedScreen=worldToScreen(locked,screenSize,zoom,pan)
+    var bestEndpoint:WorldPoint?=null;var bestEndpointDist=thresholdPx
+    walls.forEach{w->listOf(w.axisStart,w.axisEnd).forEach{ep->
+     val epWorld=WorldPoint(ep.x,ep.y);val epScreen=worldToScreen(epWorld,screenSize,zoom,pan)
+     val along=if(nearestDir==0.0||nearestDir==PI)abs(ep.y-anchor.y) else abs(ep.x-anchor.x)
+     val d=(epScreen-rawScreen).getDistance()
+     if(along*zoom<=8f&&d<bestEndpointDist){bestEndpointDist=d;bestEndpoint=epWorld}
+    }}
+    bestEndpoint?.let{return SnapResult(it,SnapKind.ENDPOINT,it)}
+    // Intersections of the locked horizontal/vertical ray with existing wall axes.
+    var bestIntersection:WorldPoint?=null;var bestIntersectionDist=thresholdPx
+    walls.forEach{w->
+     val ax=w.axisStart.x;val ay=w.axisStart.y;val bx=w.axisEnd.x;val by=w.axisEnd.y
+     val wx=bx-ax;val wy=by-ay
+     val den=cos(nearestDir)*wy-sin(nearestDir)*wx
+     if(abs(den)>1e-10){
+      val t=((ax-anchor.x)*wy-(ay-anchor.y)*wx)/den
+      val u=((ax-anchor.x)*sin(nearestDir)-(ay-anchor.y)*cos(nearestDir))/den
+      if(t>=0&&u in 0.0..1.0){
+       val hit=WorldPoint(anchor.x+cos(nearestDir)*t,anchor.y+sin(nearestDir)*t)
+       val d=(worldToScreen(hit,screenSize,zoom,pan)-rawScreen).getDistance()
+       if(d<bestIntersectionDist){bestIntersectionDist=d;bestIntersection=hit}
+      }
+     }
+    }
+    bestIntersection?.let{return SnapResult(it,SnapKind.EDGE,it)}
+    if(gridStep>0){
+     val q=WorldPoint(round(locked.x/gridStep)*gridStep,round(locked.y/gridStep)*gridStep)
+     if((worldToScreen(q,screenSize,zoom,pan)-rawScreen).getDistance()<=thresholdPx)return SnapResult(q,SnapKind.GRID,q)
+    }
+    return SnapResult(locked,SnapKind.ORTHO,locked)
+   }
+  }
+ }
  var nearest:WorldPoint?=null;var best=thresholdPx
  walls.forEach{w->listOf(w.axisStart,w.axisEnd).forEach{ep->
   val s=worldToScreen(WorldPoint(ep.x,ep.y),screenSize,zoom,pan);val d=(s-rawScreen).getDistance()
@@ -493,7 +534,7 @@ internal fun snapPoint(p:WorldPoint,anchor:WorldPoint?,g:TypedGeometry?,size:Int
   val dx=p.x-anchor.x;val dy=p.y-anchor.y;val len=hypot(dx,dy)
   if(len>1e-9){val angle=atan2(dy,dx);val dirs=listOf(0.0,PI/2,PI,-PI/2);val nearestDir=dirs.minBy{abs(atan2(sin(angle-it),cos(angle-it)))}
    val error=abs(atan2(sin(angle-nearestDir),cos(angle-nearestDir)))
-   if(ortho||error<=Math.toRadians(5.0)){val snapped=WorldPoint(anchor.x+cos(nearestDir)*len,anchor.y+sin(nearestDir)*len);return SnapResult(snapped,SnapKind.ORTHO,snapped)}
+   if(error<=Math.toRadians(5.0)){val snapped=WorldPoint(anchor.x+cos(nearestDir)*len,anchor.y+sin(nearestDir)*len);return SnapResult(snapped,SnapKind.ORTHO,snapped)}
   }
  }
  if(gridStep>0){val q=WorldPoint(round(p.x/gridStep)*gridStep,round(p.y/gridStep)*gridStep);val d=(worldToScreen(q,screenSize,zoom,pan)-rawScreen).getDistance();if(d<=thresholdPx)return SnapResult(q,SnapKind.GRID,q)}
