@@ -53,7 +53,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  val catalogGripHitRadiusPx=with(LocalDensity.current){22.dp.toPx()}
  val catalogGripSizePx=with(LocalDensity.current){8.dp.toPx()}
  val catalogGripCenterSizePx=with(LocalDensity.current){3.dp.toPx()}
- var tool by remember{mutableStateOf(EditorTool.WALL)}
+ var tool by remember{mutableStateOf(EditorTool.SELECT)}
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
@@ -82,7 +82,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
   Column(Modifier.fillMaxWidth().background(Color(0xFFE8ECF0)).zIndex(2f)) {
-   Row(Modifier.fillMaxWidth().height(32.dp).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)),verticalAlignment=Alignment.CenterVertically) {
+   Row(Modifier.fillMaxWidth().height(32.dp).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).padding(horizontal=2.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
     Box {
      Surface(onClick={homeMenuExpanded=true},shape=RectangleShape,color=Color(0xFF1E6BB8),modifier=Modifier.height(32.dp)) {
       Box(Modifier.padding(horizontal=12.dp),contentAlignment=Alignment.Center){Text("Файл",fontSize=12.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color.White)}
@@ -96,19 +96,19 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
     RibbonQuickButton("↶","Отменить",state.canUndo,viewModel::undo,showTooltip)
     RibbonQuickButton("↷","Повторить",state.canRedo,viewModel::redo,showTooltip)
-    Spacer(Modifier.width(4.dp))
+    RibbonToggleButton("S","Привязка",snapEnabled){snapEnabled=!snapEnabled}
+    RibbonToggleButton("90°","Орто",orthoLocked){orthoLocked=!orthoLocked}
     listOf("Архитектура","Изменить").forEach{tab->
-     Box(Modifier.height(32.dp).background(if(ribbonTab==tab)Color(0xFFF5F6F8)else Color.Transparent).clickable{ribbonTab=tab}.padding(horizontal=10.dp),contentAlignment=Alignment.Center){
+     Box(Modifier.wrapContentWidth().height(32.dp).background(if(ribbonTab==tab&&!ribbonCollapsed)Color(0xFFF5F6F8)else Color.Transparent).clickable{if(ribbonTab==tab)ribbonCollapsed=!ribbonCollapsed else{ribbonTab=tab;ribbonCollapsed=false}}.padding(horizontal=5.dp),contentAlignment=Alignment.Center){
       Column(Modifier.fillMaxHeight(),verticalArrangement=Arrangement.Bottom,horizontalAlignment=Alignment.CenterHorizontally){
        if(ribbonTab==tab)Box(Modifier.fillMaxWidth().height(2.dp).background(Color(0xFF1E6BB8)))
-       Text(tab,fontSize=11.sp,color=if(ribbonTab==tab)Color(0xFF0F172A)else Color(0xFF475569))
+       Text(tab,fontSize=10.sp,color=if(ribbonTab==tab&&!ribbonCollapsed)Color(0xFF0F172A)else Color(0xFF475569),maxLines=1)
       }
      }
     }
-    Spacer(Modifier.weight(1f))
-    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(36.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=12.sp,color=Color(0xFF0F172A))}
+    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=Color(0xFF0F172A))}
    }
-   if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(62.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
+   if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
     if(ribbonTab=="Архитектура"){
      RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT},RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties}),showTooltip)
      RibbonGroup("Построение",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}),showTooltip)
@@ -295,7 +295,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
    }
        activeTooltip?.let { label -> Surface(color=Color(0xFF1E293B),shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.align(Alignment.TopStart).padding(start=6.dp,top=6.dp).zIndex(3f)){Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=Color.White,style=MaterialTheme.typography.labelSmall)} }
-    if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().width(164.dp).padding(top=2.dp,start=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
+    if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().width(164.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
    Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
     val hudFmt:(Double)->String={v->if(v.isFinite())String.format(java.util.Locale.US,"%.2f",v)else "0.00"}
     val telemetry=when{
@@ -309,7 +309,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
     Surface(color=Color(0xFF1E293B),shape=RectangleShape){Column(Modifier.padding(horizontal=8.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=Color.White);Text(telemetry,fontSize=10.sp,color=Color.White)}}
    }
-   Text("NAGAPLAS · Nagaplezhev Aslan",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f),modifier=Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp))
+   Text("NAGAPLAS",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f),modifier=Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp))
   }
   state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(3.dp),style=MaterialTheme.typography.labelSmall)}
   if(editingProperty!=null)AlertDialog(onDismissRequest={editingProperty=null},title={Text(editPropertyDialogTitle(editingProperty!!.second))},text={OutlinedTextField(value=editValue,onValueChange={editValue=it},singleLine=true,label={Text("Число")})},confirmButton={TextButton(onClick={val parsed=editValue.replace(',','.').toDoubleOrNull();if(parsed!=null&&parsed.isFinite()&&(editingProperty!!.first!="thickness"||(parsed>0.01&&parsed<=5.0))){viewModel.updateSelectedProperty(editingProperty!!.first,parsed);editingProperty=null}else editValue=editValue}){Text("ОК")}},dismissButton={TextButton(onClick={editingProperty=null}){Text("Отмена")}})
@@ -428,6 +428,11 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
 
 
 private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
+@Composable private fun RibbonToggleButton(glyph:String,label:String,active:Boolean,onClick:()->Unit){
+ Surface(onClick=onClick,shape=RectangleShape,color=if(active)Color(0xFFDCEBFA)else Color(0xFFF5F6F8),border=if(active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
+  Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=if(glyph=="90°")9.sp else 13.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color(0xFF0F172A))}
+ }
+}
 @Composable private fun RibbonQuickButton(glyph:String,label:String,enabled:Boolean,action:()->Unit,tooltip:(String)->Unit){
  Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=Color(0xFFF5F6F8),modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)Color(0xFF0F172A)else Color(0xFF94A3B8))}}
 }
@@ -505,7 +510,7 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
  if(details!=null)Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),tonalElevation=0.dp,shape=RectangleShape){
   Column(Modifier.padding(horizontal=4.dp,vertical=3.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
-    Column(Modifier.weight(1f)){Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A));Text(selected.id,fontSize=8.sp,maxLines=1,color=Color(0xFF475569))}
+    Column(Modifier.weight(1f)){Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A))}
     Surface(onClick=onClose,shape=RectangleShape,color=Color(0xFFE8ECF0),modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
      Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
     }
