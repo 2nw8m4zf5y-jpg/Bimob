@@ -97,12 +97,19 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
   auto ccwDelta=[&](double angle){double d=angle-ownAngle;while(d<0)d+=twoPi;while(d>=twoPi)d-=twoPi;return d;};
   for(int side:{-1,1}){
    const auto best=std::min_element(rays.begin(),rays.end(),[&](const NeighborRay&a,const NeighborRay&b){const double da=side>0?ccwDelta(a.angle):ccwDelta(2*ownAngle-a.angle),db=side>0?ccwDelta(b.angle):ccwDelta(2*ownAngle-b.angle);return da<db;});
-   const double den=dirOwnX*best->dy-dirOwnY*best->dx;if(std::abs(den)<0.30)continue;const double otherSide=-side*(den>0?1:-1),ownNx=-dirOwnY,ownNy=dirOwnX,otherNx=-best->dy,otherNy=best->dx;
-   const double ownOff=side*half,otherOff=otherSide*best->wall->thickness.value*.5;
-   const double px=joint.x.value+ownNx*ownOff,py=joint.y.value+ownNy*ownOff,qx=joint.x.value+otherNx*otherOff,qy=joint.y.value+otherNy*otherOff;
-   const double t=((qx-px)*best->dy-(qy-py)*best->dx)/den;Point2 m{Meters{px+t*dirOwnX},Meters{py+t*dirOwnY}};
-   const double maxRadius=2.5*std::max(half,best->wall->thickness.value*.5),radius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);if(!std::isfinite(radius)||radius>maxRadius)continue;
-   const std::size_t index=ownAtEnd?(side>0?2:1):(side>0?0:3);v[index]=m;
+   const double u1x=dirOwnX,u1y=dirOwnY,u2x=best->dx,u2y=best->dy;
+   const double cross=u1x*u2y-u1y*u2x;if(std::abs(cross)<0.25)continue;
+   const double n1x=-u1y,n1y=u1x,n2x=-u2y,n2y=u2x;
+   const double off1=static_cast<double>(side)*half;
+   const double off2=(cross>0.0?-1.0:1.0)*static_cast<double>(side)*best->wall->thickness.value*.5;
+   const double p1x=joint.x.value+n1x*off1,p1y=joint.y.value+n1y*off1;
+   const double p2x=joint.x.value+n2x*off2,p2y=joint.y.value+n2y*off2;
+   const double t=((p2x-p1x)*u2y-(p2y-p1y)*u2x)/cross;
+   Point2 m{Meters{p1x+t*u1x},Meters{p1y+t*u1y}};
+   const double maxRadius=3.5*std::max(half,best->wall->thickness.value*.5),radius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);
+   if(!std::isfinite(radius)||radius>maxRadius)continue;
+   const bool isPositiveBaseNormal=(n1x*nx+n1y*ny)*off1>0.0;
+   const std::size_t index=ownAtEnd?(isPositiveBaseNormal?1:2):(isPositiveBaseNormal?0:3);v[index]=m;
   }
  }
  return v;
