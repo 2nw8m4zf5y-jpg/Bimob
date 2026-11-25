@@ -6,7 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.layout.WindowInsets\nimport androidx.compose.foundation.layout.safeDrawing\nimport androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -39,7 +39,7 @@ private val modules=listOf(
 @Composable
 fun ProgramLauncherScreen(onCad:()->Unit) {
  val context=LocalContext.current
- BoxWithConstraints(Modifier.fillMaxSize().background(BP.BgPrimary)) {
+ BoxWithConstraints(Modifier.fillMaxSize().background(BP.BgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)) {
   val w=maxWidth; val h=maxHeight
   Canvas(Modifier.fillMaxSize()) {
    val minor=16.dp.toPx(); val major=80.dp.toPx()
