@@ -13,6 +13,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.runtime.*
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
@@ -46,6 +49,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.TextStyle
 import java.text.SimpleDateFormat
@@ -63,11 +67,18 @@ internal data class TransformPreviewState(val kind:EditorElementKind,val id:Stri
 fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modifier,projectTitle:String="Проект",onProjects:()->Unit={},onSave:()->Unit={},onExport:()->Unit={},onImport:()->Unit={}) {
  val state by viewModel.state.collectAsState()
  val context=LocalContext.current
+ val configuration=LocalConfiguration.current
+ LaunchedEffect(configuration.orientation){
+  val activity=context as? android.app.Activity
+  if(activity!=null){
+   val controller=WindowCompat.getInsetsController(activity.window,activity.window.decorView)
+   controller.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+   controller.systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+  }
+ }
  var hudTime by remember{mutableStateOf(SimpleDateFormat("HH:mm",Locale.getDefault()).format(Date()))}
  var batteryPercent by remember{mutableIntStateOf(100)}
  var charging by remember{mutableStateOf(false)}
- var wifiConnected by remember{mutableStateOf(false)}
- var cellularConnected by remember{mutableStateOf(false)}
  DisposableEffect(context){
   val filter=IntentFilter(Intent.ACTION_BATTERY_CHANGED).apply{addAction(Intent.ACTION_TIME_TICK)}
   val receiver=object:BroadcastReceiver(){
@@ -85,24 +96,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
   }
   ContextCompat.registerReceiver(context,receiver,filter,ContextCompat.RECEIVER_EXPORTED)
-  val cm=context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-  fun refreshNetwork(){
-   val caps=cm.getNetworkCapabilities(cm.activeNetwork)
-   wifiConnected=caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)==true
-   cellularConnected=caps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)==true
-  }
-  refreshNetwork()
-  val callback=object:ConnectivityManager.NetworkCallback(){
-   override fun onAvailable(network:Network){refreshNetwork()}
-   override fun onLost(network:Network){refreshNetwork()}
-   override fun onCapabilitiesChanged(network:Network,caps:NetworkCapabilities){refreshNetwork()}
-  }
-  runCatching{cm.registerDefaultNetworkCallback(callback)}
-  onDispose{
-   runCatching{context.unregisterReceiver(receiver)}
-   runCatching{cm.unregisterNetworkCallback(callback)}
-  }
- }
+  onDispose{runCatching{context.unregisterReceiver(receiver)}}
  val camera by viewModel.camera.collectAsState()
  val hitRadiusPx=with(LocalDensity.current){24.dp.toPx()}
  val catalogGripHitRadiusPx=with(LocalDensity.current){22.dp.toPx()}
@@ -376,14 +370,12 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      state.selection?.kind==EditorElementKind.CATALOG->{val o=state.typedGeometry?.catalog?.firstOrNull{it.id==state.selection!!.id};"Объект · Ш: ${hudFmt(o?.width?:0.0)} м · Г: ${hudFmt(o?.depth?:0.0)} м"}
      else->"Шаг сетки: 0.10 м"
     }
-    Surface(color=Color(0xFF1E293B),shape=RectangleShape){Column(Modifier.padding(horizontal=8.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=Color.White);Text(telemetry,fontSize=10.sp,color=Color.White)}}
+    Column(Modifier,verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.78f));Text(telemetry,fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.78f))}
    }
    Row(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(bottom=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-    Text(hudTime,fontSize=10.sp,color=Color(0xFF64748B).copy(alpha=.52f),style=TextStyle(fontFeatureSettings="tnum"))
-    Text("·",fontSize=10.sp,color=Color(0xFF64748B).copy(alpha=.45f))
-    Text(if(charging)"⚡ $batteryPercent%" else "$batteryPercent%",fontSize=10.sp,color=if(batteryPercent<=15)Color(0xFFE53935).copy(alpha=.75f)else Color(0xFF64748B).copy(alpha=.52f),style=TextStyle(fontFeatureSettings="tnum"))
-    WifiStatusGlyph(wifiConnected)
-    CellularStatusGlyph(cellularConnected)
+    Text(hudTime,fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.72f),style=TextStyle(fontFeatureSettings="tnum"))
+    Text("·",fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.72f))
+    Text(if(charging)"⚡ $batteryPercent%" else "$batteryPercent%",fontSize=10.sp,color=Color(0xFF1F242B).copy(alpha=.72f),style=TextStyle(fontFeatureSettings="tnum"))
    }
    Row(Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
     Text("NAGAPLAS",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f))
@@ -664,7 +656,7 @@ internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String =
 private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier,onClose:()->Unit,onEdit:(String,String,String)->Unit){
  val selected=state.selection
  val g=state.typedGeometry
- if(selected==null){Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),shape=RectangleShape){Column(Modifier.padding(5.dp)){Row(Modifier.fillMaxWidth().background(Color(0xFFE8ECF0)).padding(4.dp),verticalAlignment=Alignment.CenterVertically){Text("Свойства",fontSize=11.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color(0xFF0F172A),modifier=Modifier.weight(1f));TextButton(onClick=onClose,contentPadding=PaddingValues(0.dp)){Text("×",color=Color(0xFF0F172A))}};Spacer(Modifier.height(4.dp));Text("Не выбрано",fontSize=11.sp,color=Color(0xFF0F172A));Text("Выберите элемент на чертеже",fontSize=9.sp,color=Color(0xFF475569))}};return}
+ if(selected==null){Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),shape=RectangleShape){Column(Modifier.padding(5.dp)){Row(Modifier.fillMaxWidth().background(Color(0xFFE8ECF0)).padding(horizontal=8.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Text("Свойства",fontSize=11.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color(0xFF0F172A),modifier=Modifier.weight(1f));TextButton(onClick=onClose,contentPadding=PaddingValues(0.dp)){Text("×",color=Color(0xFF0F172A))}};Spacer(Modifier.height(4.dp));Text("Не выбрано",fontSize=11.sp,color=Color(0xFF0F172A));Text("Выберите элемент на чертеже",fontSize=9.sp,color=Color(0xFF475569))}};return}
  val typeName=when(selected.kind){
   EditorElementKind.WALL->"Стена"
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?:"Проём"
@@ -676,9 +668,9 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
   EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Глубина","depth","%.3f".format(item.depth)),Triple("Высота","height","%.3f".format(item.height)),Triple("Поворот","rotation","%.1f".format(Math.toDegrees(item.rotationRadians))))}
  }
  if(details!=null)Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),tonalElevation=0.dp,shape=RectangleShape){
-  Column(Modifier.padding(horizontal=4.dp,vertical=3.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
+  Column(Modifier.padding(horizontal=8.dp,vertical=4.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
-    Column(Modifier.weight(1f)){Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A))}
+    Column(Modifier.weight(1f)){Text("Свойства",style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A))}
     Surface(onClick=onClose,shape=RectangleShape,color=Color(0xFFE8ECF0),modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
      Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
     }
