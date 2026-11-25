@@ -7,6 +7,7 @@ import org.junit.Test
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.hypot
 
 class NativeEditorViewModelTest {
  @Test fun editPropertyDialogTitlesUseCorrectRussianCasesAndUnits(){
