@@ -118,16 +118,39 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  const double axisAx=(a->axis.end.x.value-a->axis.start.x.value)/a->axis.length().value,axisAy=(a->axis.end.y.value-a->axis.start.y.value)/a->axis.length().value,axisBx=(b->axis.end.x.value-b->axis.start.x.value)/b->axis.length().value,axisBy=(b->axis.end.y.value-b->axis.start.y.value)/b->axis.length().value;
  const double angle=std::acos(std::clamp(axisAx*axisBx+axisAy*axisBy,-1.0,1.0))*180/std::acos(-1.0);
  const double maxRadius=3.5*std::max(a->thickness.value*.5,b->thickness.value*.5);
- auto buttFallback=[&](){const double h=std::max(a->thickness.value,b->thickness.value)*.5;std::array<Point2,4>f{{{Meters{join.joint.x.value+A[0]*h+A[2]*h},Meters{join.joint.y.value+A[1]*h+A[3]*h}}, {Meters{join.joint.x.value-A[0]*h+A[2]*h},Meters{join.joint.y.value-A[1]*h+A[3]*h}}, {Meters{join.joint.x.value-A[0]*h-A[2]*h},Meters{join.joint.y.value-A[1]*h-A[3]*h}}, {Meters{join.joint.x.value+A[0]*h-A[2]*h},Meters{join.joint.y.value-A[1]*h-A[3]*h}}}};return Result<WallJoinGeometry>::success({topology,angle,f});};
- if(std::abs(cross)<0.25)return buttFallback();
+ const double axisUx=(a->axis.end.x.value-a->axis.start.x.value)/a->axis.length().value,axisUy=(a->axis.end.y.value-a->axis.start.y.value)/a->axis.length().value;
+ const double n1x=-axisUy,n1y=axisUx;
+ const double axisVx=(b->axis.end.x.value-b->axis.start.x.value)/b->axis.length().value,axisVy=(b->axis.end.y.value-b->axis.start.y.value)/b->axis.length().value;
+ const double n2x=-axisVy,n2y=axisVx;
+ const double dir1x=A[0],dir1y=A[1],dir2x=B[0],dir2y=B[1];
+ double bx=dir1x+dir2x,by=dir1y+dir2y,blen=std::hypot(bx,by);
+ if(blen<1e-9){bx=-dir1y;by=dir1x;blen=1.0;}else{bx/=blen;by/=blen;}
  std::array<Point2,4>v{};size_t k=0;
+ const double denBase=axisUx*axisVy-axisUy*axisVx;
  for(int sideA:{-1,1})for(int sideB:{-1,1}){
-  const double off1=static_cast<double>(sideA)*a->thickness.value*.5,off2=static_cast<double>(sideB)*b->thickness.value*.5;
-  const double p1x=join.joint.x.value+A[2]*off1,p1y=join.joint.y.value+A[3]*off1,p2x=join.joint.x.value+B[2]*off2,p2y=join.joint.y.value+B[3]*off2;
-  const double t=((p2x-p1x)*B[1]-(p2y-p1y)*B[0])/cross;
-  Point2 m{Meters{p1x+t*A[0]},Meters{p1y+t*A[1]}};
-  const double radius=std::hypot(m.x.value-join.joint.x.value,m.y.value-join.joint.y.value);
-  if(!std::isfinite(radius)||radius>maxRadius)return buttFallback();
+  const double ownOff=static_cast<double>(sideA)*a->thickness.value*.5;
+  const double proj1=(n1x*sideA)*dir2x+(n1y*sideA)*dir2y;
+  const double proj2=n2x*dir1x+n2y*dir1y;
+  const double otherBaseSide=((proj1*proj2)>=0.0)?1.0:-1.0;
+  const double otherOff=otherBaseSide*b->thickness.value*.5;
+  const double px=join.joint.x.value+n1x*ownOff,py=join.joint.y.value+n1y*ownOff;
+  const double qx=join.joint.x.value+n2x*otherOff,qy=join.joint.y.value+n2y*otherOff;
+  bool useBevel=(std::abs(cross)<0.34||std::abs(denBase)<1e-9);
+  Point2 m{Meters{px},Meters{py}};
+  if(!useBevel){
+   const double t=((qx-px)*axisVy-(qy-py)*axisVx)/denBase;
+   m=Point2{Meters{px+t*axisUx},Meters{py+t*axisUy}};
+   const double radius=std::hypot(m.x.value-join.joint.x.value,m.y.value-join.joint.y.value);
+   if(!std::isfinite(radius)||radius>maxRadius)useBevel=true;
+  }
+  if(useBevel){
+   const double denomBevel=dir1x*bx+dir1y*by;
+   if(std::abs(denomBevel)>1e-6){
+    const double cx=join.joint.x.value+bx*maxRadius,cy=join.joint.y.value+by*maxRadius;
+    const double tBevel=((cx-px)*bx+(cy-py)*by)/denomBevel;
+    m=Point2{Meters{px+tBevel*dir1x},Meters{py+tBevel*dir1y}};
+   }
+  }
   v[k++]=m;
  }
  double cx=0,cy=0;for(auto&p:v){cx+=p.x.value;cy+=p.y.value;}cx/=4;cy/=4;std::sort(v.begin(),v.end(),[&](const Point2&x,const Point2&y){return std::atan2(x.y.value-cy,x.x.value-cx)<std::atan2(y.y.value-cy,y.x.value-cx);});
