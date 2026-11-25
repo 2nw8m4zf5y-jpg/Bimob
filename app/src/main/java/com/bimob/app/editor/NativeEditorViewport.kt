@@ -154,7 +154,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    Row(Modifier.fillMaxWidth().height(30.dp).background(BP.EditorSurface).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically) {
     listOf("Архитектура","Конструкция","Системы","Каталог","Правка").forEach{tab->
      val active=ribbonTab==tab
-     Box(Modifier.height(30.dp).background(if(active)BP.EditorBarelse BP.EditorSurface).drawBehind{
+     Box(Modifier.height(30.dp).background(if(active)BP.EditorBar else BP.EditorSurface).drawBehind{
       val edge=1.dp.toPx()
       if(active){
        drawLine(BP.AccentCyan,Offset(0f,0f),Offset(size.width,0f),2.dp.toPx())
@@ -162,7 +162,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
        drawLine(BP.EditorGridMajor,Offset(size.width-edge,0f),Offset(size.width-edge,size.height),edge)
       }else drawLine(BP.EditorGridMajor,Offset(0f,size.height-edge),Offset(size.width,size.height-edge),edge)
      }.clickable{if(active)ribbonCollapsed=!ribbonCollapsed else{ribbonTab=tab;ribbonCollapsed=false}}.padding(horizontal=12.dp),contentAlignment=Alignment.Center){
-      Text(tab,fontSize=11.sp,fontWeight=if(active)androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,color=if(active)BP.EditorTextelse BP.EditorTextMuted,maxLines=1)
+      Text(tab,fontSize=11.sp,fontWeight=if(active)androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,color=if(active)BP.EditorText else BP.EditorTextMuted,maxLines=1)
      }
     }
     TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=BP.EditorText)}
@@ -301,17 +301,17 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    if(g!=null){
     g.walls.forEach{wall->
      val tp=transformPreview?.takeIf{it.kind==EditorElementKind.WALL&&it.id==wall.id}
-     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))BP.AccentCyanelse BP.EditorWall
+     val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))BP.AccentCyan else BP.EditorWall
      val ep=endpointPreview?.takeIf{it.wallId==wall.id}
      val corners=when{ep!=null->wallEndpointPreviewCorners(wall,ep.moveStart,ep.point);tp!=null->transformWallPreview(wall,tp);else->wall.corners}
-     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)BP.AccentCyanelse color)
+     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)BP.AccentCyan else color)
      if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id)){
       listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(BP.EditorSelection,radius=6f,center=s);drawCircle(BP.EditorText,radius=2.5f,center=s)}
      }
     }
     g.joins.forEach{join->
      val connectedSelected=state.selection?.kind==EditorElementKind.WALL
-     val joinColor=if(highlightJoins||connectedSelected)BP.AccentCyanelse BP.EditorWall
+     val joinColor=if(highlightJoins||connectedSelected)BP.AccentCyan else BP.EditorWall
      drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),joinColor)
     }
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
@@ -320,7 +320,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val movedAlong=tp?.let{it.dx*ux+it.dy*uy}?:0.0;val newOffset=(item.offsetAlongWall+item.width/2-width/2).coerceIn(0.0,(len-width).coerceAtLeast(0.0));val along=movedAlong+newOffset+width/2-(item.offsetAlongWall+item.width/2)
      val cx=item.center.x+ux*along;val cy=item.center.y+uy*along
      val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
-     drawLine(BP.EditorText,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)BP.EditorSelectionelse BP.EditorSnap
+     drawLine(BP.EditorText,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)BP.EditorSelection else BP.EditorSnap
      if(item.kind=="DOOR"){drawLine(color,a,b,2f);val radius=(item.width*camera.zoom.toDouble()).coerceAtLeast(4.0).toFloat();drawArc(color,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2f,radius*2f),style=Stroke(1.5f))}
      else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
@@ -329,7 +329,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val width=gp?.width?:item.width*(tp?.scaleFactor?:1.0);val depth=gp?.depth?:item.depth*(tp?.scaleFactor?:1.0);val hw=width/2;val hd=depth/2;val angle=item.rotationRadians+(tp?.rotationRadians?:0.0);val cx=gp?.center?.x?:item.center.x+(tp?.dx?:0.0);val cy=gp?.center?.y?:item.center.y+(tp?.dy?:0.0)
      val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(cx+x*cos(angle)-y*sin(angle),cy+x*sin(angle)+y*cos(angle))}
      val path=Path();corners.forEachIndexed{k,v->val s=worldToScreen(WorldPoint(v.x,v.y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
-     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)BP.EditorSelection.copy(alpha=.2f)else BP.LinePrimary.copy(alpha=.13f));drawPath(path,if(selected)BP.AccentCyanelse BP.LinePrimary,style=Stroke(2f))
+     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)BP.EditorSelection.copy(alpha=.2f)else BP.LinePrimary.copy(alpha=.13f));drawPath(path,if(selected)BP.AccentCyan else BP.LinePrimary,style=Stroke(2f))
      if(selected){val handleItem=item.copy(center=Vec2(cx,cy),width=width,depth=depth);listOf(CatalogGrip.WIDTH_POSITIVE,CatalogGrip.WIDTH_NEGATIVE,CatalogGrip.DEPTH_POSITIVE,CatalogGrip.DEPTH_NEGATIVE).forEach{grip->val p=catalogGripPoint(handleItem,grip);val sc=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawRect(BP.AccentCyan,topLeft=Offset(sc.x-catalogGripSizePx/2,sc.y-catalogGripSizePx/2),size=Size(catalogGripSizePx,catalogGripSizePx));drawRect(BP.EditorText,topLeft=Offset(sc.x-catalogGripCenterSizePx/2,sc.y-catalogGripCenterSizePx/2),size=Size(catalogGripCenterSizePx,catalogGripCenterSizePx))}}
     }
    }
@@ -594,25 +594,25 @@ private fun CellularStatusGlyph(active:Boolean){
 
 private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
 @Composable private fun RibbonToggleButton(glyph:String,label:String,active:Boolean,onClick:()->Unit){
- Surface(onClick=onClick,shape=RectangleShape,color=if(active)BP.EditorSurfaceelse BP.EditorBar,border=if(active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
+ Surface(onClick=onClick,shape=RectangleShape,color=if(active)BP.EditorSurface else BP.EditorBar,border=if(active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
   Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=if(glyph=="90°")9.sp else 13.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText)}
  }
 }
 @Composable private fun RibbonQuickButton(glyph:String,label:String,enabled:Boolean,action:()->Unit,tooltip:(String)->Unit){
- Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=BP.EditorBar,modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)BP.EditorTextelse BP.EditorAxis)}}
+ Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=BP.EditorBar,modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)BP.EditorText else BP.EditorAxis)}}
 }
 @Composable private fun RibbonGroup(items:List<RibbonItem>,tooltip:(String)->Unit){
  Row(Modifier.height(68.dp).padding(horizontal=3.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){
   items.forEach{item->
    Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->BP.BgSurface;item.active->BP.EditorSurface;else->BP.EditorBar},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentAmber)else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(44.dp)){
-    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=17.sp,color=if(item.danger)BP.AccentAmberelse BP.EditorText);Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmberelse BP.EditorText)}
+    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=17.sp,color=if(item.danger)BP.AccentAmber else BP.EditorText);Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmber else BP.EditorText)}
    }
   }
   Box(Modifier.padding(start=3.dp).width(1.dp).height(68.dp).background(BP.EditorGridMajor))
  }
 }
 @Composable private fun CursorQuickButton(selected:Boolean,tooltip:(String)->Unit,onClick:()->Unit){
- Surface(onClick={tooltip("Выбор");onClick()},shape=RectangleShape,color=if(selected)BP.EditorSurfaceelse BP.EditorSurface,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription="Выбор";role=Role.Button}){
+ Surface(onClick={tooltip("Выбор");onClick()},shape=RectangleShape,color=if(selected)BP.EditorSurface else BP.EditorSurface,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription="Выбор";role=Role.Button}){
   Canvas(Modifier.fillMaxSize().padding(3.dp)){
    val p=Path().apply{moveTo(size.width*.08f,size.height*.05f);lineTo(size.width*.12f,size.height*.86f);lineTo(size.width*.36f,size.height*.63f);lineTo(size.width*.53f,size.height*.96f);lineTo(size.width*.68f,size.height*.88f);lineTo(size.width*.49f,size.height*.55f);lineTo(size.width*.82f,size.height*.51f);close()}
    drawPath(p,BP.EditorText);drawPath(p,BP.EditorText,style=Stroke(width=1.5.dp.toPx()))
@@ -625,7 +625,7 @@ private fun Modifier.borderBottomEngineering()=drawBehind { drawLine(BP.EditorGr
 @Composable
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)BP.EditorSelectionelse MaterialTheme.colorScheme.surface,modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}){
+  Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)BP.EditorSelection else MaterialTheme.colorScheme.surface,modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}){
    Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=if(selected)BP.EditorText else MaterialTheme.colorScheme.onSurface)}
   }
  }
