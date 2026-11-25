@@ -76,24 +76,37 @@ void appendF32(std::vector<std::uint8_t>&o,double v){if(!std::isfinite(v)||std::
 std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vector<RenderJoin>&joins){
  double dx=w.axis.end.x.value-w.axis.start.x.value,dy=w.axis.end.y.value-w.axis.start.y.value,len=std::hypot(dx,dy);if(!std::isfinite(len)||len<0.05)throw std::runtime_error("Wall footprint requires a finite axis of at least 0.05 metres");double ux=dx/len,uy=dy/len,nx=-uy,ny=ux,half=w.thickness.value*.5;
  std::array<Point2,4>v{{{Meters{w.axis.start.x.value+nx*half},Meters{w.axis.start.y.value+ny*half}},{Meters{w.axis.end.x.value+nx*half},Meters{w.axis.end.y.value+ny*half}},{Meters{w.axis.end.x.value-nx*half},Meters{w.axis.end.y.value-ny*half}},{Meters{w.axis.start.x.value-nx*half},Meters{w.axis.start.y.value-ny*half}}}};
- for(const auto&r:joins){
-  const bool isA=r.join.wallA==w.id,isB=r.join.wallB==w.id;if(!isA&&!isB)continue;
-  const double jx=r.join.joint.x.value-w.axis.start.x.value,jy=r.join.joint.y.value-w.axis.start.y.value,projection=(jx*dx+jy*dy)/(len*len);const bool atEnd=projection>=1-1e-7;if(projection>1e-7&&projection<1-1e-7)continue;
-  const Wall*other=nullptr;for(const auto&candidate:p.walls)if(candidate.id==(isA?r.join.wallB:r.join.wallA)){other=&candidate;break;}if(!other)continue;
-  const double odx=other->axis.end.x.value-other->axis.start.x.value,ody=other->axis.end.y.value-other->axis.start.y.value,olen=std::hypot(odx,ody);if(olen<=kMinWallLength)continue;
-  const double oux=odx/olen,ouy=ody/olen,onx=-ouy,ony=oux,den=ux*ouy-uy*oux;if(std::abs(den)<0.30)continue;
+ struct NeighborRay{const Wall*wall=nullptr;double dx=0,dy=0,angle=0;};
+ constexpr double endpointEps=1e-7,jointEps=1e-6;
+ for(bool ownAtEnd:{false,true}){
+  const Point2 joint=ownAtEnd?w.axis.end:w.axis.start;
+  const double dirOwnX=ownAtEnd?-ux:ux,dirOwnY=ownAtEnd?-uy:uy;
+  std::vector<NeighborRay>rays;
+  for(const auto&r:joins){
+   const bool isA=r.join.wallA==w.id,isB=r.join.wallB==w.id;if(!isA&&!isB)continue;
+   if(std::hypot(r.join.joint.x.value-joint.x.value,r.join.joint.y.value-joint.y.value)>jointEps)continue;
+   const Wall*other=nullptr;for(const auto&candidate:p.walls)if(candidate.id==(isA?r.join.wallB:r.join.wallA)){other=&candidate;break;}if(!other||other->id==w.id)continue;
+   const double odx=other->axis.end.x.value-other->axis.start.x.value,ody=other->axis.end.y.value-other->axis.start.y.value,olen=std::hypot(odx,ody);if(!std::isfinite(olen)||olen<=kMinWallLength)continue;
+   const double proj=((joint.x.value-other->axis.start.x.value)*odx+(joint.y.value-other->axis.start.y.value)*ody)/(olen*olen);if(proj<-endpointEps||proj>1+endpointEps)continue;
+   const bool otherAtEnd=proj>=1-endpointEps;const double dirX=otherAtEnd?-odx/olen:odx/olen,dirY=otherAtEnd?-ody/olen:ody/olen;
+   if(std::any_of(rays.begin(),rays.end(),[&](const NeighborRay&q){return q.wall->id==other->id;}))continue;
+   rays.push_back({other,dirX,dirY,std::atan2(dirY,dirX)});
+  }
+  if(rays.empty())continue;
+  const double ownAngle=std::atan2(dirOwnY,dirOwnX),twoPi=2*std::acos(-1.0);
+  auto ccwDelta=[&](double angle){double d=angle-ownAngle;while(d<0)d+=twoPi;while(d>=twoPi)d-=twoPi;return d;};
   for(int side:{-1,1}){
-   const double ownOff=side*half,otherSide=-side*(den>0?1:-1),otherOff=otherSide*other->thickness.value*.5;
-   const double px=r.join.joint.x.value+nx*ownOff,py=r.join.joint.y.value+ny*ownOff;
-   const double qx=r.join.joint.x.value+onx*otherOff,qy=r.join.joint.y.value+ony*otherOff;
-   const double t=((qx-px)*ouy-(qy-py)*oux)/den;Point2 m{Meters{px+t*ux},Meters{py+t*uy}};
-   const double maxRadius=2.5*std::max(half,other->thickness.value*.5),radius=std::hypot(m.x.value-r.join.joint.x.value,m.y.value-r.join.joint.y.value);if(!std::isfinite(radius)||radius>maxRadius)continue;
-   const std::size_t index=atEnd?(side>0?1:2):(side>0?0:3);v[index]=m;
+   const auto best=std::min_element(rays.begin(),rays.end(),[&](const NeighborRay&a,const NeighborRay&b){const double da=side>0?ccwDelta(a.angle):ccwDelta(2*ownAngle-a.angle),db=side>0?ccwDelta(b.angle):ccwDelta(2*ownAngle-b.angle);return da<db;});
+   const double otherSide=-side,ownNx=-dirOwnY,ownNy=dirOwnX,otherNx=-best->dy,otherNy=best->dx,den=dirOwnX*best->dy-dirOwnY*best->dx;if(std::abs(den)<0.30)continue;
+   const double ownOff=side*half,otherOff=otherSide*best->wall->thickness.value*.5;
+   const double px=joint.x.value+ownNx*ownOff,py=joint.y.value+ownNy*ownOff,qx=joint.x.value+otherNx*otherOff,qy=joint.y.value+otherNy*otherOff;
+   const double t=((qx-px)*best->dy-(qy-py)*best->dx)/den;Point2 m{Meters{px+t*dirOwnX},Meters{py+t*dirOwnY}};
+   const double maxRadius=2.5*std::max(half,best->wall->thickness.value*.5),radius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);if(!std::isfinite(radius)||radius>maxRadius)continue;
+   const std::size_t index=ownAtEnd?(side>0?2:1):(side>0?0:3);v[index]=m;
   }
  }
  return v;
 }
-
 const Level* levelById(const Project&p,const ModelId&id){auto it=std::find_if(p.levels.begin(),p.levels.end(),[&](const Level&l){return l.id==id;});return it==p.levels.end()?nullptr:&*it;}
 std::vector<std::uint8_t> geometryBytes(const ModelRevision&rev){
  const Project&p=*rev.project;auto joins=collectRenderJoins(p);std::vector<std::uint8_t>o;o.reserve(24+p.walls.size()*32+joins.size()*32+p.openings.size()*32+p.catalogInstances.size()*32);
