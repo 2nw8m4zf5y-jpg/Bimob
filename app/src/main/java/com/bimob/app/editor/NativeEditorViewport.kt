@@ -622,8 +622,8 @@ private fun CellularStatusGlyph(active:Boolean){
 @Composable private fun RibbonGroup(items:List<RibbonItem>,tooltip:(String)->Unit){
  Row(Modifier.height(68.dp).padding(horizontal=3.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){
   items.forEach{item->
-   Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->BP.BgSurface;item.active->BP.EditorSurface;else->BP.EditorBar},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentAmber)else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(44.dp)){
-    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){VectorGlyph(item.glyph,if(item.danger)BP.AccentAmber else BP.EditorText,Modifier.size(20.dp));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmber else BP.EditorText)}
+   Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->BP.EditorError.copy(alpha=.12f);item.active->BP.EditorSurface;else->BP.EditorBar},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentAmber)else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(44.dp)){
+    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){VectorGlyph(item.glyph,if(item.danger)BP.EditorError else BP.EditorText,Modifier.size(20.dp));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmber else BP.EditorText)}
    }
   }
   Box(Modifier.padding(start=3.dp).width(1.dp).height(68.dp).background(BP.EditorGridMajor))
@@ -652,7 +652,7 @@ private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,toolti
 @Composable
 private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->BP.AccentAmber;selected->BP.AccentCyan;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
+  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->BP.EditorError;selected->BP.AccentCyan;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
    Box(contentAlignment=Alignment.Center){VectorGlyph(symbol,when{(danger&&enabled)||selected->BP.EditorText;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant},Modifier.size(17.dp))}
   }
  }
