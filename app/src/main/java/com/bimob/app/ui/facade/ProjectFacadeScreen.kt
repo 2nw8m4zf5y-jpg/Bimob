@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.CircleShape
 import androidx.compose.ui.graphics.Path
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,7 +76,7 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
    }
   }
   Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.13f),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
-   listOf("А","Б","В","Г","Д").forEach{axis->Canvas(Modifier.size(18.dp)){drawCircle(BP.AccentAmber,style=Stroke(1.dp.toPx()));drawContext.canvas.nativeCanvas.drawText(axis,center.x,center.y+3.dp.toPx(),android.graphics.Paint().apply{color=android.graphics.Color.rgb(255,159,28);textSize=10.sp.toPx();textAlign=android.graphics.Paint.Align.CENTER})}}
+   listOf("А","Б","В","Г","Д").forEach{axis->Box(Modifier.size(18.dp).border(1.dp,BP.AccentAmber,CircleShape),contentAlignment=Alignment.Center){Text(axis,fontSize=8.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)}}}
   }
   Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.48f),horizontalArrangement=Arrangement.spacedBy(6.dp)){
    listOf("КАРКАС / ОСИ","СОПРЯЖЕНИЯ","СЕЧЕНИЯ","АРХИВ").forEach{FacadeCard(it,"CAD TOOLS",false,Modifier.weight(1f)){onTool(it)}}
