@@ -95,21 +95,40 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
   if(rays.empty())continue;
   const double ownAngle=std::atan2(dirOwnY,dirOwnX),twoPi=2*std::acos(-1.0);
   auto ccwDelta=[&](double angle){double d=angle-ownAngle;while(d<0)d+=twoPi;while(d>=twoPi)d-=twoPi;return d;};
-  for(int side:{-1,1}){
-   const auto best=std::min_element(rays.begin(),rays.end(),[&](const NeighborRay&a,const NeighborRay&b){const double da=side>0?ccwDelta(a.angle):ccwDelta(2*ownAngle-a.angle),db=side>0?ccwDelta(b.angle):ccwDelta(2*ownAngle-b.angle);return da<db;});
-   const double u1x=dirOwnX,u1y=dirOwnY,u2x=best->dx,u2y=best->dy;
-   const double cross=u1x*u2y-u1y*u2x;if(std::abs(cross)<0.25)continue;
-   const double n1x=-u1y,n1y=u1x,n2x=-u2y,n2y=u2x;
-   const double off1=static_cast<double>(side)*half;
-   const double off2=(cross>0.0?-1.0:1.0)*static_cast<double>(side)*best->wall->thickness.value*.5;
-   const double p1x=joint.x.value+n1x*off1,p1y=joint.y.value+n1y*off1;
-   const double p2x=joint.x.value+n2x*off2,p2y=joint.y.value+n2y*off2;
-   const double t=((p2x-p1x)*u2y-(p2y-p1y)*u2x)/cross;
-   Point2 m{Meters{p1x+t*u1x},Meters{p1y+t*u1y}};
-   const double maxRadius=3.5*std::max(half,best->wall->thickness.value*.5),radius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);
-   if(!std::isfinite(radius)||radius>maxRadius)continue;
-   const bool isPositiveBaseNormal=(n1x*nx+n1y*ny)*off1>0.0;
-   const std::size_t index=ownAtEnd?(isPositiveBaseNormal?1:2):(isPositiveBaseNormal?0:3);v[index]=m;
+  for(int baseSide:{-1,1}){
+   const auto best=std::min_element(rays.begin(),rays.end(),[&](const NeighborRay&a,const NeighborRay&b){const double da=baseSide>0?ccwDelta(a.angle):ccwDelta(2*ownAngle-a.angle),db=baseSide>0?ccwDelta(b.angle):ccwDelta(2*ownAngle-b.angle);return da<db;});
+   const double u1x=ux,u1y=uy,n1x=nx,n1y=ny,dir1x=dirOwnX,dir1y=dirOwnY;
+   const double odx=best->wall->axis.end.x.value-best->wall->axis.start.x.value,ody=best->wall->axis.end.y.value-best->wall->axis.start.y.value,olen=std::hypot(odx,ody),oux=odx/olen,ouy=ody/olen,onx=-ouy,ony=oux;
+   const double dir2x=best->dx,dir2y=best->dy,cross=dir1x*dir2y-dir1y*dir2x;
+   double bx=dir1x+dir2x,by=dir1y+dir2y,blen=std::hypot(bx,by);
+   if(blen<1e-9){bx=-dir1y;by=dir1x;blen=1.0;}else{bx/=blen;by/=blen;}
+   const double maxRadius=3.5*std::max(half,best->wall->thickness.value*.5);
+   const double ownOff=static_cast<double>(baseSide)*half;
+   const double proj1=(n1x*baseSide)*dir2x+(n1y*baseSide)*dir2y;
+   const double proj2=onx*dir1x+ony*dir1y;
+   const double otherBaseSide=((proj1*proj2)>=0.0)?1.0:-1.0;
+   const double otherOff=otherBaseSide*best->wall->thickness.value*.5;
+   const double px=joint.x.value+n1x*ownOff,py=joint.y.value+n1y*ownOff;
+   const double qx=joint.x.value+onx*otherOff,qy=joint.y.value+ony*otherOff;
+   const double denBase=u1x*ouy-u1y*oux;
+   bool useBevel=(std::abs(cross)<0.34||std::abs(denBase)<1e-9);
+   Point2 m{Meters{px},Meters{py}};
+   if(!useBevel){
+    const double t=((qx-px)*ouy-(qy-py)*oux)/denBase;
+    m=Point2{Meters{px+t*u1x},Meters{py+t*u1y}};
+    const double radius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);
+    if(!std::isfinite(radius)||radius>maxRadius)useBevel=true;
+   }
+   if(useBevel){
+    const double denomBevel=dir1x*bx+dir1y*by;
+    if(std::abs(denomBevel)>1e-6){
+     const double cx=joint.x.value+bx*maxRadius,cy=joint.y.value+by*maxRadius;
+     const double tBevel=((cx-px)*bx+(cy-py)*by)/denomBevel;
+     m=Point2{Meters{px+tBevel*dir1x},Meters{py+tBevel*dir1y}};
+    }
+   }
+   const std::size_t index=ownAtEnd?(baseSide>0?1:2):(baseSide>0?0:3);
+   v[index]=m;
   }
  }
  return v;
