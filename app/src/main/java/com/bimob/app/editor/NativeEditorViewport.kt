@@ -46,6 +46,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.TextStyle
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -83,7 +84,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
   }
-  context.registerReceiver(receiver,filter)
+  ContextCompat.registerReceiver(context,receiver,filter,ContextCompat.RECEIVER_EXPORTED)
   val cm=context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
   fun refreshNetwork(){
    val caps=cm.getNetworkCapabilities(cm.activeNetwork)
@@ -137,7 +138,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  LaunchedEffect(state.selection){if(state.selection!=null)showProperties=true}
  Column(modifier) {
   Column(Modifier.fillMaxWidth().background(Color(0xFFE8ECF0)).zIndex(2f)) {
-   Row(Modifier.fillMaxWidth().height(32.dp).padding(horizontal=2.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
+   Row(Modifier.fillMaxWidth().height(32.dp).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(horizontal=2.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically) {
     Box {
      Surface(onClick={homeMenuExpanded=true},shape=RectangleShape,color=Color(0xFF1E6BB8),modifier=Modifier.height(32.dp)) {
       Box(Modifier.padding(horizontal=12.dp),contentAlignment=Alignment.Center){Text("Файл",fontSize=12.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=Color.White)}
@@ -170,7 +171,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
     TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=Color(0xFF0F172A))}
    }
-   if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
+   if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
     when(ribbonTab){
      "Архитектура"->RibbonGroup(listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}),showTooltip)
      "Конструкция"->RibbonGroup(listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("⌑","Узлы",highlightJoins){tool=EditorTool.SELECT;highlightJoins=!highlightJoins}),showTooltip)
@@ -363,7 +364,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
    }
        activeTooltip?.let { label -> Surface(color=Color(0xFF1E293B),shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.align(Alignment.TopStart).padding(start=6.dp,top=6.dp).zIndex(3f)){Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=Color.White,style=MaterialTheme.typography.labelSmall)} }
-    if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopEnd).width(164.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
+    if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopEnd).imePadding().width(164.dp).padding(top=2.dp,end=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
    Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
     val hudFmt:(Double)->String={v->if(v.isFinite())String.format(java.util.Locale.US,"%.2f",v)else "0.00"}
     val telemetry=when{
@@ -377,14 +378,14 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
     Surface(color=Color(0xFF1E293B),shape=RectangleShape){Column(Modifier.padding(horizontal=8.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=Color.White);Text(telemetry,fontSize=10.sp,color=Color.White)}}
    }
-   Row(Modifier.align(Alignment.BottomCenter).padding(bottom=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+   Row(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(bottom=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
     Text(hudTime,fontSize=10.sp,color=Color(0xFF64748B).copy(alpha=.52f),style=TextStyle(fontFeatureSettings="tnum"))
     Text("·",fontSize=10.sp,color=Color(0xFF64748B).copy(alpha=.45f))
     Text(if(charging)"⚡ $batteryPercent%" else "$batteryPercent%",fontSize=10.sp,color=if(batteryPercent<=15)Color(0xFFE53935).copy(alpha=.75f)else Color(0xFF64748B).copy(alpha=.52f),style=TextStyle(fontFeatureSettings="tnum"))
-    Text(if(wifiConnected)"⌁" else "⌁̸",fontSize=12.sp,color=if(wifiConnected)Color(0xFF64748B).copy(alpha=.55f)else Color(0xFF94A3B8).copy(alpha=.35f))
-    Text(if(cellularConnected)"▂▃▅" else "▂▃▅̸",fontSize=9.sp,color=if(cellularConnected)Color(0xFF64748B).copy(alpha=.55f)else Color(0xFF94A3B8).copy(alpha=.35f))
+    WifiStatusGlyph(wifiConnected)
+    CellularStatusGlyph(cellularConnected)
    }
-   Row(Modifier.align(Alignment.BottomEnd).padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+   Row(Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
     Text("NAGAPLAS",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f))
     Surface(onClick={ribbonCollapsed=!ribbonCollapsed},shape=RectangleShape,color=Color(0xFFE8ECF0),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF64748B)),modifier=Modifier.size(28.dp)){
      Box(Modifier.padding(2.dp),contentAlignment=Alignment.Center){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=22.sp,color=Color(0xFF1E293B),lineHeight=22.sp)}
@@ -506,6 +507,27 @@ private fun nearestWallId(p:Offset,g:TypedGeometry?,size:IntSize,scale:Float,pan
  return best
 }
 
+
+
+@Composable
+private fun WifiStatusGlyph(active:Boolean){
+ val tint=if(active)Color(0xFF64748B).copy(alpha=.55f)else Color(0xFF94A3B8).copy(alpha=.35f)
+ Canvas(Modifier.size(14.dp)){
+  val stroke=1.35.dp.toPx()
+  drawArc(tint,225f,90f,false,topLeft=Offset(size.width*.08f,size.height*.08f),size=Size(size.width*.84f,size.height*.84f),style=Stroke(stroke))
+  drawArc(tint,225f,90f,false,topLeft=Offset(size.width*.25f,size.height*.28f),size=Size(size.width*.5f,size.height*.5f),style=Stroke(stroke))
+  drawCircle(tint,radius=stroke*1.1f,center=Offset(size.width*.5f,size.height*.82f))
+ }
+}
+@Composable
+private fun CellularStatusGlyph(active:Boolean){
+ val tint=if(active)Color(0xFF64748B).copy(alpha=.55f)else Color(0xFF94A3B8).copy(alpha=.35f)
+ Canvas(Modifier.size(width=12.dp,height=10.dp)){
+  val gap=size.width*.12f
+  val bw=(size.width-gap*3)/4
+  for(i in 0..3){val h=size.height*(.28f+.22f*i);drawRect(tint,topLeft=Offset(i*(bw+gap),size.height-h),size=Size(bw,h))}
+ }
+}
 
 private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
 @Composable private fun RibbonToggleButton(glyph:String,label:String,active:Boolean,onClick:()->Unit){
