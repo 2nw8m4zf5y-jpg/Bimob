@@ -359,4 +359,32 @@ class NativeEditorViewModelTest {
   assertEquals(item.height,cmd.optDouble("heightMeters"),1e-12);assertEquals(item.rotationRadians,cmd.optDouble("rotationRadians"),1e-12)
  }
 
+ @Test fun orthoSnapConstrainsWallToNearestCardinalBeforeEdgeOrEndpointSnap(){
+  val canvas=IntSize(400,400);val zoom=100f;val pan=Offset.Zero
+  val anchor=WorldPoint(0.0,0.0);val raw=WorldPoint(1.0,.6)
+  val result=snapPoint(raw,anchor,null,canvas,zoom,pan,22f,true,gridStep=0.0)
+  assertEquals(SnapKind.ORTHO,result.kind)
+  assertEquals(0.0,result.point.y,1e-9)
+  assertEquals(hypot(1.0,.6),result.point.x,1e-9)
+ }
+ @Test fun orthoSnapAllowsEndpointOnlyWhenEndpointLiesOnConstraintAxis(){
+  val canvas=IntSize(400,400);val anchor=WorldPoint(0.0,0.0)
+  val wall=WallItem("w",listOf(Vec2(.9,.1),Vec2(1.1,.1),Vec2(1.1,-.1),Vec2(.9,-.1)),0.0,2.7,Vec2(1.0,0.0),Vec2(2.0,0.0))
+  val geometry=TypedGeometry(1,listOf(wall),emptyList(),emptyList(),emptyList())
+  val aligned=snapPoint(WorldPoint(1.02,.03),anchor,geometry,canvas,100f,Offset.Zero,22f,true,gridStep=0.0)
+  assertEquals(SnapKind.ENDPOINT,aligned.kind)
+  assertEquals(1.0,aligned.point.x,1e-9);assertEquals(0.0,aligned.point.y,1e-9)
+  val offAxis=snapPoint(WorldPoint(1.0,.45),anchor,geometry,canvas,100f,Offset.Zero,22f,true,gridStep=0.0)
+  assertEquals(SnapKind.ORTHO,offAxis.kind)
+  assertEquals(0.0,offAxis.point.y,1e-9)
+ }
+ @Test fun orthoSnapFindsIntersectionWithExistingWallOnConstraintRay(){
+  val canvas=IntSize(400,400);val anchor=WorldPoint(0.0,0.0)
+  val wall=WallItem("vertical",listOf(Vec2(.4,-.1),Vec2(.6,-.1),Vec2(.6,1.1),Vec2(.4,1.1)),0.0,2.7,Vec2(.5,-1.0),Vec2(.5,1.0))
+  val geometry=TypedGeometry(1,listOf(wall),emptyList(),emptyList(),emptyList())
+  val result=snapPoint(WorldPoint(.52,.04),anchor,geometry,canvas,100f,Offset.Zero,22f,true,gridStep=0.0)
+  assertEquals(SnapKind.EDGE,result.kind)
+  assertEquals(.5,result.point.x,1e-9);assertEquals(0.0,result.point.y,1e-9)
+ }
+
 }
