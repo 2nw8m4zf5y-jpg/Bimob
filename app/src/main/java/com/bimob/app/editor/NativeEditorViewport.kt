@@ -211,7 +211,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     },onDragEnd={
      val from=start;val to=last;val tp=transformPreview;val sel=movingSelection;val ep=endpointPreview?:endpointDrag
      try{when{
-      catalogGripDrag!=null&&catalogGripPreview!=null->{val (item,grip)=catalogGripDrag!!;viewModel.resizeCatalogGrip(item,catalogGripPreview!!.second)}
+      catalogGripDrag!=null&&catalogGripPreview!=null->{val item=catalogGripDrag!!.first;viewModel.resizeCatalogGrip(item,catalogGripPreview!!.second)}
       ep!=null&&from!=null&&to!=null&&hypot(to.x-from.x,to.y-from.y)>1e-6->viewModel.resizeWallEndpoint(ep.wallId,ep.moveStart,to.x,to.y)
       ep!=null->Unit
       tool==EditorTool.WALL->if(from!=null&&to!=null)viewModel.createWall(from.x,from.y,to.x,to.y)
