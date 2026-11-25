@@ -128,7 +128,7 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
     }
    }
    const double finalRadius=std::hypot(m.x.value-joint.x.value,m.y.value-joint.y.value);
-   if(std::isfinite(finalRadius)&&finalRadius>maxRadius){const scale=maxRadius/finalRadius;m=Point2{Meters{joint.x.value+(m.x.value-joint.x.value)*scale},Meters{joint.y.value+(m.y.value-joint.y.value)*scale}};}
+   if(std::isfinite(finalRadius)&&finalRadius>maxRadius){const double scale=maxRadius/finalRadius;m=Point2{Meters{joint.x.value+(m.x.value-joint.x.value)*scale},Meters{joint.y.value+(m.y.value-joint.y.value)*scale}};}
    const std::size_t index=ownAtEnd?(baseSide>0?1:2):(baseSide>0?0:3);
    v[index]=m;
   }
