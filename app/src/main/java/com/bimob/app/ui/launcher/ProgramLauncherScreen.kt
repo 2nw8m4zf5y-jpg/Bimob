@@ -30,7 +30,9 @@ private data class Module(val title:String,val subtitle:String,val status:String
 private val modules=listOf(Module("NAGAPLAS CAD","2D/3D ЧЕРЧЕНИЕ · УЗЛЫ · ОСИ","ОТКРЫТЬ ФАСАД",true),Module("NAGAPLAS BIM","ИНФОРМАЦИОННАЯ МОДЕЛЬ · IFC","В РАЗРАБОТКЕ",false),Module("УЗЛЫ И КМ","СОПРЯЖЕНИЯ · ФАСОНКИ · БОЛТЫ","ЗАПЛАНИРОВАНО",false),Module("2D ЛИСТЫ ГОСТ","ПЛАНЫ · РАЗРЕЗЫ · КОМПОНОВКА","ЗАПЛАНИРОВАНО",false),Module("РАСЧЁТ МКЭ","ЭПЮРЫ МОМЕНТОВ · ПРОГИБЫ","ЗАПЛАНИРОВАНО",false),Module("СПЕЦИФИКАЦИИ","ВЕДОМОСТИ СТАЛИ И БЕТОНА","ЗАПЛАНИРОВАНО",false),Module("ОБМЕН DXF / IFC","ИМПОРТ И ЭКСПОРТ ФОРМАТОВ","ЗАПЛАНИРОВАНО",false),Module("AI-МОСТ АГЕНТОВ","JSON-RPC · КОМАНДЫ В ЯДРО","АРХИТЕКТУРА STAGE H",false))
 @Composable fun ProgramLauncherScreen(onCad:()->Unit){
  val context=LocalContext.current;val p=LocalBlueprintPalette.current
- Row(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)){
+ Box(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)){
+  Canvas(Modifier.fillMaxSize()){val minor=16.dp.toPx();val major=80.dp.toPx();var x=0f;while(x<size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),.5.dp.toPx());x+=minor};var y=0f;while(y<size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),.5.dp.toPx());y+=minor};x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,0f),Offset(x,size.height),1.dp.toPx());x+=major};y=0f;while(y<size.height){drawLine(p.gridMajor,Offset(0f,y),Offset(size.width,y),1.dp.toPx());y+=major}}
+  Row(Modifier.fillMaxSize()){
   Box(Modifier.weight(.14f).fillMaxHeight()){
    Canvas(Modifier.fillMaxSize()){val x=size.width*.54f;val step=36.dp.toPx();val path=Path().apply{moveTo(x-8.dp.toPx(),0f);lineTo(x+8.dp.toPx(),size.height);moveTo(x+8.dp.toPx(),0f);lineTo(x-8.dp.toPx(),size.height);var y=0f;while(y<size.height){moveTo(x-8.dp.toPx(),y);lineTo(x+8.dp.toPx(),y+step);moveTo(x+8.dp.toPx(),y);lineTo(x-8.dp.toPx(),y+step);moveTo(x-8.dp.toPx(),y);lineTo(x+8.dp.toPx(),y);y+=step};moveTo(x-24.dp.toPx(),0f);lineTo(x+24.dp.toPx(),0f);moveTo(x,0f);lineTo(x+12.dp.toPx(),-14.dp.toPx())};drawPath(path,p.linePrimary,style=Stroke(1.dp.toPx()));drawLine(p.accentAmber,Offset(x,0f),Offset(x,size.height),1.dp.toPx())}
   }
@@ -54,6 +56,7 @@ private val modules=listOf(Module("NAGAPLAS CAD","2D/3D ЧЕРЧЕНИЕ · УЗ
     }}
    }
    Row(Modifier.fillMaxWidth().height(18.dp).border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){Canvas(Modifier.weight(1f).fillMaxHeight()){var x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,size.height),Offset(x-8.dp.toPx(),0f),1.dp.toPx());x+=12.dp.toPx()}};Text("УР. ЗЕМЛИ 0.000",fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)}
+  }
   }
  }
 }
