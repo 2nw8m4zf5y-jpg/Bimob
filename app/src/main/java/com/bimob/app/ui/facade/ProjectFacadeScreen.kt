@@ -25,7 +25,9 @@ import com.bimob.app.ui.blueprint.ThemeButton
 data class FacadeProject(val id:String,val name:String,val modified:String,val nodeCount:Int,val active:Boolean=false)
 @Composable fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->Unit,onOpen:(String)->Unit,onImport:()->Unit,onTool:(String)->Unit,onOpenLast:()->Unit){
  val p=LocalBlueprintPalette.current
- Column(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)){
+ Box(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)){
+  Canvas(Modifier.fillMaxSize()){val minor=16.dp.toPx();val major=80.dp.toPx();var x=0f;while(x<size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),.5.dp.toPx());x+=minor};var y=0f;while(y<size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),.5.dp.toPx());y+=minor};x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,0f),Offset(x,size.height),1.dp.toPx());x+=major};y=0f;while(y<size.height){drawLine(p.gridMajor,Offset(0f,y),Offset(size.width,y),1.dp.toPx());y+=major}}
+  Column(Modifier.fillMaxSize()){
   Row(Modifier.height(42.dp).fillMaxWidth().border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){
    Text("← МОДУЛИ",Modifier.clickable(onClick=onBack).padding(horizontal=8.dp),fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace)
    Spacer(Modifier.weight(1f));Text("NAGAPLAS CAD · ФАСАД ПРОЕКТОВ",fontSize=11.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace);Spacer(Modifier.weight(1f));ThemeButton{BlueprintTheme.next()}
@@ -60,6 +62,7 @@ data class FacadeProject(val id:String,val name:String,val modified:String,val n
    }
   }
   Row(Modifier.height(16.dp).fillMaxWidth().border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){Canvas(Modifier.weight(1f).fillMaxHeight()){var x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,size.height),Offset(x-8.dp.toPx(),0f),1.dp.toPx());x+=12.dp.toPx()}};Text("ФУНДАМЕНТ · 0.000",fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)}
+  }
  }
 }
 @Composable private fun AxisBubble(label:String,color:androidx.compose.ui.graphics.Color,modifier:Modifier){Box(modifier.fillMaxHeight(),contentAlignment=Alignment.Center){Box(Modifier.size(15.dp).border(1.dp,color,CircleShape),contentAlignment=Alignment.Center){Text(label,fontSize=7.sp,color=color,fontFamily=FontFamily.Monospace)}}}
