@@ -98,7 +98,6 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
  val owner=LocalContext.current as ComponentActivity
  val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
  BackHandler{editor.closeAndReset();onBack()}
- val state by editor.state.collectAsState()
  val context=LocalContext.current
  var importHandled by rememberSaveable(projectId){mutableStateOf(false)}
  var projectInitialized by rememberSaveable(projectId){mutableStateOf(false)}
