@@ -308,7 +308,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1E90FF),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
      }
     }
-    if(highlightJoins)g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF1E90FF))}
+    g.joins.forEach{join->
+     val connectedSelected=state.selection?.kind==EditorElementKind.WALL&&g.walls.any{wall->wall.id==state.selection?.id&&(wall.id==join.wallA||wall.id==join.wallB)}
+     val joinColor=if(highlightJoins||connectedSelected)Color(0xFF1E6BB8)else Color(0xFF0A0A0A)
+     drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),joinColor)
+    }
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
      val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
      val ux=dx/len;val uy=dy/len;val tp=transformPreview?.takeIf{it.kind==EditorElementKind.OPENING&&it.id==item.id};val width=item.width*(tp?.scaleFactor?:1.0);val half=width/2
