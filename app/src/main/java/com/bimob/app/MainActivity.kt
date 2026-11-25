@@ -34,7 +34,8 @@ import com.bimob.app.editor.NativeEditorViewport
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
 import com.bimob.app.ui.facade.ProjectFacadeScreen
 import com.bimob.app.ui.facade.FacadeProject
-import com.bimob.app.ui.blueprint.BlueprintTheme\nimport com.bimob.app.ui.blueprint.BlueprintThemeProvider
+import com.bimob.app.ui.blueprint.BlueprintTheme
+import com.bimob.app.ui.blueprint.BlueprintThemeProvider
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,7 +66,8 @@ class MainActivity:ComponentActivity(){
    val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->uri?.let{readImport(it){json,name->importJson=json;projectName=name;projectId="import-"+System.currentTimeMillis();route="workspace"}}}
    val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}
 
-   BlueprintThemeProvider {\n   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
+   BlueprintThemeProvider {
+   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
      "launcher"->ProgramLauncherScreen(onCad={route="facade"})
      "facade"->{
