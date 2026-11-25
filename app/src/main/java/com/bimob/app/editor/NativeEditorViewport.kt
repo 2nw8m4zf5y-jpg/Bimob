@@ -431,18 +431,20 @@ private data class RibbonItem(val glyph:String,val label:String,val active:Boole
  Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=Color(0xFFF5F6F8),modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)Color(0xFF0F172A)else Color(0xFF94A3B8))}}
 }
 @Composable private fun RibbonGroup(name:String,items:List<RibbonItem>,tooltip:(String)->Unit){
- Row(Modifier.height(58.dp).padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically){
-  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-   Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){
+ Row(Modifier.height(68.dp).padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically){
+  Column(Modifier.width(IntrinsicSize.Max).height(68.dp),horizontalAlignment=Alignment.CenterHorizontally){
+   Surface(Modifier.fillMaxWidth().height(14.dp),shape=RectangleShape,color=Color(0xFFE8ECF0)){
+    Box(Modifier.fillMaxWidth().drawBehind{drawLine(Color(0xFFCBD5E1),Offset(0f,size.height-1.dp.toPx()),Offset(size.width,size.height-1.dp.toPx()),1.dp.toPx())},contentAlignment=Alignment.Center){Text(name,fontSize=9.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.Medium,color=Color(0xFF334155),maxLines=1)}
+   }
+   Row(Modifier.height(44.dp),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically){
     items.forEach{item->
-     Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else null,modifier=Modifier.size(46.dp)){
-      Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=18.sp,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A))}
+     Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else null,modifier=Modifier.size(44.dp)){
+      Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=17.sp,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A))}
      }
     }
    }
-   Text(name,fontSize=8.sp,color=Color(0xFF64748B),maxLines=1)
   }
-  Box(Modifier.padding(start=4.dp).width(1.dp).height(54.dp).background(Color(0xFFCBD5E1)))
+  Box(Modifier.padding(start=3.dp).width(1.dp).height(68.dp).background(Color(0xFFCBD5E1)))
  }
 }
 private fun Modifier.borderBottomEngineering()=drawBehind { drawLine(Color(0xFFCBD5E1),Offset(0f,size.height-1.dp.toPx()),Offset(size.width,size.height-1.dp.toPx()),strokeWidth=1.dp.toPx()) }
