@@ -213,9 +213,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val color=if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id))Color(0xFF1E90FF)else Color(0xFF0A0A0A)
      val ep=endpointPreview?.takeIf{it.wallId==wall.id}
      val corners=when{ep!=null->wallEndpointPreviewCorners(wall,ep.moveStart,ep.point);tp!=null->transformWallPreview(wall,tp);else->wall.corners}
-     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)Color(0xFF1976D2)else color)
+     drawTypedPolygon(corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(tp!=null||ep!=null)Color(0xFF1E90FF)else color)
      if(state.selection==EditorSelection(EditorElementKind.WALL,wall.id)){
-      listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1976D2),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
+      listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1E90FF),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
      }
     }
     g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF0A0A0A))}
@@ -225,7 +225,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val movedAlong=tp?.let{it.dx*ux+it.dy*uy}?:0.0;val newOffset=(item.offsetAlongWall+item.width/2-width/2).coerceIn(0.0,(len-width).coerceAtLeast(0.0));val along=movedAlong+newOffset+width/2-(item.offsetAlongWall+item.width/2)
      val cx=item.center.x+ux*along;val cy=item.center.y+uy*along
      val a=worldToScreen(WorldPoint(cx-ux*half,cy-uy*half),size,camera.zoom,Offset(camera.panX,camera.panY));val b=worldToScreen(WorldPoint(cx+ux*half,cy+uy*half),size,camera.zoom,Offset(camera.panX,camera.panY))
-     drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1976D2)else Color(0xFF00B4D8)
+     drawLine(Color.White,a,b,strokeWidth=10f);val selected=state.selection==EditorSelection(EditorElementKind.OPENING,item.id);val color=if(selected)Color(0xFF1E90FF)else Color(0xFF00B4D8)
      if(item.kind=="DOOR"){drawLine(color,a,b,2f);val radius=(item.width*camera.zoom.toDouble()).coerceAtLeast(4.0).toFloat();drawArc(color,0f,90f,false,Offset(a.x-radius,a.y-radius),Size(radius*2f,radius*2f),style=Stroke(1.5f))}
      else{drawLine(color,a,b,3f);drawLine(color,Offset(a.x-uy.toFloat()*4,a.y-ux.toFloat()*4),Offset(b.x-uy.toFloat()*4,b.y-ux.toFloat()*4),2f)}
     }
@@ -233,7 +233,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val tp=transformPreview?.takeIf{it.kind==EditorElementKind.CATALOG&&it.id==item.id};val scale=tp?.scaleFactor?:1.0;val hw=item.width*scale/2;val hd=item.depth*scale/2;val angle=item.rotationRadians+(tp?.rotationRadians?:0.0);val cx=item.center.x+(tp?.dx?:0.0);val cy=item.center.y+(tp?.dy?:0.0)
      val corners=listOf(-hw to -hd,hw to -hd,hw to hd,-hw to hd).map{(x,y)->Vec2(cx+x*cos(angle)-y*sin(angle),cy+x*sin(angle)+y*cos(angle))}
      val path=Path();corners.forEachIndexed{k,v->val s=worldToScreen(WorldPoint(v.x,v.y),size,camera.zoom,Offset(camera.panX,camera.panY));if(k==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
-     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1976D2)else Color(0xFF3A789A),style=Stroke(2f))
+     val selected=state.selection==EditorSelection(EditorElementKind.CATALOG,item.id);drawPath(path,if(selected)Color(0x331976D2)else Color(0x223A789A));drawPath(path,if(selected)Color(0xFF1E90FF)else Color(0xFF3A789A),style=Stroke(2f))
     }
    }
    preview?.let{drawPreviewWall(it.first,it.second,size,camera.zoom,Offset(camera.panX,camera.panY))}
@@ -250,9 +250,9 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    val crossTarget=if(finger!=null)Offset(finger.x,finger.y-crosshairOffsetPx)else null
    if(finger!=null&&crossTarget!=null&&(tool==EditorTool.WALL||endpointPreview!=null)){
     drawLine(Color(0xFF1E293B),finger,crossTarget,1f)
-    drawCircle(Color(0xFF1976D2),radius=7f,center=crossTarget,style=Stroke(1.5f))
-    drawLine(Color(0xFF1976D2),Offset(crossTarget.x-9,crossTarget.y),Offset(crossTarget.x+9,crossTarget.y),1.5f)
-    drawLine(Color(0xFF1976D2),Offset(crossTarget.x,crossTarget.y-9),Offset(crossTarget.x,crossTarget.y+9),1.5f)
+    drawCircle(Color(0xFF1E90FF),radius=7f,center=crossTarget,style=Stroke(1.5f))
+    drawLine(Color(0xFF1E90FF),Offset(crossTarget.x-9,crossTarget.y),Offset(crossTarget.x+9,crossTarget.y),1.5f)
+    drawLine(Color(0xFF1E90FF),Offset(crossTarget.x,crossTarget.y-9),Offset(crossTarget.x,crossTarget.y+9),1.5f)
    }
    wallStartSnap?.takeIf{it.kind!=SnapKind.NONE&&tool==EditorTool.WALL}?.let{sn->
     val startPoint=worldToScreen(sn.point,size,camera.zoom,Offset(camera.panX,camera.panY))
@@ -282,7 +282,7 @@ private fun DrawScope.drawPreviewWall(a:WorldPoint,b:WorldPoint,size:Size,scale:
  val nx=-dy/len*.1;val ny=dx/len*.1
  val pts=listOf(WorldPoint(a.x+nx,a.y+ny),WorldPoint(b.x+nx,b.y+ny),WorldPoint(b.x-nx,b.y-ny),WorldPoint(a.x-nx,a.y-ny))
  val path=Path();pts.forEachIndexed{i,p->val s=worldToScreen(p,size,scale,pan);if(i==0)path.moveTo(s.x,s.y)else path.lineTo(s.x,s.y)};path.close()
- drawPath(path,Color(0xFF1976D2).copy(alpha=.35f))
+ drawPath(path,Color(0xFF1E90FF).copy(alpha=.35f))
 }
 internal fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<Vec2>{
  val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val length=hypot(dx,dy);if(length<=1e-9)return wall.corners
@@ -428,18 +428,18 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Высота","height","%.3f".format(item.height)),Triple("Подоконник","sill","%.3f".format(item.sill)),Triple("Положение","offset","%.3f".format(item.offsetAlongWall)))}
   EditorElementKind.CATALOG->g?.catalog?.firstOrNull{it.id==selected.id}?.let{item->listOf(Triple("Ширина","width","%.3f".format(item.width)),Triple("Глубина","depth","%.3f".format(item.depth)),Triple("Высота","height","%.3f".format(item.height)),Triple("Поворот","rotation","%.1f".format(Math.toDegrees(item.rotationRadians))))}
  }
- if(details!=null)Surface(modifier,color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.96f),tonalElevation=2.dp,shape=MaterialTheme.shapes.small){
+ if(details!=null)Surface(modifier,color=Color(0xFF191E24),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF303947)),tonalElevation=0.dp,shape=RectangleShape){
   Column(Modifier.padding(horizontal=4.dp,vertical=3.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
-    Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,modifier=Modifier.weight(1f))
+    Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color.White,modifier=Modifier.weight(1f))
     Surface(onClick=onClose,shape=MaterialTheme.shapes.small,color=MaterialTheme.colorScheme.surface,modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
      Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
     }
    }
    HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant,thickness=.5.dp)
    details.forEach{(label,field,value)->Row(Modifier.fillMaxWidth().clickable{onEdit(field,label,value)},verticalAlignment=Alignment.CenterVertically){
-    Text(compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.width(18.dp))
-    Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1,color=MaterialTheme.colorScheme.primary)
+    Text(if(label=="Ширина (м)")label else compactInspectorLabel(selected.kind,label),style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF94A3B8),modifier=Modifier.width(if(label=="Ширина (м)")64.dp else 18.dp))
+    Text(value,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF1E90FF))
    }}
   }
  }
