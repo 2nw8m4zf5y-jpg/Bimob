@@ -132,13 +132,18 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
   const double otherOff=static_cast<double>(sideB)*b->thickness.value*.5;
   const double px=join.joint.x.value+n1x*ownOff,py=join.joint.y.value+n1y*ownOff;
   const double qx=join.joint.x.value+n2x*otherOff,qy=join.joint.y.value+n2y*otherOff;
-  bool useBevel=(std::abs(cross)<0.34||std::abs(denBase)<1e-9);
+  const double projOuter=(n1x*static_cast<double>(sideA))*dir2x+(n1y*static_cast<double>(sideA))*dir2y;
+  const bool isOuterCorner=(projOuter<0.0);
+  bool useBevel=isOuterCorner&&(std::abs(cross)<0.34||std::abs(denBase)<1e-6);
   Point2 m{Meters{px},Meters{py}};
-  if(!useBevel){
+  if(std::abs(denBase)>=1e-6){
    const double t=((qx-px)*axisVy-(qy-py)*axisVx)/denBase;
    m=Point2{Meters{px+t*axisUx},Meters{py+t*axisUy}};
    const double radius=std::hypot(m.x.value-join.joint.x.value,m.y.value-join.joint.y.value);
-   if(!std::isfinite(radius)||radius>maxRadius)useBevel=true;
+   if(!std::isfinite(radius)||radius>maxRadius){
+    if(isOuterCorner)useBevel=true;
+    else if(std::isfinite(radius)&&radius>maxRadius){const double scale=maxRadius/radius;m=Point2{Meters{join.joint.x.value+(m.x.value-join.joint.x.value)*scale},Meters{join.joint.y.value+(m.y.value-join.joint.y.value)*scale}};}
+   }
   }
   if(useBevel){
    const double denomBevel=dir1x*bx+dir1y*by;
