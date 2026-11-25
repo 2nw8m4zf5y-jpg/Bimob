@@ -35,6 +35,6 @@ object BlueprintTheme {
 @Composable fun ThemeButton(onChange:()->Unit){val p=LocalBlueprintPalette.current
  Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.background(p.bgSurface).border(1.dp,p.linePrimary).clickable(onClick=onChange).padding(horizontal=5.dp,vertical=3.dp)){
   Text("[ТЕМА]",fontSize=9.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace);Spacer(Modifier.width(4.dp))
-  BlueprintTheme.palettes.forEach{palette->Canvas(Modifier.size(8.dp)){drawCircle(palette.accentCyan)}}
+  BlueprintTheme.palettes.forEach{palette->Canvas(Modifier.size(8.dp)){drawCircle(palette.accentCyan);if(BlueprintTheme.active.value==palette)drawCircle(p.accentAmber,style=androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))}}
  }
 }
