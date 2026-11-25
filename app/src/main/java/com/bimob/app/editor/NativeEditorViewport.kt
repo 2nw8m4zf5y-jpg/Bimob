@@ -611,7 +611,8 @@ private fun CellularStatusGlyph(active:Boolean){
   }
  }
 }
-\nprivate data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
+
+private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
 @Composable private fun RibbonToggleButton(glyph:String,label:String,active:Boolean,onClick:()->Unit){
  Surface(onClick=onClick,shape=RectangleShape,color=if(active)BP.EditorSurface else BP.EditorBar,border=if(active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
   Box(contentAlignment=Alignment.Center){VectorGlyph(glyph,BP.EditorText,Modifier.size(18.dp))}
