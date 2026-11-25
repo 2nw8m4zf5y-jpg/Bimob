@@ -505,6 +505,30 @@ internal fun snapPoint(p:WorldPoint,anchor:WorldPoint?,g:TypedGeometry?,size:Int
      }
     }
     bestIntersection?.let{return SnapResult(it,SnapKind.EDGE,it)}
+    // A locked ray may be collinear with an existing wall axis. In that case
+    // the ray/segment determinant is zero, so project onto the segment instead
+    // of silently falling through to ORTHO.
+    var bestCollinear:WorldPoint?=null;var bestCollinearDist=thresholdPx
+    walls.forEach{w->
+     val ax=w.axisStart.x;val ay=w.axisStart.y;val bx=w.axisEnd.x;val by=w.axisEnd.y
+     val wx=bx-ax;val wy=by-ay;val wallLen2=wx*wx+wy*wy
+     if(wallLen2>1e-12){
+      val rayX=cos(nearestDir);val rayY=sin(nearestDir)
+      val cross=rayX*wy-rayY*wx
+      val offsetCross=(ax-anchor.x)*rayY-(ay-anchor.y)*rayX
+      if(abs(cross)<=1e-10&&abs(offsetCross)<=8.0/zoom){
+       val t=((p.x-ax)*wx+(p.y-ay)*wy)/wallLen2
+       val clamped=t.coerceIn(0.0,1.0)
+       val projected=WorldPoint(ax+wx*clamped,ay+wy*clamped)
+       val along=(projected.x-anchor.x)*rayX+(projected.y-anchor.y)*rayY
+       if(along>=-1e-9){
+        val d=(worldToScreen(projected,screenSize,zoom,pan)-rawScreen).getDistance()
+        if(d<bestCollinearDist){bestCollinearDist=d;bestCollinear=projected}
+       }
+      }
+     }
+    }
+    bestCollinear?.let{return SnapResult(it,SnapKind.EDGE,it)}
     if(gridStep>0){
      val q=if(nearestDir==0.0||nearestDir==PI)WorldPoint(round(locked.x/gridStep)*gridStep,anchor.y)else WorldPoint(anchor.x,round(locked.y/gridStep)*gridStep)
      if((worldToScreen(q,screenSize,zoom,pan)-rawScreen).getDistance()<=thresholdPx)return SnapResult(q,SnapKind.GRID,q)
