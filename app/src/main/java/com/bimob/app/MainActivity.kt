@@ -81,6 +81,7 @@ class MainActivity:ComponentActivity(){
    }
   }
  }
+ }
  private fun projectFileName(name:String)=java.security.MessageDigest.getInstance("SHA-256").digest(name.toByteArray(Charsets.UTF_8)).joinToString(""){ "%02x".format(it) }.take(24)
  private fun legacyHash(name:String)=name.hashCode().toUInt().toString(16)
  private fun saveSnapshot(name:String,json:String){lifecycleScope.launch{val file=File(dir,"${projectFileName(name)}.nagaplas");val tmp=File(dir,file.name+".tmp");val saved=runCatching{withContext(Dispatchers.IO){tmp.writeText(json);if(!tmp.renameTo(file))error("Atomic save failed")}};saved.onSuccess{prefs.edit().putString(name,"saved").putString("active_name",name).apply();toast("Сохранено")}.onFailure{toast(it.message?: "Ошибка сохранения")}}}
