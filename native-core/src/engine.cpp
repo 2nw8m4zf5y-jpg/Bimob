@@ -154,7 +154,8 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
    }
   }
   const double finalRadius=std::hypot(m.x.value-join.joint.x.value,m.y.value-join.joint.y.value);
-  if(std::isfinite(finalRadius)&&finalRadius>maxRadius){const double scale=maxRadius/finalRadius;m=Point2{Meters{join.joint.x.value+(m.x.value-join.joint.x.value)*scale},Meters{join.joint.y.value+(m.y.value-join.joint.y.value)*scale}};}
+  const double safeRadius=std::min(maxRadius,1.25*std::max(a->thickness.value,b->thickness.value));
+  if(std::isfinite(finalRadius)&&finalRadius>safeRadius){const double scale=safeRadius/finalRadius;m=Point2{Meters{join.joint.x.value+(m.x.value-join.joint.x.value)*scale},Meters{join.joint.y.value+(m.y.value-join.joint.y.value)*scale}};}
   v[k++]=m;
  }
  double cx=0,cy=0;for(auto&p:v){cx+=p.x.value;cy+=p.y.value;}cx/=4;cy/=4;std::sort(v.begin(),v.end(),[&](const Point2&x,const Point2&y){return std::atan2(x.y.value-cy,x.x.value-cx)<std::atan2(y.y.value-cy,y.x.value-cx);});
