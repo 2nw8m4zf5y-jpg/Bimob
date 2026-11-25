@@ -94,7 +94,7 @@ std::array<Point2,4> wallFootprint(const Wall&w,const Project&p,const std::vecto
   }
   if(rays.empty())continue;
   const double ownAngle=std::atan2(dirOwnY,dirOwnX),twoPi=2*std::acos(-1.0);
-  auto ccwDelta=[&](double angle){double d=angle-ownAngle;while(d<0)d+=twoPi;while(d>=twoPi)d-=twoPi;return d;};
+  auto ccwDelta=[&](double angle){double d=angle-ownAngle;while(d<0)d+=twoPi;while(d>=twoPi)d-=twoPi;if(d<=1e-9)d=twoPi;return d;};
   for(int baseSide:{-1,1}){
    const auto best=std::min_element(rays.begin(),rays.end(),[&](const NeighborRay&a,const NeighborRay&b){const double da=baseSide>0?ccwDelta(a.angle):ccwDelta(2*ownAngle-a.angle),db=baseSide>0?ccwDelta(b.angle):ccwDelta(2*ownAngle-b.angle);return da<db;});
    const double u1x=ux,u1y=uy,n1x=nx,n1y=ny,dir1x=dirOwnX,dir1y=dirOwnY;
