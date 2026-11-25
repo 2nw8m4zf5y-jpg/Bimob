@@ -27,7 +27,7 @@ void wallJoinCollinearAndNearParallelRegression(){
  for(double degrees:{0.2,179.8,180.0}){
   Project p=fixture();const double radians=degrees*std::acos(-1.0)/180.0;
   p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2+std::cos(radians)},Meters{std::sin(radians)}}},Meters{2.7},Meters{maxThickness},ModelId{}});
-  WallJoin join{ModelId{"parallel-hotfix"},ModelId{"w1"},false,ModelId{"w2"},true,Point2{Meters{2},Meters{0}}};
+  WallJoin join{ModelId{"parallel-hotfix"},ModelId{"w1"},true,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}};
   auto geometry=solveWallJoinGeometry(p,join);assert(geometry.ok());
   for(const auto&vertex:geometry.value()->vertices){
    assert(std::isfinite(vertex.x.value)&&std::isfinite(vertex.y.value));
