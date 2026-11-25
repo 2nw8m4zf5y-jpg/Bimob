@@ -592,20 +592,38 @@ private fun CellularStatusGlyph(active:Boolean){
  }
 }
 
-private data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
+@Composable private fun VectorGlyph(glyph:String,color:Color,modifier:Modifier=Modifier){
+ Canvas(modifier){
+  val w=size.width;val h=size.height;val s=1.5.dp.toPx();val cx=w/2;val cy=h/2
+  when{
+   glyph=="×"->{drawLine(color,Offset(w*.2f,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.8f,h*.2f),Offset(w*.2f,h*.8f),s)}
+   glyph=="╱"||glyph=="Стена"->{drawLine(color,Offset(w*.18f,h*.82f),Offset(w*.82f,h*.18f),s);drawCircle(color,2.dp.toPx(),Offset(w*.18f,h*.82f));drawCircle(color,2.dp.toPx(),Offset(w*.82f,h*.18f))}
+   glyph=="▦"->{for(i in 1..2){drawLine(color,Offset(w*i/3,0f),Offset(w*i/3,h),s);drawLine(color,Offset(0f,h*i/3),Offset(w,h*i/3),s)};drawRect(color,style=Stroke(s))}
+   glyph=="⌑"->{drawRect(color,topLeft=Offset(w*.2f,h*.2f),size=Size(w*.6f,h*.6f),style=Stroke(s));drawCircle(color,2.dp.toPx(),Offset(cx,cy))}
+   glyph=="↻"->{drawArc(color,35f,290f,false,Offset(w*.15f,h*.15f),Size(w*.7f,h*.7f),style=Stroke(s));val p=Path().apply{moveTo(w*.76f,h*.12f);lineTo(w*.85f,h*.36f);lineTo(w*.6f,h*.3f)};drawPath(p,color,style=Stroke(s))}
+   glyph=="⌖"->{drawCircle(color,w*.28f,Offset(cx,cy),style=Stroke(s));drawLine(color,Offset(cx,0f),Offset(cx,h),s);drawLine(color,Offset(0f,cy),Offset(w,cy),s)}
+   glyph=="90°"->{val p=Path().apply{moveTo(w*.2f,h*.8f);lineTo(w*.2f,h*.2f);lineTo(w*.8f,h*.2f)};drawPath(p,color,style=Stroke(s));drawRect(color,topLeft=Offset(w*.25f,h*.25f),size=Size(w*.18f,h*.18f),style=Stroke(s))}
+   glyph=="↶"||glyph=="↷"->{val start=if(glyph=="↶")45f else 135f;drawArc(color,start,270f,false,Offset(w*.18f,h*.18f),Size(w*.64f,h*.64f),style=Stroke(s));val x=if(glyph=="↶")w*.2f else w*.8f;val p=Path().apply{moveTo(x,h*.2f);lineTo(if(glyph=="↶")x+w*.2f else x-w*.2f,h*.2f);lineTo(x,if(glyph=="↶")h*.4f else h*.4f)};drawPath(p,color,style=Stroke(s))}
+   glyph=="↔"||glyph=="Размер"->{drawLine(color,Offset(w*.12f,cy),Offset(w*.88f,cy),s);drawLine(color,Offset(w*.12f,cy),Offset(w*.3f,h*.35f),s);drawLine(color,Offset(w*.12f,cy),Offset(w*.3f,h*.65f),s);drawLine(color,Offset(w*.88f,cy),Offset(w*.7f,h*.35f),s);drawLine(color,Offset(w*.88f,cy),Offset(w*.7f,h*.65f),s)}
+   glyph=="A"||glyph=="Текст"->{drawLine(color,Offset(w*.2f,h*.8f),Offset(cx,h*.2f),s);drawLine(color,Offset(cx,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.32f,h*.58f),Offset(w*.68f,h*.58f),s)}
+   else->{drawLine(color,Offset(w*.2f,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.8f,h*.2f),Offset(w*.2f,h*.8f),s)}
+  }
+ }
+}
+\nprivate data class RibbonItem(val glyph:String,val label:String,val active:Boolean,val enabled:Boolean=true,val danger:Boolean=false,val tooltipOverride:String?=null,val action:()->Unit)
 @Composable private fun RibbonToggleButton(glyph:String,label:String,active:Boolean,onClick:()->Unit){
  Surface(onClick=onClick,shape=RectangleShape,color=if(active)BP.EditorSurface else BP.EditorBar,border=if(active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}) {
-  Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=if(glyph=="90°")9.sp else 13.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText)}
+  Box(contentAlignment=Alignment.Center){VectorGlyph(glyph,BP.EditorText,Modifier.size(18.dp))}
  }
 }
 @Composable private fun RibbonQuickButton(glyph:String,label:String,enabled:Boolean,action:()->Unit,tooltip:(String)->Unit){
- Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=BP.EditorBar,modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)BP.EditorText else BP.EditorAxis)}}
+ Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=BP.EditorBar,modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){VectorGlyph(glyph,if(enabled)BP.EditorText else BP.EditorAxis,Modifier.size(17.dp))}}
 }
 @Composable private fun RibbonGroup(items:List<RibbonItem>,tooltip:(String)->Unit){
  Row(Modifier.height(68.dp).padding(horizontal=3.dp),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){
   items.forEach{item->
    Surface(onClick={tooltip(item.tooltipOverride?:item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->BP.BgSurface;item.active->BP.EditorSurface;else->BP.EditorBar},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentAmber)else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,BP.AccentCyan)else androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),modifier=Modifier.size(44.dp)){
-    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=17.sp,color=if(item.danger)BP.AccentAmber else BP.EditorText);Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmber else BP.EditorText)}
+    Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){VectorGlyph(item.glyph,if(item.danger)BP.AccentAmber else BP.EditorText,Modifier.size(20.dp));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)BP.AccentAmber else BP.EditorText)}
    }
   }
   Box(Modifier.padding(start=3.dp).width(1.dp).height(68.dp).background(BP.EditorGridMajor))
@@ -626,7 +644,7 @@ private fun Modifier.borderBottomEngineering()=drawBehind { drawLine(BP.EditorGr
 private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
   Surface(onClick={tooltip(label);onClick()},shape=RectangleShape,color=if(selected)BP.EditorSelection else MaterialTheme.colorScheme.surface,modifier=Modifier.size(28.dp).semantics{contentDescription=label;role=Role.Button}){
-   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=if(selected)BP.EditorText else MaterialTheme.colorScheme.onSurface)}
+   Box(contentAlignment=Alignment.Center){VectorGlyph(symbol,if(selected)BP.EditorText else MaterialTheme.colorScheme.onSurface,Modifier.size(17.dp))}
   }
  }
 }
@@ -635,7 +653,7 @@ private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,toolti
 private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
   Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->BP.AccentAmber;selected->BP.AccentCyan;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
-   Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=when{(danger&&enabled)||selected->BP.EditorText;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
+   Box(contentAlignment=Alignment.Center){VectorGlyph(symbol,when{(danger&&enabled)||selected->BP.EditorText;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant},Modifier.size(17.dp))}
   }
  }
 }
