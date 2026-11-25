@@ -41,7 +41,7 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
    drawLine(BP.AccentAmber,Offset(left,base),Offset(right,base),2.dp.toPx())
    for(i in 0..5){val y=roof+(base-roof)*i/5;drawLine(BP.TextMuted,Offset(20.dp.toPx(),y),Offset(left-8.dp.toPx(),y),1.dp.toPx())}
    // Foundation hatch
-   for(x in left..right step 12.dp.toPx())drawLine(BP.GridMajor,Offset(x,base),Offset(x-8,base+12.dp.toPx()),1.dp.toPx())
+   var hx=left\n   while(hx<right){drawLine(BP.GridMajor,Offset(hx,base),Offset(hx-8,base+12.dp.toPx()),1.dp.toPx());hx+=12.dp.toPx()}
   }
   Column(Modifier.fillMaxWidth().padding(16.dp)) {
    Text("←  К ВЫБОРУ ПРОГРАММ",Modifier.clickable(onClick=onBack),fontSize=11.sp,color=BP.AccentCyan,fontFamily=FontFamily.Monospace)
