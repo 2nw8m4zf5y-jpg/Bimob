@@ -42,7 +42,7 @@ class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){
   CrashReporter.install(applicationContext)
   super.onCreate(savedInstanceState)
-  configureImmersiveWindow()
+  applyImmersiveFullscreen()
   setContent{MaterialTheme(colorScheme=darkColorScheme(primary=Color(0xFF1E90FF),secondary=Color(0xFF00B4D8),tertiary=Color(0xFFFFB300),background=Color(0xFF12151A),surface=Color(0xFF191E24),surfaceVariant=Color(0xFF191E24),outline=Color(0xFF303947),error=Color(0xFFE53935),onPrimary=Color.White,onSecondary=Color.White,onBackground=Color(0xFFE6EDF5),onSurface=Color(0xFFE6EDF5)),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
    val state by editor.state.collectAsState()
    var crashLog by remember { mutableStateOf(CrashReporter.readLastCrash(this@MainActivity)) }
@@ -97,7 +97,7 @@ class MainActivity:ComponentActivity(){
     dismissButton={TextButton(onClick={showNew=false}){Text("Отмена")}})
   }}
  }
- private fun configureImmersiveWindow(){
+ private fun applyImmersiveFullscreen(){
   WindowCompat.setDecorFitsSystemWindows(window,false)
   if(android.os.Build.VERSION.SDK_INT>=28){
    window.attributes=window.attributes.apply{
@@ -114,7 +114,7 @@ class MainActivity:ComponentActivity(){
  }
  override fun onWindowFocusChanged(hasFocus:Boolean){
   super.onWindowFocusChanged(hasFocus)
-  if(hasFocus)hideSystemBars()
+  if(hasFocus)applyImmersiveFullscreen()
  }
  private fun fileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas")
  private fun legacyFileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.json")
