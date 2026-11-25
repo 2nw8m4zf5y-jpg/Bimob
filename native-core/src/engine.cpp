@@ -114,7 +114,9 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  if(distanceToAxis(*a)>tol||distanceToAxis(*b)>tol||pa<-tol||pa>1+tol||pb<-tol||pb>1+tol)return Result<WallJoinGeometry>::failure({ErrorCode::InvalidArgument,"Join point is outside finite axes",join.id.value,{},0,0});
  bool ea=pa<=tol||pa>=1-tol,eb=pb<=tol||pb>=1-tol;auto topology=ea&&eb?WallJoinTopology::L:(ea!=eb?WallJoinTopology::T:WallJoinTopology::X);
  const auto A=outward(*a,pa>=1-tol),B=outward(*b,pb>=1-tol);
- const double cross=A[0]*B[1]-A[1]*B[0];\n const double axisAx=(a->axis.end.x.value-a->axis.start.x.value)/a->axis.length().value,axisAy=(a->axis.end.y.value-a->axis.start.y.value)/a->axis.length().value,axisBx=(b->axis.end.x.value-b->axis.start.x.value)/b->axis.length().value,axisBy=(b->axis.end.y.value-b->axis.start.y.value)/b->axis.length().value;\n const double angle=std::acos(std::clamp(axisAx*axisBx+axisAy*axisBy,-1.0,1.0))*180/std::acos(-1.0);
+ const double cross=A[0]*B[1]-A[1]*B[0];
+ const double axisAx=(a->axis.end.x.value-a->axis.start.x.value)/a->axis.length().value,axisAy=(a->axis.end.y.value-a->axis.start.y.value)/a->axis.length().value,axisBx=(b->axis.end.x.value-b->axis.start.x.value)/b->axis.length().value,axisBy=(b->axis.end.y.value-b->axis.start.y.value)/b->axis.length().value;
+ const double angle=std::acos(std::clamp(axisAx*axisBx+axisAy*axisBy,-1.0,1.0))*180/std::acos(-1.0);
  const double maxRadius=3.5*std::max(a->thickness.value*.5,b->thickness.value*.5);
  auto buttFallback=[&](){const double h=std::max(a->thickness.value,b->thickness.value)*.5;std::array<Point2,4>f{{{Meters{join.joint.x.value+A[0]*h+A[2]*h},Meters{join.joint.y.value+A[1]*h+A[3]*h}}, {Meters{join.joint.x.value-A[0]*h+A[2]*h},Meters{join.joint.y.value-A[1]*h+A[3]*h}}, {Meters{join.joint.x.value-A[0]*h-A[2]*h},Meters{join.joint.y.value-A[1]*h-A[3]*h}}, {Meters{join.joint.x.value+A[0]*h-A[2]*h},Meters{join.joint.y.value-A[1]*h-A[3]*h}}}};return Result<WallJoinGeometry>::success({topology,angle,f});};
  if(std::abs(cross)<0.25)return buttFallback();
