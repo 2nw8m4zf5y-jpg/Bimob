@@ -73,6 +73,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  val snapThresholdPx=with(LocalDensity.current){22.dp.toPx()}
  var showCatalogPicker by remember{mutableStateOf(false)}
  var showProperties by remember{mutableStateOf(false)}
+ var highlightJoins by remember{mutableStateOf(false)}
  var catalogCategory by remember{mutableStateOf("openings")}
  var homeMenuExpanded by remember{mutableStateOf(false)}
  var editingProperty by remember{mutableStateOf<Pair<String,String>?>(null)}
@@ -258,7 +259,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1E90FF),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
      }
     }
-    g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF0A0A0A))}
+    g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(highlightJoins)Color(0xFF1E90FF)else Color(0xFF0A0A0A))}
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
      val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
      val ux=dx/len;val uy=dy/len;val tp=transformPreview?.takeIf{it.kind==EditorElementKind.OPENING&&it.id==item.id};val width=item.width*(tp?.scaleFactor?:1.0);val half=width/2
