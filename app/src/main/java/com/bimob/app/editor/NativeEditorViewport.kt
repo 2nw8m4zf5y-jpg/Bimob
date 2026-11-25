@@ -73,7 +73,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  val snapThresholdPx=with(LocalDensity.current){22.dp.toPx()}
  var showCatalogPicker by remember{mutableStateOf(false)}
  var showProperties by remember{mutableStateOf(false)}
- var highlightJoins by remember{mutableStateOf(false)}
  var catalogCategory by remember{mutableStateOf("openings")}
  var homeMenuExpanded by remember{mutableStateOf(false)}
  var editingProperty by remember{mutableStateOf<Pair<String,String>?>(null)}
@@ -99,7 +98,6 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     RibbonQuickButton("↶","Отменить",state.canUndo,viewModel::undo,showTooltip)
     RibbonQuickButton("↷","Повторить",state.canRedo,viewModel::redo,showTooltip)
     CompactActionButton("×","Удалить",enabled=state.selection!=null,danger=true,tooltip=showTooltip){viewModel.deleteSelection()}
-    Spacer(Modifier.weight(1f))
    }
    Row(Modifier.fillMaxWidth().height(30.dp).background(Color(0xFFE8ECF0)).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically) {
     listOf("Архитектура","Конструкция","Системы","Каталог","Правка").forEach{tab->
@@ -116,16 +114,22 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }
     }
    }
+    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=Color(0xFF0F172A))}
+   }
    if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
     when(ribbonTab){
-     "Архитектура"->{
-      RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=Edi    when(ribbonTab){
      "Архитектура"->RibbonGroup(listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL}),showTooltip)
      "Конструкция"->RibbonGroup(listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("⌑","Узлы",highlightJoins){tool=EditorTool.SELECT;highlightJoins=!highlightJoins}),showTooltip)
      "Системы"->Unit
      "Каталог"->RibbonGroup(listOf(RibbonItem("▦","Вставка",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}),showTooltip)
      else->RibbonGroup(listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("⌖","Привязка",snapEnabled){snapEnabled=!snapEnabled},RibbonItem("90°","Орто",orthoLocked){orthoLocked=!orthoLocked}),showTooltip)
-    }olumn(Modifier.heightIn(max=420.dp)){
+    }
+   }
+  }
+  if(showCatalogPicker) AlertDialog(
+   onDismissRequest={showCatalogPicker=false},
+   title={Text("Каталог")},
+   text={Column(Modifier.heightIn(max=420.dp)){
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(2.dp)) {
      listOf("openings" to "Двери и окна","furniture" to "Мебель","plumbing" to "Сантехника").forEach{(category,label)->
       TextButton(onClick={catalogCategory=category},modifier=Modifier.weight(1f)){Text(label,style=MaterialTheme.typography.labelSmall,color=if(catalogCategory==category)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)}
@@ -174,7 +178,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,hitRadiusPx){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null;var catalogGripDrag:Pair<CatalogItem,CatalogGrip>?=null;var movingWallSnapAnchor:WorldPoint?=null
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null;var catalogGripDrag:Pair<CatalogItem,CatalogGrip>?=null
     try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val canvasOffset=Offset(camera.panX,camera.panY)
@@ -188,11 +192,10 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} ?:catalogGripDrag?.let{val p=catalogGripFixedPoint(it.first,it.second);WorldPoint(p.x,p.y)} 
      val snap=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen;hudWorldPoint=world
-     snapPreview=snap
+     snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
      wallStartSnap=if(tool==EditorTool.WALL)snap else null
      endpointPreview=endpointDrag?.copy(point=world)
      if(tool!=EditorTool.WALL&&endpointDrag==null&&catalogGripDrag==null)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,canvasOffset,hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
-     movingWallSnapAnchor=movingSelection?.takeIf{tool==EditorTool.SELECT&&it.kind==EditorElementKind.WALL}?.let{sel->state.typedGeometry?.walls?.firstOrNull{it.id==sel.id}?.let{WorldPoint(it.axisStart.x,it.axisStart.y)}}
     },onDrag={change,_->
      change.consume();val origin=start?:return@detectDragGestures;val originScreen=startScreen?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
@@ -201,15 +204,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val cross=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
      val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)}?:catalogGripDrag?.let{val p=catalogGripFixedPoint(it.first,it.second);WorldPoint(p.x,p.y)}?:origin
-     val wallMoveAnchor=movingWallSnapAnchor
-     val wallMoveCandidate=wallMoveAnchor?.let{WorldPoint(it.x+raw.x-origin.x,it.y+raw.y-origin.y)}
-     val snapped=when{
-      tool==EditorTool.SELECT&&wallMoveAnchor!=null&&wallMoveCandidate!=null->if(snapEnabled)snapPoint(wallMoveCandidate,wallMoveAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,movingSelection?.id)else SnapResult(wallMoveCandidate,SnapKind.NONE)
-      tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null->if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
-      else->SnapResult(raw,SnapKind.NONE)
-     }
-     val point=if(tool==EditorTool.SELECT&&wallMoveAnchor!=null)WorldPoint(origin.x+snapped.point.x-wallMoveAnchor.x,origin.y+snapped.point.y-wallMoveAnchor.y)else snapped.point
-     hudWorldPoint=if(tool==EditorTool.SELECT&&wallMoveAnchor!=null)snapped.point else point;snapPreview=snapped
+     val snapped=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
+     val point=snapped.point;hudWorldPoint=point;snapPreview=snapped
      when{
       catalogGripDrag!=null->{val (item,grip)=catalogGripDrag!!;catalogGripPreview=resizeCatalogGrip(item,grip,Vec2(point.x,point.y))?.let{item.id to it}}
       endpointDrag!=null->endpointPreview=endpointDrag!!.copy(point=point)
@@ -229,8 +225,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       tool==EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
       tool==EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
       tool==EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
-     }}finally{preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;movingWallSnapAnchor=null;endpointDrag=null;catalogGripDrag=null}
-    },onDragCancel={preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;movingWallSnapAnchor=null;endpointDrag=null;catalogGripDrag=null})}
+     }}finally{preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null;catalogGripDrag=null}
+    },onDragCancel={preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null;catalogGripDrag=null})}
     finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
    }
 
@@ -254,7 +250,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       listOf(wall.axisStart,wall.axisEnd).forEachIndexed{idx,p->val s=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,Offset(camera.panX,camera.panY));drawCircle(Color(0xFF1E90FF),radius=6f,center=s);drawCircle(Color.White,radius=2.5f,center=s)}
      }
     }
-    g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),if(highlightJoins)Color(0xFF1E90FF)else Color(0xFF0A0A0A))}
+    g.joins.forEach{join->drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),Color(0xFF0A0A0A))}
     g.openings.forEach{item->val wall=g.walls.firstOrNull{it.id==item.hostWallId}?:return@forEach
      val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len<1e-6)return@forEach
      val ux=dx/len;val uy=dy/len;val tp=transformPreview?.takeIf{it.kind==EditorElementKind.OPENING&&it.id==item.id};val width=item.width*(tp?.scaleFactor?:1.0);val half=width/2
@@ -322,7 +318,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    Row(Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
     Text("NAGAPLAS",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f))
     Surface(onClick={ribbonCollapsed=!ribbonCollapsed},shape=RectangleShape,color=Color(0xFFE8ECF0),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF64748B)),modifier=Modifier.size(28.dp)){
-     Box(Modifier.padding(2.dp),contentAlignment=Alignment.Center){Text(if(ribbonCollapsed)"▲" else "▼",fontSize=22.sp,color=Color(0xFF1E293B),lineHeight=22.sp)}
+     Box(Modifier.padding(2.dp),contentAlignment=Alignment.Center){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=22.sp,color=Color(0xFF1E293B),lineHeight=22.sp)}
     }
    }
   }
