@@ -57,7 +57,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var preset by remember{mutableStateOf(CatalogPreset.TABLE)}
  var preview by remember{mutableStateOf<Pair<WorldPoint,WorldPoint>?>(null)}
  var transformPreview by remember{mutableStateOf<TransformPreviewState?>(null)}
- var catalogGripPreview by remember{mutableStateOf<Pair<String,CatalogGripPreview>?>(null)
+ var catalogGripPreview by remember{mutableStateOf<Pair<String,CatalogGripPreview>?>(null)}
  var endpointPreview by remember{mutableStateOf<EndpointPreview?>(null)}
  var snapPreview by remember{mutableStateOf<SnapResult?>(null)}
  var wallStartSnap by remember{mutableStateOf<SnapResult?>(null)}
@@ -181,7 +181,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val selectedCatalog=state.selection?.takeIf{it.kind==EditorElementKind.CATALOG}?.let{s->state.typedGeometry?.catalog?.firstOrNull{it.id==s.id}}
      val gripProbe=Offset(screen.x,screen.y-crosshairOffsetPx)
      catalogGripDrag=if(tool==EditorTool.SELECT&&endpointDrag==null&&selectedCatalog!=null)listOf(CatalogGrip.WIDTH_POSITIVE,CatalogGrip.WIDTH_NEGATIVE,CatalogGrip.DEPTH_POSITIVE,CatalogGrip.DEPTH_NEGATIVE).firstOrNull{grip->val p=catalogGripPoint(selectedCatalog,grip);val sc=worldToScreen(WorldPoint(p.x,p.y),size,camera.zoom,canvasOffset);hypot(gripProbe.x-sc.x,gripProbe.y-sc.y)<=catalogGripHitRadiusPx}?.let{selectedCatalog to it}else null
-     val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
+     val raw=screenToWorld(if(catalogGripDrag!=null)gripProbe else cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} ?:catalogGripDrag?.let{catalogGripFixedPoint(it.first,it.second)} 
      val snap=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen;hudWorldPoint=world
@@ -194,7 +194,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
      fingerScreen=change.position
      val canvasOffset=Offset(camera.panX,camera.panY)
-     val cross=if(tool==EditorTool.WALL||endpointDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
+     val cross=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
      val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)}?:origin
      val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)

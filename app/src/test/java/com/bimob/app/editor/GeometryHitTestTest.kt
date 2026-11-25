@@ -106,7 +106,7 @@ class GeometryHitTestTest {
  }
  @Test fun catalogGripResizeClampsBoundsAndRejectsInvalidPoint(){
   val item=CatalogItem("cabinet",Vec2(0.0,0.0),0.0,1.0,2.0,1.0,0.0,false,"")
-  val min=resizeCatalogGrip(item,CatalogGrip.WIDTH_POSITIVE,Vec2(-10.0,0.0))!!;assertEquals(.05,min.width,1e-9);assertEquals(.475,min.center.x,1e-9)
+  val min=resizeCatalogGrip(item,CatalogGrip.WIDTH_POSITIVE,Vec2(-10.0,0.0))!!;assertEquals(.05,min.width,1e-9);assertEquals(-.475,min.center.x,1e-9)
   val max=resizeCatalogGrip(item,CatalogGrip.DEPTH_POSITIVE,Vec2(0.0,100.0))!!;assertEquals(50.0,max.depth,1e-9)
   assertNull(resizeCatalogGrip(item,CatalogGrip.DEPTH_NEGATIVE,Vec2(Double.NaN,0.0)))
  }

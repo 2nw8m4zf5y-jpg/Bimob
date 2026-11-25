@@ -345,4 +345,18 @@ class NativeEditorViewModelTest {
   assertTrue(GeometryMapper.map(empty,emptyMap()).walls.isEmpty())
  }
  
+ @Test fun catalogGripCommitUsesOneNativeUpdateWithDimensionsAndAnchoredCenter(){
+  val engine=FakeEngine();val vm=NativeEditorViewModel(engine);vm.resetProject("catalog-grip","Project")
+  val item=CatalogItem("furniture-1",Vec2(1.0,2.0),Math.PI/4,2.0,1.0,0.7,0.0,false,"")
+  val preview=CatalogGripPreview(Vec2(1.2,2.2),2.4,1.3)
+  val before=engine.commands.count{!it.contains("HistoryState")}
+  vm.resizeCatalogGrip(item,preview)
+  assertEquals(before+1,engine.commands.count{!it.contains("HistoryState")})
+  val cmd=JSONObject(engine.commands.last{!it.contains("HistoryState")})
+  assertEquals("UpdateCatalogInstance",cmd.optString("type"));assertEquals(item.id,cmd.optString("id"))
+  assertEquals(1.2,cmd.optDouble("x"),1e-12);assertEquals(2.2,cmd.optDouble("y"),1e-12)
+  assertEquals(2.4,cmd.optDouble("widthMeters"),1e-12);assertEquals(1.3,cmd.optDouble("depthMeters"),1e-12)
+  assertEquals(item.height,cmd.optDouble("heightMeters"),1e-12);assertEquals(item.rotationRadians,cmd.optDouble("rotationRadians"),1e-12)
+ }
+
 }
