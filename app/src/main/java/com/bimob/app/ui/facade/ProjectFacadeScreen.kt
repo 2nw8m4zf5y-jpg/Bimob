@@ -4,7 +4,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.layout.WindowInsets\nimport androidx.compose.foundation.layout.safeDrawing\nimport androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,7 +44,8 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
    drawLine(BP.AccentAmber,Offset(left,base),Offset(right,base),2.dp.toPx())
    for(i in 0..5){val y=roof+(base-roof)*i/5;drawLine(BP.TextMuted,Offset(20.dp.toPx(),y),Offset(left-8.dp.toPx(),y),1.dp.toPx())}
    // Foundation hatch
-   var hx=left\n   while(hx<right){drawLine(BP.GridMajor,Offset(hx,base),Offset(hx-8,base+12.dp.toPx()),1.dp.toPx());hx+=12.dp.toPx()}
+   var hx=left
+   while(hx<right){drawLine(BP.GridMajor,Offset(hx,base),Offset(hx-8,base+12.dp.toPx()),1.dp.toPx());hx+=12.dp.toPx()}
   }
   Column(Modifier.fillMaxWidth().padding(16.dp)) {
    Text("←  К ВЫБОРУ ПРОГРАММ",Modifier.clickable(onClick=onBack),fontSize=11.sp,color=BP.AccentCyan,fontFamily=FontFamily.Monospace)
