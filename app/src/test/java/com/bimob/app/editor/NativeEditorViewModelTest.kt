@@ -10,8 +10,12 @@ import androidx.compose.ui.unit.IntSize
 
 class NativeEditorViewModelTest {
  @Test fun compactPropertyLabelsMatchCadNotation(){
-  assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина"))\n  assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина (м)"))\n  assertEquals("Ш:",compactInspectorLabel(EditorElementKind.WALL,"Ширина"))\n  assertEquals("Ш:",compactInspectorLabel(EditorElementKind.WALL,"Ширина (м)"))
-  assertEquals("В:",compactInspectorLabel(EditorElementKind.WALL,"Высота"))\n  assertEquals("В:",compactInspectorLabel(EditorElementKind.WALL,"Высота (м)"))
+  assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина"))
+  assertEquals("Д:",compactInspectorLabel(EditorElementKind.WALL,"Длина (м)"))
+  assertEquals("Ш:",compactInspectorLabel(EditorElementKind.WALL,"Ширина"))
+  assertEquals("Ш:",compactInspectorLabel(EditorElementKind.WALL,"Ширина (м)"))
+  assertEquals("В:",compactInspectorLabel(EditorElementKind.WALL,"Высота"))
+  assertEquals("В:",compactInspectorLabel(EditorElementKind.WALL,"Высота (м)"))
   assertEquals("О:",compactInspectorLabel(EditorElementKind.WALL,"Отметка"))
   assertEquals("Ш:",compactInspectorLabel(EditorElementKind.OPENING,"Ширина"))
   assertEquals("В:",compactInspectorLabel(EditorElementKind.OPENING,"Высота"))
