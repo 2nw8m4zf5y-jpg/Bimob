@@ -596,7 +596,8 @@ private fun CellularStatusGlyph(active:Boolean){
  Canvas(modifier){
   val w=size.width;val h=size.height;val s=1.5.dp.toPx();val cx=w/2;val cy=h/2
   when{
-   glyph=="▲"||glyph=="▼"->{val p=Path().apply{if(glyph=="▲"){moveTo(w*.2f,h*.7f);lineTo(cx,h*.3f);lineTo(w*.8f,h*.7f)}else{moveTo(w*.2f,h*.3f);lineTo(cx,h*.7f);lineTo(w*.8f,h*.3f)}};drawPath(p,color,style=Stroke(s))}\n   glyph=="×"->{drawLine(color,Offset(w*.2f,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.8f,h*.2f),Offset(w*.2f,h*.8f),s)}
+   glyph=="▲"||glyph=="▼"->{val p=Path().apply{if(glyph=="▲"){moveTo(w*.2f,h*.7f);lineTo(cx,h*.3f);lineTo(w*.8f,h*.7f)}else{moveTo(w*.2f,h*.3f);lineTo(cx,h*.7f);lineTo(w*.8f,h*.3f)}};drawPath(p,color,style=Stroke(s))}
+   glyph=="×"->{drawLine(color,Offset(w*.2f,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.8f,h*.2f),Offset(w*.2f,h*.8f),s)}
    glyph=="╱"||glyph=="Стена"->{drawLine(color,Offset(w*.18f,h*.82f),Offset(w*.82f,h*.18f),s);drawCircle(color,2.dp.toPx(),Offset(w*.18f,h*.82f));drawCircle(color,2.dp.toPx(),Offset(w*.82f,h*.18f))}
    glyph=="▦"->{for(i in 1..2){drawLine(color,Offset(w*i/3,0f),Offset(w*i/3,h),s);drawLine(color,Offset(0f,h*i/3),Offset(w,h*i/3),s)};drawRect(color,style=Stroke(s))}
    glyph=="⌑"->{drawRect(color,topLeft=Offset(w*.2f,h*.2f),size=Size(w*.6f,h*.6f),style=Stroke(s));drawCircle(color,2.dp.toPx(),Offset(cx,cy))}
