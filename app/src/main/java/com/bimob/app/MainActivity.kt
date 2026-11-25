@@ -1,22 +1,17 @@
 package com.bimob.app
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.net.Uri
 import android.os.Bundle
+import android.content.pm.ActivityInfo
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.core.view.ViewCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -25,123 +20,85 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bimob.app.editor.NativeEditorViewModel
-import com.bimob.app.editor.NativeEditorViewport
-import java.io.File
-import org.json.JSONObject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import android.view.WindowManager
-import android.content.pm.ActivityInfo
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bimob.app.editor.NativeEditorViewModel
+import com.bimob.app.editor.NativeEditorViewport
+import com.bimob.app.ui.launcher.ProgramLauncherScreen
+import com.bimob.app.ui.facade.ProjectFacadeScreen
+import com.bimob.app.ui.facade.FacadeProject
+import com.bimob.app.ui.blueprint.BlueprintTheme
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 class MainActivity:ComponentActivity(){
- private val editor by viewModels<NativeEditorViewModel>()
  private val prefs by lazy{getSharedPreferences("bimob_native_projects",MODE_PRIVATE)}
  private val dir by lazy{File(filesDir,"native_projects").apply{mkdirs()}}
  private var pendingJson=""
+ private var pendingName="Импортированный проект"
+ private var routeState="launcher"
+ private var selectedProject=""
+ private var showNewDialog=false
+ private var newProjectName="Мой проект"
  override fun onCreate(savedInstanceState:Bundle?){
   CrashReporter.install(applicationContext)
   super.onCreate(savedInstanceState)
   requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
   applyImmersiveFullscreen()
   window.decorView.postDelayed({applyImmersiveFullscreen()},120L)
-  ViewCompat.setOnApplyWindowInsetsListener(window.decorView){_,insets->
-   if(insets.isVisible(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars()))hideSystemBars()
-   insets
-  }
-  setContent{MaterialTheme(colorScheme=darkColorScheme(primary=Color(0xFF1E90FF),secondary=Color(0xFF00B4D8),tertiary=Color(0xFFFFB300),background=Color(0xFF12151A),surface=Color(0xFF191E24),surfaceVariant=Color(0xFF191E24),outline=Color(0xFF303947),error=Color(0xFFE53935),onPrimary=Color.White,onSecondary=Color.White,onBackground=Color(0xFFE6EDF5),onSurface=Color(0xFFE6EDF5)),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
-   val state by editor.state.collectAsState()
-   var crashLog by remember { mutableStateOf(CrashReporter.readLastCrash(this@MainActivity)) }
-   var showNew by remember{mutableStateOf(false)}
-   var projectName by remember{mutableStateOf("Мой проект")}
-   val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){u->u?.let(::openJson)}
-   val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){u->u?.let{writeJson(it,pendingJson)}}
-   Column(Modifier.fillMaxSize()) {
-    if(crashLog != null) {
-     Card(
-      modifier=Modifier.fillMaxWidth().padding(8.dp),
-      colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.errorContainer)
-     ) {
-      Column(Modifier.padding(12.dp)) {
-       Text("Обнаружен предыдущий сбой приложения", style=MaterialTheme.typography.titleSmall)
-       Text("Лог сохранён во внутренней памяти устройства.", style=MaterialTheme.typography.bodySmall)
-       Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick={
-         val clipboard=getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-         clipboard.setPrimaryClip(ClipData.newPlainText("NAGAPLAS last_crash.txt",crashLog))
-         toast("Лог краша скопирован")
-        }) { Text("Скопировать лог краша") }
-        TextButton(onClick={CrashReporter.clear(this@MainActivity);crashLog=null}) { Text("Закрыть") }
-       }
-      }
+  setContent{
+   var route by remember{mutableStateOf(routeState)}
+   var projectId by remember{mutableStateOf(selectedProject)}
+   var dialog by remember{mutableStateOf(false)}
+   var projectName by remember{mutableStateOf(newProjectName)}
+   var importJson by remember{mutableStateOf<String?>(null)}
+   val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->uri?.let{readImport(it){json,name->importJson=json;projectName=name;projectId="import-"+System.currentTimeMillis();route="workspace"}}}
+   val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}
+   BackHandler(route!="launcher"){
+    when(route){"workspace"->route="facade";"facade"->route="launcher"}
+   }
+   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RectangleShape,medium=RectangleShape,large=RectangleShape)){
+    when(route){
+     "launcher"->ProgramLauncherScreen(onCad={route="facade"})
+     "facade"->{
+      val recent=prefs.all.keys.filter{prefs.getString(it,null)=="saved"}.sorted().take(3).map{FacadeProject(it,it,"ЛОКАЛЬНЫЙ ПРОЕКТ",0)}
+      ProjectFacadeScreen(recent,onBack={route="launcher"},onNew={dialog=true},onOpen={name->projectId=name;projectName=name;route="workspace"},onImport={opener.launch(arrayOf("application/json","text/plain"))},onTool={tool->android.widget.Toast.makeText(this@MainActivity,"$tool · модуль в разработке",android.widget.Toast.LENGTH_SHORT).show()},onOpenLast={val last=prefs.getString("active_name","");if(last.isNotBlank()&&prefs.getString(last,null)=="saved"){projectId=last;projectName=last;route="workspace"}else dialog=true})
      }
+     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="facade"},onSaved={name->prefs.edit().putString(name,"saved").putString("active_name",name).apply()},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
     }
-    if(state.projectId.isBlank()){
-     Column(Modifier.fillMaxSize().background(Color(0xFF12151A)).padding(24.dp).verticalScroll(rememberScrollState())){
-      Text("NAGAPLAS",fontSize=32.sp);Text("Нативная модель • единый источник истины",color=Color(0xFF9AA7B5))
-      Spacer(Modifier.height(16.dp));Button(onClick={showNew=true},modifier=Modifier.fillMaxWidth()){Text("Создать проект")}
-      OutlinedButton(onClick={opener.launch(arrayOf("application/json","text/plain"))},enabled=!state.isImporting,modifier=Modifier.fillMaxWidth()){Text(if(state.isImporting)"Импорт…" else "Открыть JSON проекта")}
-      Text("Проекты",style=MaterialTheme.typography.titleMedium)
-      prefs.all.keys.sorted().forEach{n->OutlinedButton(onClick={loadSaved(n)},modifier=Modifier.fillMaxWidth()){Text(n)}}
-     }
-    }else{
-     Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
-      NativeEditorViewport(
-       editor,
-       Modifier.weight(1f).fillMaxWidth(),
-       projectTitle=prefs.getString("active_name","Проект")?:"Проект",
-       onProjects=editor::closeAndReset,
-       onSave=::saveCurrent,
-       onExport={editor.exportProjectSnapshotAsync{result->result.onSuccess{pendingJson=it;exporter.launch("nagaplas-project.nagaplas")}.onFailure{toast(it.message?:"Ошибка экспорта")}}},
-       onImport={opener.launch(arrayOf("application/json","text/plain"))}
-      )
-     }
-    }
-   }
-   if(showNew)AlertDialog(onDismissRequest={showNew=false},title={Text("Новый проект")},text={OutlinedTextField(projectName,{projectName=it},label={Text("Название")})},
-    confirmButton={TextButton(onClick={showNew=false;editor.resetProject("project-"+System.currentTimeMillis(),projectName);prefs.edit().putString("active_name",projectName).apply()}){Text("Создать")}},
-    dismissButton={TextButton(onClick={showNew=false}){Text("Отмена")}})
-   val lifecycleOwner=androidx.lifecycle.compose.LocalLifecycleOwner.current
-   DisposableEffect(lifecycleOwner){
-    val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_RESUME){applyImmersiveFullscreen();window.decorView.postDelayed({applyImmersiveFullscreen()},120L)}}
-    lifecycleOwner.lifecycle.addObserver(observer)
-    onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}
-   }
-  }}
- }
- override fun onResume(){
-  super.onResume()
-  applyImmersiveFullscreen()
-  window.decorView.postDelayed({applyImmersiveFullscreen()},120L)
- }
- private fun applyImmersiveFullscreen(){
-  WindowCompat.setDecorFitsSystemWindows(window,false)
-  if(android.os.Build.VERSION.SDK_INT>=28){
-   window.attributes=window.attributes.apply{
-    layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+    if(dialog)AlertDialog(onDismissRequest={dialog=false},title={Text("Новый проект")},text={OutlinedTextField(projectName,{projectName=it},label={Text("Название проекта")})},confirmButton={TextButton(onClick={dialog=false;projectId="project-"+System.currentTimeMillis();route="workspace"}){Text("Создать")}},dismissButton={TextButton(onClick={dialog=false}){Text("Отмена")}})
    }
   }
-  hideSystemBars()
  }
- private fun hideSystemBars(){
-  WindowInsetsControllerCompat(window,window.decorView).apply{
-   hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
-   systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-  }
- }
- override fun onWindowFocusChanged(hasFocus:Boolean){
-  super.onWindowFocusChanged(hasFocus)
-  if(hasFocus){applyImmersiveFullscreen();window.decorView.postDelayed({applyImmersiveFullscreen()},120L)}
- }
- private fun fileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas")
- private fun legacyFileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.json")
- private fun loadSaved(name:String){lifecycleScope.launch{val json=runCatching{withContext(Dispatchers.IO){(if(fileFor(name).exists())fileFor(name)else legacyFileFor(name)).readText()}};json.onSuccess{editor.openProjectSnapshotAsync(it){ok->if(ok)prefs.edit().putString("active_name",name).apply()else toast("Не удалось открыть проект")}}.onFailure{toast(it.message?:"Не удалось открыть")}}}
- private fun saveCurrent(){val n=prefs.getString("active_name","Мой проект")?:"Мой проект";editor.exportProjectSnapshotAsync{result->result.onSuccess{json->lifecycleScope.launch{val saved=runCatching{withContext(Dispatchers.IO){val target=fileFor(n);val temp=File(dir,target.name+".tmp");temp.writeText(json);if(!temp.renameTo(target))error("Atomic save failed")}};saved.onSuccess{prefs.edit().putString(n,"saved").apply();toast("Сохранено")}.onFailure{toast(it.message?:"Ошибка сохранения")}}}.onFailure{toast(it.message?:"Ошибка сохранения")}}}
- private fun openJson(uri:Uri){lifecycleScope.launch{val read=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Пустой файл")}};read.onSuccess{json->editor.openProjectSnapshotAsync(json){ok->if(ok){val n=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?:"Импортированный проект";prefs.edit().putString("active_name",n).apply()}else toast("Проект не прошёл проверку")}}.onFailure{toast(it.message?:"Ошибка открытия")}}}
- private fun writeJson(uri:Uri,json:String){try{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл");toast("Экспорт завершён")}catch(e:Exception){toast(e.message?:"Ошибка экспорта")}}
+ private fun readImport(uri:Uri,done:(String,String)->Unit){lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:error("Файл пуст")}};result.onSuccess{json->val name=runCatching{JSONObject(json).optString("name").takeIf{it.isNotBlank()}}.getOrNull()?: "Импортированный проект";done(json,name)}.onFailure{toast(it.message?: "Не удалось прочитать файл")}}}
+ private fun writeJson(uri:Uri,json:String){runCatching{contentResolver.openOutputStream(uri,"wt")?.bufferedWriter()?.use{it.write(json)}?:error("Не удалось записать файл")}.onSuccess{toast("Экспорт готов")}.onFailure{toast(it.message?: "Ошибка экспорта")}}
  private fun toast(s:String)=android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show()
+ private fun applyImmersiveFullscreen(){WindowCompat.setDecorFitsSystemWindows(window,false);if(android.os.Build.VERSION.SDK_INT>=28)window.attributes=window.attributes.apply{layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES};hideSystemBars()}
+ private fun hideSystemBars(){WindowInsetsControllerCompat(window,window.decorView).apply{hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars());systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE}}
+ override fun onResume(){super.onResume();applyImmersiveFullscreen();window.decorView.postDelayed({applyImmersiveFullscreen()},120L)}
+ override fun onWindowFocusChanged(hasFocus:Boolean){super.onWindowFocusChanged(hasFocus);if(hasFocus){applyImmersiveFullscreen();window.decorView.postDelayed({applyImmersiveFullscreen()},120L)}}
+}
+
+@Composable
+private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
+ // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
+ val editor:NativeEditorViewModel=viewModel()
+ val state by editor.state.collectAsState()
+ var importHandled by remember{mutableStateOf(false)}
+ LaunchedEffect(projectId,importJson){
+  if(importJson!=null&&!importHandled){importHandled=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(androidx.compose.ui.platform.LocalContext.current,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
+  else if(projectId.isNotBlank()&&state.projectId.isBlank())editor.resetProject(projectId,projectName)
+ }
+ Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
+  NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{onSaved(projectName)}.onFailure{android.widget.Toast.makeText(androidx.compose.ui.platform.LocalContext.current,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
+ }
 }
