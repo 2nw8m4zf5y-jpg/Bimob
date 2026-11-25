@@ -87,6 +87,42 @@ class ExtensionRegistryTest {
     }
 
     @Test
+    fun cycleFailureExcludesExtensionsBlockedByCycle() {
+        val first = manifest(
+            id = "com.bimob.architecture",
+            dependencies = listOf(dependency("com.bimob.mep"))
+        )
+        val second = manifest(
+            id = "com.bimob.mep",
+            dependencies = listOf(dependency("com.bimob.architecture"))
+        )
+        val blocked = manifest(
+            id = "com.bimob.analysis",
+            dependencies = listOf(dependency("com.bimob.architecture"))
+        )
+
+        val result = ExtensionRegistry.empty(kernelApi).registerAll(listOf(first, second, blocked))
+        val failure = (result as ExtensionRegistryResult.Rejected).failure
+
+        assertEquals(ExtensionRegistryFailureCode.DEPENDENCY_CYCLE, failure.code)
+        assertEquals(listOf("com.bimob.architecture", "com.bimob.mep"), failure.extensionIds)
+    }
+
+    @Test
+    fun selfDependencyIsReportedAsCycle() {
+        val selfDependent = manifest(
+            id = "com.bimob.catalog",
+            dependencies = listOf(dependency("com.bimob.catalog"))
+        )
+
+        val result = ExtensionRegistry.empty(kernelApi).register(selfDependent)
+        val failure = (result as ExtensionRegistryResult.Rejected).failure
+
+        assertEquals(ExtensionRegistryFailureCode.DEPENDENCY_CYCLE, failure.code)
+        assertEquals(listOf("com.bimob.catalog"), failure.extensionIds)
+    }
+
+    @Test
     fun contributionIdsAreUniqueWithinAnExtensionPointAcrossRegistry() {
         val first = manifest(
             id = "com.bimob.architecture",
