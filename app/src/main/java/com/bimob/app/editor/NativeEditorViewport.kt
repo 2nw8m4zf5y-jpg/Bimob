@@ -309,7 +309,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      }
     }
     g.joins.forEach{join->
-     val connectedSelected=state.selection?.kind==EditorElementKind.WALL&&g.walls.any{wall->wall.id==state.selection?.id&&(wall.id==join.wallA||wall.id==join.wallB)}
+     val connectedSelected=state.selection?.kind==EditorElementKind.WALL
      val joinColor=if(highlightJoins||connectedSelected)Color(0xFF1E6BB8)else Color(0xFF0A0A0A)
      drawTypedPolygon(join.corners,size,camera.zoom,Offset(camera.panX,camera.panY),joinColor)
     }
