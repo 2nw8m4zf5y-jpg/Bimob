@@ -3,6 +3,7 @@ package com.bimob.app.ui.launcher
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,32 +43,34 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
  val context=LocalContext.current
  BoxWithConstraints(Modifier.fillMaxSize().background(BP.BgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)) {
   val w=maxWidth; val h=maxHeight
-  Canvas(Modifier.fillMaxSize()) {
+  Canvas(Modifier.fillMaxSize().drawWithCache {
    val minor=16.dp.toPx(); val major=80.dp.toPx()
-   for(x in 0..(size.width/minor).toInt()) drawLine(BP.GridMinor,Offset(x*minor,0f),Offset(x*minor,size.height),.5.dp.toPx())
-   for(y in 0..(size.height/minor).toInt()) drawLine(BP.GridMinor,Offset(0f,y*minor),Offset(size.width,y*minor),.5.dp.toPx())
-   for(x in 0..(size.width/major).toInt()) drawLine(BP.GridMajor,Offset(x*major,0f),Offset(x*major,size.height),1.dp.toPx())
-   for(y in 0..(size.height/major).toInt()) drawLine(BP.GridMajor,Offset(0f,y*major),Offset(size.width,y*major),1.dp.toPx())
-   drawRect(BP.LinePrimary,topLeft=Offset(8.dp.toPx(),8.dp.toPx()),size=Size(size.width-16.dp.toPx(),size.height-16.dp.toPx()),style=Stroke(1.dp.toPx()))
-   val towerX=size.width*.13f; val top=size.height*.06f; val ground=size.height*.92f
-   drawLine(BP.LinePrimary,Offset(towerX-10,top),Offset(towerX+10,ground),2.dp.toPx())
-   drawLine(BP.LinePrimary,Offset(towerX+10,top),Offset(towerX-10,ground),2.dp.toPx())
-   var y=top
-   while(y<ground){
-    drawLine(BP.LinePrimary,Offset(towerX-10,y),Offset(towerX+10,y),1.2.dp.toPx())
-    drawLine(BP.LinePrimary,Offset(towerX-10,y),Offset(towerX+10,y+34.dp.toPx()),1.dp.toPx())
-    drawLine(BP.LinePrimary,Offset(towerX+10,y),Offset(towerX-10,y+34.dp.toPx()),1.dp.toPx())
-    y += 34.dp.toPx()
+   val grid=Path().apply {
+    var x=0f;while(x<=size.width){moveTo(x,0f);lineTo(x,size.height);x+=minor}
+    var y=0f;while(y<=size.height){moveTo(0f,y);lineTo(size.width,y);y+=minor}
    }
-   // Crane jib and counterweight
-   drawLine(BP.LinePrimary,Offset(towerX,top+8),Offset(size.width*.92f,top+8),2.dp.toPx())
-   drawLine(BP.LinePrimary,Offset(towerX,top+8),Offset(towerX+36,top-12),2.dp.toPx())
-   drawLine(BP.LinePrimary,Offset(towerX+36,top-12),Offset(size.width*.92f,top+8),1.dp.toPx())
-   drawLine(BP.LinePrimary,Offset(towerX-30,top+8),Offset(towerX,top+8),4.dp.toPx())
-   drawLine(BP.AccentAmber,Offset(0f,ground),Offset(size.width,ground),1.5.dp.toPx())
-   // Ground hatch
-   for(x in 0..(size.width/14.dp.toPx()).toInt())drawLine(BP.GridMajor,Offset(x*14.dp.toPx(),ground),Offset(x*14.dp.toPx()-10,ground+12.dp.toPx()),1.dp.toPx())
-  }
+   val majorGrid=Path().apply {
+    var x=0f;while(x<=size.width){moveTo(x,0f);lineTo(x,size.height);x+=major}
+    var y=0f;while(y<=size.height){moveTo(0f,y);lineTo(size.width,y);y+=major}
+   }
+   val crane=Path().apply {
+    val tx=size.width*.13f;val top=size.height*.06f;val ground=size.height*.92f
+    moveTo(tx-10,top);lineTo(tx+10,ground);moveTo(tx+10,top);lineTo(tx-10,ground)
+    var yy=top;while(yy<ground){moveTo(tx-10,yy);lineTo(tx+10,yy);moveTo(tx-10,yy);lineTo(tx+10,yy+34.dp.toPx());moveTo(tx+10,yy);lineTo(tx-10,yy+34.dp.toPx());yy+=34.dp.toPx()}
+    moveTo(tx,top+8);lineTo(size.width*.92f,top+8);moveTo(tx,top+8);lineTo(tx+36,top-12);lineTo(size.width*.92f,top+8)
+    moveTo(tx-30,top+8);lineTo(tx,top+8)
+   }
+   val frame=Path().apply{addRect(androidx.compose.ui.geometry.Rect(8.dp.toPx(),8.dp.toPx(),size.width-8.dp.toPx(),size.height-8.dp.toPx()))}
+   val hatch=Path().apply{val ground=size.height*.92f;var xx=0f;while(xx<size.width){moveTo(xx,ground);lineTo(xx-10,ground+12.dp.toPx());xx+=14.dp.toPx()}}
+   onDrawBehind {
+    drawPath(grid,BP.GridMinor,.5.dp.toPx())
+    drawPath(majorGrid,BP.GridMajor,1.dp.toPx())
+    drawPath(frame,BP.LinePrimary,style=Stroke(1.dp.toPx()))
+    drawPath(crane,BP.LinePrimary,2.dp.toPx())
+    drawPath(hatch,BP.GridMajor,1.dp.toPx())
+    drawLine(BP.AccentAmber,Offset(0f,size.height*.92f),Offset(size.width,size.height*.92f),1.5.dp.toPx())
+   }
+  }) { }
   Column(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=12.dp)) {
    Text("NAGAPLAS  /  PROGRAM LAUNCHER",color=BP.AccentCyan,fontFamily=FontFamily.Monospace,fontSize=12.sp)
    Spacer(Modifier.height(4.dp))
@@ -94,6 +97,15 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
     }
    }
   }
-  Text("ПРОЕКТ: NAGAPLAS   |   ЭКРАН: ВЫБОР МОДУЛЯ",Modifier.align(Alignment.BottomEnd).padding(16.dp),fontSize=9.sp,color=BP.TextMuted,fontFamily=FontFamily.Monospace)
+  BlueprintStamp(Modifier.align(Alignment.BottomEnd).padding(14.dp),"ЛАУНЧЕР МОДУЛЕЙ")
+ }
+}
+
+@Composable
+private fun BlueprintStamp(modifier:Modifier,screen:String){
+ Column(modifier.widthIn(min=190.dp).border(1.dp,BP.LinePrimary).background(BP.BgPrimary.copy(alpha=.92f))){
+  Text("ПРОЕКТ: NAGAPLAS  |  АВТОР: Nagaplezhev A.",Modifier.fillMaxWidth().padding(horizontal=5.dp,vertical=3.dp),fontSize=7.sp,color=BP.LinePrimary,fontFamily=FontFamily.Monospace)
+  Text("ЭКРАН: $screen",Modifier.fillMaxWidth().border(width=0.dp,color=BP.LinePrimary).padding(horizontal=5.dp,vertical=3.dp),fontSize=7.sp,color=BP.TextPrimary,fontFamily=FontFamily.Monospace)
+  Text("СТАДИЯ: Stage H  |  16:9 / ADAPTIVE",Modifier.fillMaxWidth().padding(horizontal=5.dp,vertical=3.dp),fontSize=7.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)
  }
 }
