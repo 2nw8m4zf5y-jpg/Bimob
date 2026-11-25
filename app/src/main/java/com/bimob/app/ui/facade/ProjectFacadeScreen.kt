@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.RectangleShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,13 +34,13 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
    for(y in 0..(size.height/minor).toInt())drawLine(BP.GridMinor,Offset(0f,y*minor),Offset(size.width,y*minor),.5.dp.toPx())
    for(x in 0..(size.width/major).toInt())drawLine(BP.GridMajor,Offset(x*major,0f),Offset(x*major,size.height),1.dp.toPx())
    for(y in 0..(size.height/major).toInt())drawLine(BP.GridMajor,Offset(0f,y*major),Offset(size.width,y*major),1.dp.toPx())
-   drawRect(BP.LinePrimary,Offset(8.dp.toPx(),8.dp.toPx()),Size(size.width-16.dp.toPx(),size.height-16.dp.toPx()),Stroke(1.dp.toPx()))
+   drawRect(BP.LinePrimary,Offset(8.dp.toPx(),8.dp.toPx()),Size(size.width-16.dp.toPx(),size.height-16.dp.toPx()),style=Stroke(1.dp.toPx()))
    val left=size.width*.22f;val right=size.width*.88f;val roof=size.height*.18f;val base=size.height*.83f
-   drawRect(BP.LinePrimary,Offset(left,roof),Size(right-left,base-roof),Stroke(2.dp.toPx()))
+   drawRect(BP.LinePrimary,Offset(left,roof),Size(right-left,base-roof),style=Stroke(2.dp.toPx()))
    for(i in 1..5){val x=left+(right-left)*i/6;drawLine(BP.LinePrimary,Offset(x,roof),Offset(x,base),1.dp.toPx())}
    for(i in 1..4){val y=roof+(base-roof)*i/5;drawLine(BP.LinePrimary,Offset(left,y),Offset(right,y),1.dp.toPx())}
    // Central elevator shaft
-   val cx=(left+right)/2;drawRect(BP.AccentAmber,Offset(cx-18.dp.toPx(),roof),Size(36.dp.toPx(),base-roof),Stroke(1.5.dp.toPx()))
+   val cx=(left+right)/2;drawRect(BP.AccentAmber,Offset(cx-18.dp.toPx(),roof),Size(36.dp.toPx(),base-roof),style=Stroke(1.5.dp.toPx()))
    drawLine(BP.AccentAmber,Offset(left,base),Offset(right,base),2.dp.toPx())
    for(i in 0..5){val y=roof+(base-roof)*i/5;drawLine(BP.TextMuted,Offset(20.dp.toPx(),y),Offset(left-8.dp.toPx(),y),1.dp.toPx())}
    // Foundation hatch
