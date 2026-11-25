@@ -21,6 +21,18 @@ int main(){using namespace bimob::bridge;
  assert(firstU32(16)==1&&firstU32(20)==0&&firstU32(24)==0&&firstU32(28)==0);
  for(std::size_t i=32;i<72;i+=4){auto bits=firstU32(i);float value;std::memcpy(&value,&bits,sizeof(value));assert(std::isfinite(value));}
  assert(destroySession(fresh));
+ auto nodeSession=createSession();assert(nodeSession);
+ auto nodeCall=[&](const char*j){return dispatchCommandJson(nodeSession,j);};
+ assert(nodeCall(R"({"type":"CreateLevel","id":"NL","name":"Node","elevationMeters":0,"heightMeters":3})").find("\"ok\":true")!=std::string::npos);
+ assert(nodeCall(R"({"type":"CreateWall","id":"N0","levelId":"NL","startX":10,"startY":10,"endX":12,"endY":10,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
+ assert(nodeCall(R"({"type":"CreateWall","id":"N1","levelId":"NL","startX":10,"startY":10,"endX":11.8126156,"endY":10.8452365,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
+ assert(nodeCall(R"({"type":"CreateWall","id":"N2","levelId":"NL","startX":10,"startY":10,"endX":11.4142136,"endY":11.4142136,"heightMeters":2.7,"thicknessMeters":0.2})").find("\"ok\":true")!=std::string::npos);
+ auto nodeGeometry=exportRenderGeometry(nodeSession);assert(nodeGeometry.size()>=32&&std::memcmp(nodeGeometry.data(),"BGR1",4)==0);
+ auto nodeU32=[&](std::size_t o){std::uint32_t v=0;for(int i=0;i<4;i++)v|=static_cast<std::uint32_t>(nodeGeometry[o+i])<<(8*i);return v;};
+ auto nodeF=[&](std::size_t o){auto bits=nodeU32(o);float value;std::memcpy(&value,&bits,sizeof(value));return value;};
+ assert(nodeU32(16)==3&&nodeU32(20)==3);
+ for(std::size_t record=0;record<3;record++){const std::size_t off=32+record*40;for(std::size_t corner:{0ULL,3ULL})assert(std::hypot(nodeF(off+corner*8)-10.0,nodeF(off+corner*8+4)-10.0)<=.35+1e-5);}
+ assert(destroySession(nodeSession));
  auto h=createSession();assert(h);assert(exportCanonicalSnapshot(h).find("Native Engine Session")!=std::string::npos);
  auto call=[&](const char*j){return dispatchCommandJson(h,j);};
  assert(call(R"({"type":"CreateLevel","id":"L1","name":"Ground","elevationMeters":0,"heightMeters":3})").find("\"ok\":true")!=std::string::npos);
