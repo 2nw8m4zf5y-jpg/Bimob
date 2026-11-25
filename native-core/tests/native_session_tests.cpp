@@ -5,7 +5,6 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
-#include <cstdio>
 #include <thread>
 #include <atomic>
 int main(){using namespace bimob::bridge;
