@@ -58,6 +58,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
  var snapPreview by remember{mutableStateOf<SnapResult?>(null)}
  var wallStartSnap by remember{mutableStateOf<SnapResult?>(null)}
  var fingerScreen by remember{mutableStateOf<Offset?>(null)}
+ var hudWorldPoint by remember{mutableStateOf(WorldPoint(0.0,0.0))}
  var orthoLocked by remember{mutableStateOf(false)}
  var snapEnabled by remember{mutableStateOf(true)}
  var activeTooltip by remember{mutableStateOf<String?>(null)}
@@ -107,10 +108,10 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     if(ribbonTab=="Архитектура"){
      RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT},RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties}),showTooltip)
      RibbonGroup("Построение",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}),showTooltip)
-     RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
+     RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
     }else{
      RibbonGroup("История",listOf(RibbonItem("↶","Отменить",false,state.canUndo){viewModel.undo()},RibbonItem("↷","Повторить",false,state.canRedo){viewModel.redo()}),showTooltip)
-     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked,tooltipOverride="Орто 90° (прямые углы)"){orthoLocked=!orthoLocked},RibbonItem("S","Привязка",snapEnabled,tooltipOverride=if(snapEnabled)"Магнитная привязка ВЫКЛ" else "Магнитная привязка ВКЛ"){snapEnabled=!snapEnabled}),showTooltip)
+     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked,tooltipOverride="Орто 90° (прямые углы)"){orthoLocked=!orthoLocked},RibbonItem("S","Привязка",snapEnabled,tooltipOverride=if(snapEnabled)"Магнитная привязка ВКЛ" else "Магнитная привязка ВЫКЛ"){snapEnabled=!snapEnabled}),showTooltip)
      RibbonGroup("Инспектор",listOf(RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
     }
    }
@@ -176,7 +177,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} 
      val snap=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
-     val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen
+     val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen;hudWorldPoint=world
      snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
      wallStartSnap=if(tool==EditorTool.WALL)snap else null
      endpointPreview=endpointDrag?.copy(point=world)
@@ -190,7 +191,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
      val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)}?:origin
      val snapped=if(tool==EditorTool.WALL||endpointDrag!=null)if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
-     val point=snapped.point;snapPreview=snapped
+     val point=snapped.point;hudWorldPoint=point;snapPreview=snapped
      when{
       endpointDrag!=null->endpointPreview=endpointDrag!!.copy(point=point)
       tool==EditorTool.WALL->preview=origin to point
@@ -283,7 +284,18 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
        activeTooltip?.let { label -> Surface(color=Color(0xFF1E293B),shape=RectangleShape,border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),modifier=Modifier.align(Alignment.TopStart).padding(start=6.dp,top=6.dp).zIndex(3f)){Text(label,modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),color=Color.White,style=MaterialTheme.typography.labelSmall)} }
     if(showProperties) SelectionInspector(state,Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().width(164.dp).padding(top=2.dp,start=2.dp),onClose={showProperties=false},onEdit={field,label,value->editingProperty=field to label;editValue=value})
-   Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("Zoom ${(camera.zoom*100).toInt()}%",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B));Text("Grid 0.10 m · Привязка: ${if(snapEnabled)"ВКЛ" else "ВЫКЛ"}",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B))}
+   Column(Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
+    val hudFmt:(Double)->String={v->if(v.isFinite())String.format(java.util.Locale.US,"%.2f",v)else "0.00"}
+    val telemetry=when{
+     preview!=null->{val (a,b)=preview!!;val dx=b.x-a.x;val dy=b.y-a.y; "L: ${hudFmt(hypot(dx,dy))} м   ∠ ${Math.round(Math.toDegrees(atan2(dy,dx))).toInt()}°"}
+     endpointPreview!=null->{val ep=endpointPreview!!;val wall=state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId};if(wall!=null){val anchor=if(ep.moveStart)wall.axisEnd else wall.axisStart;val dx=ep.point.x-anchor.x;val dy=ep.point.y-anchor.y;"L: ${hudFmt(hypot(dx,dy))} м   ∠ ${Math.round(Math.toDegrees(atan2(dy,dx))).toInt()}°"}else "Шаг сетки: 0.10 м"}
+     state.selection?.kind==EditorElementKind.WALL->{val w=state.typedGeometry?.walls?.firstOrNull{it.id==state.selection!!.id};if(w!=null)"Стена · L: ${hudFmt(hypot(w.axisEnd.x-w.axisStart.x,w.axisEnd.y-w.axisStart.y))} м · Ш: ${hudFmt(hypot(w.corners[0].x-w.corners[3].x,w.corners[0].y-w.corners[3].y))} м" else "Шаг сетки: 0.10 м"}
+     state.selection?.kind==EditorElementKind.OPENING->{val o=state.typedGeometry?.openings?.firstOrNull{it.id==state.selection!!.id};val host=o?.let{x->state.typedGeometry?.walls?.firstOrNull{it.id==x.hostWallId}};"Объект · Ш: ${hudFmt(o?.width?:0.0)} м · Г: ${hudFmt(host?.thickness?:0.0)} м"}
+     state.selection?.kind==EditorElementKind.CATALOG->{val o=state.typedGeometry?.catalog?.firstOrNull{it.id==state.selection!!.id};"Объект · Ш: ${hudFmt(o?.width?:0.0)} м · Г: ${hudFmt(o?.depth?:0.0)} м"}
+     else->"Шаг сетки: 0.10 м"
+    }
+    Surface(color=Color(0xFF1E293B),shape=RectangleShape){Column(Modifier.padding(horizontal=8.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){Text("X: ${hudFmt(hudWorldPoint.x)} м   Y: ${hudFmt(hudWorldPoint.y)} м",fontSize=10.sp,color=Color.White);Text(telemetry,fontSize=10.sp,color=Color.White)}}
+   }
    Text("NAGAPLAS · Nagaplezhev Aslan",style=MaterialTheme.typography.labelSmall,color=Color(0xFF1E293B).copy(alpha=.25f),modifier=Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal+WindowInsetsSides.Bottom)).imePadding().padding(6.dp))
   }
   state.error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(3.dp),style=MaterialTheme.typography.labelSmall)}
