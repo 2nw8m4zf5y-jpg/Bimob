@@ -96,7 +96,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
     RibbonQuickButton("↶","Отменить",state.canUndo,viewModel::undo,showTooltip)
     RibbonQuickButton("↷","Повторить",state.canRedo,viewModel::redo,showTooltip)
-    RibbonToggleButton("S","Привязка",snapEnabled){snapEnabled=!snapEnabled}
+    RibbonToggleButton("⌖","Привязка",snapEnabled){snapEnabled=!snapEnabled}
     RibbonToggleButton("90°","Орто",orthoLocked){orthoLocked=!orthoLocked}
     listOf("Архитектура","Изменить").forEach{tab->
      Box(Modifier.wrapContentWidth().height(32.dp).background(if(ribbonTab==tab&&!ribbonCollapsed)Color(0xFFF5F6F8)else Color.Transparent).clickable{if(ribbonTab==tab)ribbonCollapsed=!ribbonCollapsed else{ribbonTab=tab;ribbonCollapsed=false}}.padding(horizontal=5.dp),contentAlignment=Alignment.Center){
