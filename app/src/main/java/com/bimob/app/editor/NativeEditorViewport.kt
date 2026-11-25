@@ -174,7 +174,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     }
    }
    .pointerInput(tool,camera.zoom,camera.panX,camera.panY,state.typedGeometry,hitRadiusPx){
-    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null;var catalogGripDrag:Pair<CatalogItem,CatalogGrip>?=null
+    var start:WorldPoint?=null;var last:WorldPoint?=null;var startScreen:Offset?=null;var movingSelection:EditorSelection?=null;var endpointDrag:EndpointPreview?=null;var catalogGripDrag:Pair<CatalogItem,CatalogGrip>?=null;var movingWallSnapAnchor:WorldPoint?=null
     try{detectDragGestures(onDragStart={screen->
      if(!screen.x.isFinite()||!screen.y.isFinite()){start=null;last=null;return@detectDragGestures}
      val canvasOffset=Offset(camera.panX,camera.panY)
@@ -188,10 +188,11 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val wallAnchor=endpointDrag?.let{ep->selectedWall?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)} ?:catalogGripDrag?.let{val p=catalogGripFixedPoint(it.first,it.second);WorldPoint(p.x,p.y)} 
      val snap=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)if(snapEnabled)snapPoint(raw,wallAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
      val world=endpointDrag?.point?:snap.point;start=world;last=world;startScreen=screen;fingerScreen=screen;hudWorldPoint=world
-     snapPreview=if(endpointDrag!=null)SnapResult(world,SnapKind.NONE)else snap
+     snapPreview=snap
      wallStartSnap=if(tool==EditorTool.WALL)snap else null
      endpointPreview=endpointDrag?.copy(point=world)
      if(tool!=EditorTool.WALL&&endpointDrag==null&&catalogGripDrag==null)movingSelection=state.typedGeometry?.let{hitTestTypedGeometry(screen,it,size,camera.zoom,canvasOffset,hitRadiusPx)}?.takeIf{tool!=EditorTool.ROTATE||it.kind!=EditorElementKind.OPENING}
+     movingWallSnapAnchor=movingSelection?.takeIf{tool==EditorTool.SELECT&&it.kind==EditorElementKind.WALL}?.let{sel->state.typedGeometry?.walls?.firstOrNull{it.id==sel.id}?.let{WorldPoint(it.axisStart.x,it.axisStart.y)}}
     },onDrag={change,_->
      change.consume();val origin=start?:return@detectDragGestures;val originScreen=startScreen?:return@detectDragGestures
      if(!change.position.x.isFinite()||!change.position.y.isFinite())return@detectDragGestures
@@ -200,8 +201,15 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
      val cross=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)Offset(change.position.x,change.position.y-crosshairOffsetPx)else change.position
      val raw=screenToWorld(cross,size,camera.zoom,canvasOffset);if(!raw.x.isFinite()||!raw.y.isFinite())return@detectDragGestures
      val anchor=endpointDrag?.let{ep->state.typedGeometry?.walls?.firstOrNull{it.id==ep.wallId}?.let{if(ep.moveStart)it.axisEnd else it.axisStart}}?.let{WorldPoint(it.x,it.y)}?:catalogGripDrag?.let{val p=catalogGripFixedPoint(it.first,it.second);WorldPoint(p.x,p.y)}?:origin
-     val snapped=if(tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null)if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)else SnapResult(raw,SnapKind.NONE)
-     val point=snapped.point;hudWorldPoint=point;snapPreview=snapped
+     val wallMoveAnchor=movingWallSnapAnchor
+     val wallMoveCandidate=wallMoveAnchor?.let{WorldPoint(it.x+raw.x-origin.x,it.y+raw.y-origin.y)}
+     val snapped=when{
+      tool==EditorTool.SELECT&&wallMoveAnchor!=null&&wallMoveCandidate!=null->if(snapEnabled)snapPoint(wallMoveCandidate,wallMoveAnchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,movingSelection?.id)else SnapResult(wallMoveCandidate,SnapKind.NONE)
+      tool==EditorTool.WALL||endpointDrag!=null||catalogGripDrag!=null->if(snapEnabled)snapPoint(raw,anchor,state.typedGeometry,size,camera.zoom,canvasOffset,snapThresholdPx,orthoLocked,endpointDrag?.wallId)else SnapResult(raw,SnapKind.NONE)
+      else->SnapResult(raw,SnapKind.NONE)
+     }
+     val point=if(tool==EditorTool.SELECT&&wallMoveAnchor!=null)WorldPoint(origin.x+snapped.point.x-wallMoveAnchor.x,origin.y+snapped.point.y-wallMoveAnchor.y)else snapped.point
+     hudWorldPoint=if(tool==EditorTool.SELECT&&wallMoveAnchor!=null)snapped.point else point;snapPreview=snapped
      when{
       catalogGripDrag!=null->{val (item,grip)=catalogGripDrag!!;catalogGripPreview=resizeCatalogGrip(item,grip,Vec2(point.x,point.y))?.let{item.id to it}}
       endpointDrag!=null->endpointPreview=endpointDrag!!.copy(point=point)
@@ -221,8 +229,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       tool==EditorTool.SELECT->if(tp!=null&&(tp.dx!=0.0||tp.dy!=0.0))viewModel.moveElement(tp.kind,tp.id,tp.dx,tp.dy)
       tool==EditorTool.ROTATE->if(sel!=null&&tp!=null&&tp.rotationRadians!=0.0)viewModel.rotateElement(sel,tp.rotationRadians)
       tool==EditorTool.RESIZE->if(sel!=null&&tp!=null&&tp.scaleFactor!=1.0)viewModel.resizeElement(sel,tp.scaleFactor)
-     }}finally{preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null;catalogGripDrag=null}
-    },onDragCancel={preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null;catalogGripDrag=null})}
+     }}finally{preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;movingWallSnapAnchor=null;endpointDrag=null;catalogGripDrag=null}
+    },onDragCancel={preview=null;transformPreview=null;catalogGripPreview=null;endpointPreview=null;snapPreview=null;wallStartSnap=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;movingWallSnapAnchor=null;endpointDrag=null;catalogGripDrag=null})}
     finally{preview=null;transformPreview=null;endpointPreview=null;snapPreview=null;fingerScreen=null;start=null;last=null;startScreen=null;movingSelection=null;endpointDrag=null}
    }
 
