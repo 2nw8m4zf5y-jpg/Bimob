@@ -92,13 +92,13 @@ class MainActivity:ComponentActivity(){
 private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
  // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
  val editor:NativeEditorViewModel=viewModel()
- val state by editor.state.collectAsState()
+ val state by editor.state.collectAsState()\n val context=LocalContext.current
  var importHandled by remember{mutableStateOf(false)}
  LaunchedEffect(projectId,importJson){
-  if(importJson!=null&&!importHandled){importHandled=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(androidx.compose.ui.platform.LocalContext.current,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
+  if(importJson!=null&&!importHandled){importHandled=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
   else if(projectId.isNotBlank()&&state.projectId.isBlank())editor.resetProject(projectId,projectName)
  }
  Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
-  NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{onSaved(projectName)}.onFailure{android.widget.Toast.makeText(androidx.compose.ui.platform.LocalContext.current,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
+  NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{onSaved(projectName)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
  }
 }
