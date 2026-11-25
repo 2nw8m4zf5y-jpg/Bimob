@@ -27,7 +27,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.ViewModelStoreOwner
 import com.bimob.app.editor.NativeEditorViewModel
 import com.bimob.app.editor.NativeEditorViewport
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
@@ -64,13 +66,13 @@ class MainActivity:ComponentActivity(){
    val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->uri?.let{readImport(it){json,name->importJson=json;projectName=name;projectId="import-"+System.currentTimeMillis();route="workspace"}}}
    val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}
 
-   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RectangleShape,medium=RectangleShape,large=RectangleShape)){
+   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
      "launcher"->ProgramLauncherScreen(onCad={route="facade"})
      "facade"->{
       BackHandler{route="launcher"}
       val recent=prefs.all.keys.filter{prefs.getString(it,null)=="saved"}.sorted().take(3).map{FacadeProject(it,it,"ЛОКАЛЬНЫЙ ПРОЕКТ",0)}
-      ProjectFacadeScreen(recent,onBack={route="launcher"},onNew={dialog=true},onOpen={name->loadSavedProject(name){json->importJson=json;projectId=name;projectName=name;route="workspace"}},onImport={opener.launch(arrayOf("application/json","text/plain"))},onTool={tool->android.widget.Toast.makeText(this@MainActivity,"$tool · модуль в разработке",android.widget.Toast.LENGTH_SHORT).show()},onOpenLast={val last=prefs.getString("active_name","");if(last.isNotBlank()&&prefs.getString(last,null)=="saved"){loadSavedProject(last){json->importJson=json;projectId=last;projectName=last;route="workspace"}}else dialog=true})
+      ProjectFacadeScreen(recent,onBack={route="launcher"},onNew={dialog=true},onOpen={name->loadSavedProject(name){json->importJson=json;projectId=name;projectName=name;route="workspace"}},onImport={opener.launch(arrayOf("application/json","text/plain"))},onTool={tool->android.widget.Toast.makeText(this@MainActivity,"$tool · модуль в разработке",android.widget.Toast.LENGTH_SHORT).show()},onOpenLast={val last=prefs.getString("active_name","");if(!last.isNullOrBlank()&&prefs.getString(last,null)=="saved"){loadSavedProject(last){json->importJson=json;projectId=last;projectName=last;route="workspace"}}else dialog=true})
      }
      "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="facade"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
     }
@@ -92,7 +94,7 @@ class MainActivity:ComponentActivity(){
 @Composable
 private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
  // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
- val editor:NativeEditorViewModel=viewModel()
+ val owner=LocalContext.current as ComponentActivity\n val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
  BackHandler{editor.closeAndReset();onBack()}
  val state by editor.state.collectAsState()
  val context=LocalContext.current
