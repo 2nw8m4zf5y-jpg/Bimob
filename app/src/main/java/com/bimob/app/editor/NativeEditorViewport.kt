@@ -54,7 +54,8 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.TextStyle
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale\nimport com.bimob.app.ui.blueprint.BlueprintTheme as BP
+import java.util.Locale
+import com.bimob.app.ui.blueprint.BlueprintTheme as BP
 
 private enum class EditorTool { WALL, SELECT, ROTATE, RESIZE, CATALOG }
 internal data class WorldPoint(val x:Double,val y:Double)
@@ -633,7 +634,7 @@ private fun DesktopToolButton(symbol:String,label:String,selected:Boolean,toolti
 @Composable
 private fun CompactActionButton(symbol:String,description:String,enabled:Boolean=true,selected:Boolean=false,danger:Boolean=false,tooltip:(String)->Unit={},onClick:()->Unit){
  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp){
-  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->Color(0xFFE53935);selected->BP.AccentCyan;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
+  Surface(onClick={tooltip(description);onClick()},enabled=enabled,shape=RectangleShape,color=when{danger&&enabled->BP.AccentAmber;selected->BP.AccentCyan;else->MaterialTheme.colorScheme.surface},modifier=Modifier.size(28.dp).semantics{contentDescription=description;role=Role.Button}){
    Box(contentAlignment=Alignment.Center){Text(symbol,fontSize=16.sp,color=when{(danger&&enabled)||selected->BP.EditorText;!enabled->MaterialTheme.colorScheme.onSurface.copy(alpha=.35f);else->MaterialTheme.colorScheme.onSurfaceVariant})}
   }
  }
