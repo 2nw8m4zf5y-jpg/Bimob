@@ -291,7 +291,7 @@ internal fun transformWallPreview(wall:WallItem,tp:TransformPreviewState):List<V
 }
 private fun DrawScope.drawTypedPolygon(vertices:List<Vec2>,size:Size,scale:Float,pan:Offset,color:Color){
  if(vertices.size<3||!scale.isFinite()||scale<=0f)return
- val p=Path();vertices.forEachIndexed{i,v->if(!v.x.isFinite()||!v.y.isFinite())return;val s=worldToScreen(WorldPoint(v.x,v.y),size,scale,pan);if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color)
+ val p=Path();vertices.forEachIndexed{i,v->if(!v.x.isFinite()||!v.y.isFinite())return;val s=worldToScreen(WorldPoint(v.x,v.y),size,scale,pan);if(i==0)p.moveTo(s.x,s.y)else p.lineTo(s.x,s.y)};p.close();drawPath(p,color);drawPath(p,color,style=Stroke(width=1.dp.toPx()))
 }
 internal fun worldToScreen(p:WorldPoint,size:Size,scale:Float,pan:Offset):Offset {
  if(!p.x.isFinite()||!p.y.isFinite()||!scale.isFinite()||scale<=0f||!pan.x.isFinite()||!pan.y.isFinite())return Offset.Zero
