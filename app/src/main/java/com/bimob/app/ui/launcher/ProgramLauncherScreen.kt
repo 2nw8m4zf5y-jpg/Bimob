@@ -63,11 +63,11 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    val frame=Path().apply{addRect(androidx.compose.ui.geometry.Rect(8.dp.toPx(),8.dp.toPx(),size.width-8.dp.toPx(),size.height-8.dp.toPx()))}
    val hatch=Path().apply{val ground=size.height*.92f;var xx=0f;while(xx<size.width){moveTo(xx,ground);lineTo(xx-10,ground+12.dp.toPx());xx+=14.dp.toPx()}}
    onDrawBehind {
-    drawPath(grid,BP.GridMinor,.5.dp.toPx())
-    drawPath(majorGrid,BP.GridMajor,1.dp.toPx())
+    drawPath(grid,BP.GridMinor,style=Stroke(.5.dp.toPx()))
+    drawPath(majorGrid,BP.GridMajor,style=Stroke(1.dp.toPx()))
     drawPath(frame,BP.LinePrimary,style=Stroke(1.dp.toPx()))
-    drawPath(crane,BP.LinePrimary,2.dp.toPx())
-    drawPath(hatch,BP.GridMajor,1.dp.toPx())
+    drawPath(crane,BP.LinePrimary,style=Stroke(2.dp.toPx()))
+    drawPath(hatch,BP.GridMajor,style=Stroke(1.dp.toPx()))
     drawLine(BP.AccentAmber,Offset(0f,size.height*.92f),Offset(size.width,size.height*.92f),1.5.dp.toPx())
    }
   }) { }
