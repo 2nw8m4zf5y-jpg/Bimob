@@ -34,7 +34,7 @@ import com.bimob.app.editor.NativeEditorViewport
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
 import com.bimob.app.ui.facade.ProjectFacadeScreen
 import com.bimob.app.ui.facade.FacadeProject
-import com.bimob.app.ui.blueprint.BlueprintTheme
+import com.bimob.app.ui.blueprint.BlueprintTheme\nimport com.bimob.app.ui.blueprint.BlueprintThemeProvider
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,7 +65,7 @@ class MainActivity:ComponentActivity(){
    val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->uri?.let{readImport(it){json,name->importJson=json;projectName=name;projectId="import-"+System.currentTimeMillis();route="workspace"}}}
    val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}
 
-   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
+   BlueprintThemeProvider {\n   MaterialTheme(colorScheme=darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
      "launcher"->ProgramLauncherScreen(onCad={route="facade"})
      "facade"->{
@@ -105,7 +105,7 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
   if(importJson!=null&&!importHandled){importHandled=true;projectInitialized=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
   else if(importJson==null&&projectId.isNotBlank()&&!projectInitialized){projectInitialized=true;editor.resetProject(projectId,projectName)}
  }
- Column(Modifier.fillMaxSize().background(Color(0xFFF5F7FA))){
+ Column(Modifier.fillMaxSize().background(BlueprintTheme.BgPrimary)){
   NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
  }
 }
