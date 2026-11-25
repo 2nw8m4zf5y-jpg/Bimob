@@ -153,7 +153,8 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       val event=awaitPointerEvent();val pressed=event.changes.filter{it.pressed}
       if(pressed.size>=2){val a=pressed[0].position;val b=pressed[1].position;val c=(a+b)/2f;val d=(a-b).getDistance()
        if(oldCentroid!=null&&oldDistance>0f&&d>0f){val current=viewModel.camera.value
-        viewModel.setCamera(current.zoom*d/oldDistance,current.panX+c.x-oldCentroid!!.x,current.panY+c.y-oldCentroid!!.y)}
+        val focused=zoomAroundCentroid(oldCentroid!!,c,d/oldDistance,Size(size.width.toFloat(),size.height.toFloat()),FocusZoomCamera(current.zoom,current.panX,current.panY))
+        viewModel.setCamera(focused.zoom,focused.panX,focused.panY)}
        oldCentroid=c;oldDistance=d;event.changes.forEach{it.consume()}
       }else{oldCentroid=null;oldDistance=0f}
      }while(event.changes.any{it.pressed})
