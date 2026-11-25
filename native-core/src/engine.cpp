@@ -130,7 +130,8 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  }
  double cx=0,cy=0;for(auto&p:v){cx+=p.x.value;cy+=p.y.value;}cx/=4;cy/=4;std::sort(v.begin(),v.end(),[&](const Point2&x,const Point2&y){return std::atan2(x.y.value-cy,x.x.value-cx)<std::atan2(y.y.value-cy,y.x.value-cx);});
  double area=0;for(size_t i=0;i<4;i++){auto&p=v[i];auto&q=v[(i+1)%4];area+=p.x.value*q.y.value-q.x.value*p.y.value;}area=std::abs(area)*.5;
- if(!std::isfinite(area)||area<=1e-12)return buttFallback();return Result<WallJoinGeometry>::success({topology,angle,v});
+ if(!std::isfinite(area)||area<=1e-12){return buttFallback();}
+ return Result<WallJoinGeometry>::success({topology,angle,v});
 }
 Result<Project> solveWallJoin(const Project&source,const ModelId&movedWall,bool movedStart,Point2 newJoint){
  if(!newJoint.finite())return Result<Project>::failure({ErrorCode::InvalidArgument,"WallJoin point must be finite",movedWall.value,{},0,0});
