@@ -100,8 +100,8 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
  BackHandler{editor.closeAndReset();onBack()}
  val state by editor.state.collectAsState()
  val context=LocalContext.current
- var importHandled by remember(projectId,importJson){mutableStateOf(false)}
- var projectInitialized by remember(projectId,importJson){mutableStateOf(false)}
+ var importHandled by rememberSaveable(projectId){mutableStateOf(false)}
+ var projectInitialized by rememberSaveable(projectId){mutableStateOf(false)}
  LaunchedEffect(projectId,importJson){
   if(importJson!=null&&!importHandled){importHandled=true;projectInitialized=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
   else if(importJson==null&&projectId.isNotBlank()&&!projectInitialized){projectInitialized=true;editor.resetProject(projectId,projectName)}
