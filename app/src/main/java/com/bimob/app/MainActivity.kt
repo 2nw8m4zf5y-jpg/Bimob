@@ -10,6 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.core.view.ViewCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +48,11 @@ class MainActivity:ComponentActivity(){
   super.onCreate(savedInstanceState)
   requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
   applyImmersiveFullscreen()
+  window.decorView.postDelayed({applyImmersiveFullscreen()},120L)
+  ViewCompat.setOnApplyWindowInsetsListener(window.decorView){_,insets->
+   if(insets.isVisible(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars()))hideSystemBars()
+   insets
+  }
   setContent{MaterialTheme(colorScheme=darkColorScheme(primary=Color(0xFF1E90FF),secondary=Color(0xFF00B4D8),tertiary=Color(0xFFFFB300),background=Color(0xFF12151A),surface=Color(0xFF191E24),surfaceVariant=Color(0xFF191E24),outline=Color(0xFF303947),error=Color(0xFFE53935),onPrimary=Color.White,onSecondary=Color.White,onBackground=Color(0xFFE6EDF5),onSurface=Color(0xFFE6EDF5)),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
    val state by editor.state.collectAsState()
    var crashLog by remember { mutableStateOf(CrashReporter.readLastCrash(this@MainActivity)) }
@@ -97,7 +105,18 @@ class MainActivity:ComponentActivity(){
    if(showNew)AlertDialog(onDismissRequest={showNew=false},title={Text("Новый проект")},text={OutlinedTextField(projectName,{projectName=it},label={Text("Название")})},
     confirmButton={TextButton(onClick={showNew=false;editor.resetProject("project-"+System.currentTimeMillis(),projectName);prefs.edit().putString("active_name",projectName).apply()}){Text("Создать")}},
     dismissButton={TextButton(onClick={showNew=false}){Text("Отмена")}})
+   val lifecycleOwner=androidx.lifecycle.compose.LocalLifecycleOwner.current
+   DisposableEffect(lifecycleOwner){
+    val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_RESUME){applyImmersiveFullscreen();window.decorView.postDelayed({applyImmersiveFullscreen()},120L)}}
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}
+   }
   }}
+ }
+ override fun onResume(){
+  super.onResume()
+  applyImmersiveFullscreen()
+  window.decorView.postDelayed({applyImmersiveFullscreen()},120L)
  }
  private fun applyImmersiveFullscreen(){
   WindowCompat.setDecorFitsSystemWindows(window,false)
@@ -116,7 +135,7 @@ class MainActivity:ComponentActivity(){
  }
  override fun onWindowFocusChanged(hasFocus:Boolean){
   super.onWindowFocusChanged(hasFocus)
-  if(hasFocus)applyImmersiveFullscreen()
+  if(hasFocus){applyImmersiveFullscreen();window.decorView.postDelayed({applyImmersiveFullscreen()},120L)}
  }
  private fun fileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.nagaplas")
  private fun legacyFileFor(name:String)=File(dir,"${name.hashCode().toUInt().toString(16)}.json")
