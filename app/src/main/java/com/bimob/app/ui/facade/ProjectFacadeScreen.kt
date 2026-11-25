@@ -66,8 +66,16 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
    projects.take(2).forEach{p->FacadeCard(p.name,p.modified+" · ${p.nodeCount} УЗЛОВ",p.active,Modifier.weight(1f)){onOpen(p.id)}}
    FacadeCard("↗  ИМПОРТ", "ФАЙЛ ПРОЕКТА",false,Modifier.weight(1f),onImport)
   }
-  Column(Modifier.align(Alignment.CenterStart).padding(start=12.dp,top=height*.32f),verticalArrangement=Arrangement.spacedBy(6.dp)){
-   listOf("+12.000","+9.000","+6.000","+3.000","0.000").forEach{Text(it,fontSize=9.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)}
+  Column(Modifier.align(Alignment.CenterStart).padding(start=10.dp,top=height*.22f),verticalArrangement=Arrangement.spacedBy(height*.035f)){
+   listOf("+12.000","+9.000","+6.000","+3.000","0.000").forEach{level->
+    Row(verticalAlignment=Alignment.CenterVertically){
+     Canvas(Modifier.size(width=11.dp,height=10.dp)){val flag=Path().apply{moveTo(0f,0f);lineTo(size.width,size.height/2);lineTo(0f,size.height);close()};drawPath(flag,BP.AccentAmber)}
+     Text(level,fontSize=8.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)
+    }
+   }
+  }
+  Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.13f),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
+   listOf("А","Б","В","Г","Д").forEach{axis->Canvas(Modifier.size(18.dp)){drawCircle(BP.AccentAmber,style=Stroke(1.dp.toPx()));drawContext.canvas.nativeCanvas.drawText(axis,center.x,center.y+3.dp.toPx(),android.graphics.Paint().apply{color=android.graphics.Color.rgb(255,159,28);textSize=10.sp.toPx();textAlign=android.graphics.Paint.Align.CENTER})}}
   }
   Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.48f),horizontalArrangement=Arrangement.spacedBy(6.dp)){
    listOf("КАРКАС / ОСИ","СОПРЯЖЕНИЯ","СЕЧЕНИЯ","АРХИВ").forEach{FacadeCard(it,"CAD TOOLS",false,Modifier.weight(1f)){onTool(it)}}
@@ -86,8 +94,9 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
 
 @Composable
 private fun FacadeCard(title:String,subtitle:String,primary:Boolean,modifier:Modifier=Modifier,onClick:()->Unit){
- Column(modifier.heightIn(min=56.dp).background(BP.BgSurface).border(if(primary)2.dp else 1.dp,if(primary)BP.AccentCyan else BP.LinePrimary.copy(alpha=.6f),RectangleShape).clickable(onClick=onClick).padding(6.dp),verticalArrangement=Arrangement.Center){
-  Text(title,fontSize=10.sp,color=if(primary)BP.AccentCyan else BP.TextPrimary,fontFamily=FontFamily.Monospace,maxLines=2,textAlign=TextAlign.Center)
+ Column(modifier.heightIn(min=64.dp).background(if(primary)BP.AccentAmber.copy(alpha=.12f) else BP.BgSurface).border(if(primary)2.dp else 1.dp,if(primary)BP.AccentAmber else BP.LinePrimary.copy(alpha=.6f),RectangleShape).clickable(onClick=onClick).padding(5.dp),verticalArrangement=Arrangement.Center){
+  Canvas(Modifier.fillMaxWidth().height(22.dp)){val preview=Path().apply{moveTo(0f,size.height*.5f);lineTo(size.width,size.height*.5f);moveTo(size.width*.25f,0f);lineTo(size.width*.25f,size.height);moveTo(size.width*.5f,0f);lineTo(size.width*.5f,size.height);moveTo(size.width*.75f,0f);lineTo(size.width*.75f,size.height);moveTo(size.width*.25f,size.height*.25f);lineTo(size.width*.75f,size.height*.25f);moveTo(size.width*.25f,size.height*.75f);lineTo(size.width*.75f,size.height*.75f)};drawPath(preview,BP.LinePrimary,style=Stroke(1.dp.toPx()));if(primary)drawRect(BP.AccentAmber.copy(alpha=.4f),style=Stroke(1.dp.toPx()))}
+  Text(title,fontSize=10.sp,color=if(primary)BP.AccentAmber else BP.TextPrimary,fontFamily=FontFamily.Monospace,maxLines=2,textAlign=TextAlign.Center)
   Text(subtitle,fontSize=8.sp,color=BP.TextMuted,fontFamily=FontFamily.Monospace,maxLines=1,textAlign=TextAlign.Center)
  }
 }
