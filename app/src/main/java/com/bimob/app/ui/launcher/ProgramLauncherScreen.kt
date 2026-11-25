@@ -6,7 +6,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.layout.WindowInsets\nimport androidx.compose.foundation.layout.safeDrawing\nimport androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -51,7 +54,8 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    val towerX=size.width*.13f; val top=size.height*.06f; val ground=size.height*.92f
    drawLine(BP.LinePrimary,Offset(towerX-10,top),Offset(towerX+10,ground),2.dp.toPx())
    drawLine(BP.LinePrimary,Offset(towerX+10,top),Offset(towerX-10,ground),2.dp.toPx())
-   var y=top\n   while(y<ground){
+   var y=top
+   while(y<ground){
     drawLine(BP.LinePrimary,Offset(towerX-10,y),Offset(towerX+10,y),1.2.dp.toPx())
     drawLine(BP.LinePrimary,Offset(towerX-10,y),Offset(towerX+10,y+34.dp.toPx()),1.dp.toPx())
     drawLine(BP.LinePrimary,Offset(towerX+10,y),Offset(towerX-10,y+34.dp.toPx()),1.dp.toPx())
