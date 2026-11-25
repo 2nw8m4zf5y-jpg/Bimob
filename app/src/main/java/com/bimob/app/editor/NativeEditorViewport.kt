@@ -165,7 +165,7 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
       Text(tab,fontSize=11.sp,fontWeight=if(active)androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,color=if(active)BP.EditorText else BP.EditorTextMuted,maxLines=1)
      }
     }
-    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=BP.EditorText)}
+    TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){VectorGlyph(if(ribbonCollapsed)"▼" else "▲",BP.EditorText,Modifier.size(14.dp))}
    }
    if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(BP.EditorBar).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
     when(ribbonTab){
@@ -596,7 +596,7 @@ private fun CellularStatusGlyph(active:Boolean){
  Canvas(modifier){
   val w=size.width;val h=size.height;val s=1.5.dp.toPx();val cx=w/2;val cy=h/2
   when{
-   glyph=="×"->{drawLine(color,Offset(w*.2f,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.8f,h*.2f),Offset(w*.2f,h*.8f),s)}
+   glyph=="▲"||glyph=="▼"->{val p=Path().apply{if(glyph=="▲"){moveTo(w*.2f,h*.7f);lineTo(cx,h*.3f);lineTo(w*.8f,h*.7f)}else{moveTo(w*.2f,h*.3f);lineTo(cx,h*.7f);lineTo(w*.8f,h*.3f)}};drawPath(p,color,style=Stroke(s))}\n   glyph=="×"->{drawLine(color,Offset(w*.2f,h*.2f),Offset(w*.8f,h*.8f),s);drawLine(color,Offset(w*.8f,h*.2f),Offset(w*.2f,h*.8f),s)}
    glyph=="╱"||glyph=="Стена"->{drawLine(color,Offset(w*.18f,h*.82f),Offset(w*.82f,h*.18f),s);drawCircle(color,2.dp.toPx(),Offset(w*.18f,h*.82f));drawCircle(color,2.dp.toPx(),Offset(w*.82f,h*.18f))}
    glyph=="▦"->{for(i in 1..2){drawLine(color,Offset(w*i/3,0f),Offset(w*i/3,h),s);drawLine(color,Offset(0f,h*i/3),Offset(w,h*i/3),s)};drawRect(color,style=Stroke(s))}
    glyph=="⌑"->{drawRect(color,topLeft=Offset(w*.2f,h*.2f),size=Size(w*.6f,h*.6f),style=Stroke(s));drawCircle(color,2.dp.toPx(),Offset(cx,cy))}
@@ -680,7 +680,7 @@ internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String =
 private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifier,onClose:()->Unit,onEdit:(String,String,String)->Unit){
  val selected=state.selection
  val g=state.typedGeometry
- if(selected==null){Surface(modifier,color=BP.EditorBar,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),shape=RectangleShape){Column(Modifier.padding(5.dp)){Row(Modifier.fillMaxWidth().background(BP.EditorSurface).padding(horizontal=8.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Text("Свойства",fontSize=11.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText,modifier=Modifier.weight(1f));TextButton(onClick=onClose,contentPadding=PaddingValues(0.dp)){Text("×",color=BP.EditorText)}};Spacer(Modifier.height(4.dp));Text("Не выбрано",fontSize=11.sp,color=BP.EditorText);Text("Выберите элемент на чертеже",fontSize=9.sp,color=BP.EditorTextMuted)}};return}
+ if(selected==null){Surface(modifier,color=BP.EditorBar,border=androidx.compose.foundation.BorderStroke(1.dp,BP.EditorGridMajor),shape=RectangleShape){Column(Modifier.padding(5.dp)){Row(Modifier.fillMaxWidth().background(BP.EditorSurface).padding(horizontal=8.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Text("Свойства",fontSize=11.sp,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold,color=BP.EditorText,modifier=Modifier.weight(1f));TextButton(onClick=onClose,contentPadding=PaddingValues(0.dp)){VectorGlyph("×",BP.EditorText,Modifier.size(12.dp))}};Spacer(Modifier.height(4.dp));Text("Не выбрано",fontSize=11.sp,color=BP.EditorText);Text("Выберите элемент на чертеже",fontSize=9.sp,color=BP.EditorTextMuted)}};return}
  val typeName=when(selected.kind){
   EditorElementKind.WALL->"Стена"
   EditorElementKind.OPENING->g?.openings?.firstOrNull{it.id==selected.id}?.kind?.let{if(it=="DOOR")"Дверь" else "Окно"}?:"Проём"
@@ -696,7 +696,7 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
     Column(Modifier.weight(1f)){Text("Свойства",style=MaterialTheme.typography.labelSmall,maxLines=1,color=BP.EditorText)}
     Surface(onClick=onClose,shape=RectangleShape,color=BP.EditorSurface,modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
-     Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
+     Box(contentAlignment=Alignment.Center){VectorGlyph("×",BP.EditorText,Modifier.size(12.dp))}
     }
    }
    HorizontalDivider(color=BP.EditorGridMajor,thickness=1.dp)
