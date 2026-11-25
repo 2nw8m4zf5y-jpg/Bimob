@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.drawBehind
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -15,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -41,30 +39,23 @@ data class FacadeProject(val id:String,val name:String,val modified:String,val n
    }
   }
   Row(Modifier.weight(1f).fillMaxWidth()){
-   Column(Modifier.width(54.dp).fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween){
-    listOf("+12.000","+9.000","+6.000","+3.000","0.000").forEach{mark->Row(verticalAlignment=Alignment.CenterVertically){Text(mark,fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace);Canvas(Modifier.width(6.dp).height(5.dp)){drawLine(p.accentAmber,Offset(0f,0f),Offset(size.width,size.height/2),1.dp.toPx())}}}
-   }
-   Column(Modifier.weight(1f).fillMaxHeight().border(2.dp,p.linePrimary)){
-    // Four levels, exactly divided by weight. Cards are constrained to each floor.
-    Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){
-     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("+ СОЗДАТЬ ПРОЕКТ","НОВАЯ CAD-СЦЕНА",true,Modifier.weight(1f),onNew);FacadeCard("★ АКТИВНЫЙ ПРОЕКТ",projects.firstOrNull{it.active}?.name?: "Продолжить",true,Modifier.weight(1f)){projects.firstOrNull{it.active}?.let{onOpen(it.id)}?:onOpenLast()}}
-      };Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ШАБЛОН 01","СЕТКА ОСЕЙ",false,Modifier.weight(1f)){onTool("СЕТКА ОСЕЙ")};FacadeCard("ШАБЛОН 02","СОПРЯЖЕНИЕ УЗЛОВ",false,Modifier.weight(1f)){onTool("СОПРЯЖЕНИЕ УЗЛОВ")}}
-     }
-     Column(Modifier.width(76.dp).fillMaxHeight().border(1.dp,p.accentAmber),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-      Text("ЯДРО",fontSize=8.sp,color=p.textMuted,fontFamily=FontFamily.Monospace);Text("C++20",fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Spacer(Modifier.height(6.dp));Text("READY",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)
-     }
-     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ПРОЕКТ #02",projects.getOrNull(1)?.name?: "Каркас · Секция Б",false,Modifier.weight(1f)){projects.getOrNull(1)?.let{onOpen(it.id)}?:onOpenLast()};FacadeCard("[↗] ИМПОРТ ФАЙЛА","JSON / CAD",false,Modifier.weight(1f),onImport)}
-      ;Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ШАБЛОН 03","СЕЧЕНИЯ И ПРОФИЛИ",false,Modifier.weight(1f)){onTool("СЕЧЕНИЯ И ПРОФИЛИ")};FacadeCard("АРХИВ","ВСЕ ПРОЕКТЫ",false,Modifier.weight(1f)){onTool("ВСЕ ПРОЕКТЫ")}}
-     }
+   Column(Modifier.width(54.dp).fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween){listOf("+12.000","+9.000","+6.000","+3.000","0.000").forEach{mark->Row(verticalAlignment=Alignment.CenterVertically){Text(mark,fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace);Canvas(Modifier.width(6.dp).height(5.dp)){drawLine(p.accentAmber,Offset(0f,0f),Offset(size.width,size.height/2),1.dp.toPx())}}}}
+   Row(Modifier.weight(1f).fillMaxHeight().border(2.dp,p.linePrimary)){
+    Column(Modifier.weight(2f).fillMaxHeight()){
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("+ СОЗДАТЬ ПРОЕКТ","НОВАЯ CAD-СЦЕНА",true,Modifier.weight(1f),onNew);FacadeCard("★ АКТИВНЫЙ ПРОЕКТ",projects.firstOrNull{it.active}?.name?: "Продолжить",true,Modifier.weight(1f)){projects.firstOrNull{it.active}?.let{onOpen(it.id)}?:onOpenLast()}}
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("ШАБЛОН 01","СЕТКА ОСЕЙ",false,Modifier.weight(1f)){onTool("СЕТКА ОСЕЙ")};FacadeCard("ШАБЛОН 02","СОПРЯЖЕНИЕ УЗЛОВ",false,Modifier.weight(1f)){onTool("СОПРЯЖЕНИЕ УЗЛОВ")}}
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("СОРТАМЕНТ ГОСТ / ISO","БАЗА СЕЧЕНИЙ",false,Modifier.weight(1f)){onTool("СОРТАМЕНТ ГОСТ / ISO")};FacadeCard("ТИПОВЫЕ УЗЛЫ","БИБЛИОТЕКА ФРАГМЕНТОВ",false,Modifier.weight(1f)){onTool("ТИПОВЫЕ УЗЛЫ")}}
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("НАСТРОЙКИ ГРАФИКИ","ЛИНИИ · МАСШТАБ · FULLSCREEN",false,Modifier.fillMaxWidth()){onTool("НАСТРОЙКИ ГРАФИКИ")}}
     }
-    Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){
-     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("СОРТАМЕНТ ГОСТ / ISO","БАЗА ТИПОВЫХ СЕЧЕНИЙ",false,Modifier.weight(1f)){onTool("СОРТАМЕНТ ГОСТ / ISO")};FacadeCard("ТИПОВЫЕ УЗЛЫ","БИБЛИОТЕКА ФРАГМЕНТОВ",false,Modifier.weight(1f)){onTool("ТИПОВЫЕ УЗЛЫ")}}
-      Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("НАСТРОЙКИ ГРАФИКИ","ЛИНИИ · МАСШТАБ · FULLSCREEN",false,Modifier.fillMaxWidth()){onTool("НАСТРОЙКИ ГРАФИКИ")}}
-     }
-     Box(Modifier.width(76.dp).fillMaxHeight().border(1.dp,p.linePrimary),contentAlignment=Alignment.Center){Column(Modifier.fillMaxHeight().clickable(onClick=onOpenLast).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text("ВХОД",fontSize=8.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Text("В СЦЕНУ",fontSize=7.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Canvas(Modifier.size(18.dp)){drawCircle(p.accentAmber,2.dp.toPx());drawCircle(p.accentAmber,2.dp.toPx(),Offset(size.width,size.height));drawCircle(p.accentAmber,2.dp.toPx(),Offset(size.width/2,size.height/2))}}}
-     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ЭКСПОРТ ЧЕРТЕЖЕЙ","JSON · DXF · PDF",false,Modifier.weight(1f)){onTool("ЭКСПОРТ")};FacadeCard("НАСТРОЙКИ ПРИВЯЗОК","OSNAP · ШАГ · ЕДИНИЦЫ",false,Modifier.weight(1f)){onTool("SNAP")}}
-      Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ДИАГНОСТИКА C++20","JNI · ПАМЯТЬ · КОМАНДЫ",false,Modifier.fillMaxWidth()){onTool("ДИАГНОСТИКА")}}
-     }
+    Column(Modifier.width(76.dp).fillMaxHeight().border(1.dp,p.accentAmber)){
+     repeat(3){Column(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text("ЯДРО",fontSize=8.sp,color=p.textMuted,fontFamily=FontFamily.Monospace);Text("C++20",fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Text("READY",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)}}
+     Column(Modifier.weight(1f).fillMaxWidth().clickable(onClick=onOpenLast).border(1.dp,p.linePrimary),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text("ВХОД",fontSize=8.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Text("В СЦЕНУ",fontSize=7.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Canvas(Modifier.size(18.dp)){drawCircle(p.accentAmber,2.dp.toPx());drawCircle(p.accentAmber,2.dp.toPx(),Offset(size.width,size.height));drawCircle(p.accentAmber,2.dp.toPx(),Offset(size.width/2,size.height/2))}}
+    }
+    Column(Modifier.weight(2f).fillMaxHeight()){
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("ПРОЕКТ #02",projects.getOrNull(1)?.name?: "Каркас · Секция Б",false,Modifier.weight(1f)){projects.getOrNull(1)?.let{onOpen(it.id)}?:onOpenLast()};FacadeCard("[↗] ИМПОРТ ФАЙЛА","JSON / CAD",false,Modifier.weight(1f),onImport)}
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("ШАБЛОН 03","СЕЧЕНИЯ И ПРОФИЛИ",false,Modifier.weight(1f)){onTool("СЕЧЕНИЯ И ПРОФИЛИ")};FacadeCard("АРХИВ","ВСЕ ПРОЕКТЫ",false,Modifier.weight(1f)){onTool("ВСЕ ПРОЕКТЫ")}}
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("ЭКСПОРТ ЧЕРТЕЖЕЙ","JSON · DXF · PDF",false,Modifier.weight(1f)){onTool("ЭКСПОРТ")};FacadeCard("НАСТРОЙКИ ПРИВЯЗОК","OSNAP · ШАГ · ЕДИНИЦЫ",false,Modifier.weight(1f)){onTool("SNAP")}}
+     Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){FacadeCard("ДИАГНОСТИКА C++20","JNI · ПАМЯТЬ · КОМАНДЫ",false,Modifier.fillMaxWidth()){onTool("ДИАГНОСТИКА")}}
     }
    }
   }
