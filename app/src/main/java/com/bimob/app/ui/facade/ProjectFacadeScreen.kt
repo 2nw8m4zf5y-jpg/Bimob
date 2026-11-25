@@ -1,111 +1,82 @@
 package com.bimob.app.ui.facade
-
 import androidx.compose.foundation.Canvas
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.drawBehind
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.Path
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bimob.app.ui.blueprint.BlueprintTheme as BP
-
+import com.bimob.app.ui.blueprint.BlueprintTheme
+import com.bimob.app.ui.blueprint.LocalBlueprintPalette
+import com.bimob.app.ui.blueprint.ThemeButton
 data class FacadeProject(val id:String,val name:String,val modified:String,val nodeCount:Int,val active:Boolean=false)
-
-@Composable
-fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->Unit,onOpen:(String)->Unit,onImport:()->Unit,onTool:(String)->Unit,onOpenLast:()->Unit) {
- BoxWithConstraints(Modifier.fillMaxSize().background(BP.BgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)) {
-  val width=maxWidth;val height=maxHeight
-  Canvas(Modifier.fillMaxSize().drawWithCache {
-   val minor=16.dp.toPx();val major=80.dp.toPx()
-   val grid=Path().apply{var x=0f;while(x<=size.width){moveTo(x,0f);lineTo(x,size.height);x+=minor};var y=0f;while(y<=size.height){moveTo(0f,y);lineTo(size.width,y);y+=minor}}
-   val majorGrid=Path().apply{var x=0f;while(x<=size.width){moveTo(x,0f);lineTo(x,size.height);x+=major};var y=0f;while(y<=size.height){moveTo(0f,y);lineTo(size.width,y);y+=major}}
-   val left=size.width*.22f;val right=size.width*.88f;val roof=size.height*.18f;val base=size.height*.83f
-   val facade=Path().apply{
-    moveTo(left,roof);lineTo(right,roof);lineTo(right,base);lineTo(left,base);close()
-    for(i in 1..5){val x=left+(right-left)*i/6;moveTo(x,roof);lineTo(x,base)}
-    for(i in 1..4){val y=roof+(base-roof)*i/5;moveTo(left,y);lineTo(right,y)}
-    val cx=(left+right)/2;moveTo(cx-18.dp.toPx(),roof);lineTo(cx+18.dp.toPx(),roof);lineTo(cx+18.dp.toPx(),base);lineTo(cx-18.dp.toPx(),base);close()
-   }
-   val foundation=Path().apply{var x=left;while(x<right){moveTo(x,base);lineTo(x-8,base+12.dp.toPx());x+=12.dp.toPx()}}
-   val frame=Path().apply{addRect(androidx.compose.ui.geometry.Rect(8.dp.toPx(),8.dp.toPx(),size.width-8.dp.toPx(),size.height-8.dp.toPx()))}
-   val axisX=(0..4).map{left+(right-left)*(it+1)/6}
-   val axisPath=Path().apply{axisX.forEach{moveTo(it,roof-34.dp.toPx());lineTo(it,base+10.dp.toPx())}}
-   val levelY=(0..4).map{roof+(base-roof)*it/4}
-   val levelTicks=Path().apply{levelY.forEach{moveTo(16.dp.toPx(),it);lineTo(left-12.dp.toPx(),it)}}
-   onDrawBehind{
-    drawPath(grid,BP.GridMinor,style=Stroke(.5.dp.toPx()));drawPath(majorGrid,BP.GridMajor,style=Stroke(1.dp.toPx()))
-    drawPath(frame,BP.LinePrimary,style=Stroke(1.dp.toPx()))
-    drawPath(axisPath,BP.AccentAmber.copy(alpha=.35f),style=Stroke(1.dp.toPx(),pathEffect=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(),5.dp.toPx()))))
-    drawPath(facade,BP.LinePrimary,style=Stroke(2.dp.toPx()));drawPath(foundation,BP.GridMajor,style=Stroke(1.dp.toPx()))
-    drawPath(levelTicks,BP.AccentAmber,style=Stroke(1.dp.toPx()))
-    drawLine(BP.AccentAmber,Offset(left,base),Offset(right,base),2.dp.toPx())
-   }
-  }) { }
-  Column(Modifier.fillMaxWidth().padding(16.dp)) {
-   Text("←  К ВЫБОРУ ПРОГРАММ",Modifier.clickable(onClick=onBack),fontSize=11.sp,color=BP.AccentCyan,fontFamily=FontFamily.Monospace)
-   Spacer(Modifier.height(4.dp));Text("NAGAPLAS CAD  ·  WORKSPACE FAÇADE",fontSize=15.sp,color=BP.TextPrimary,fontFamily=FontFamily.Monospace)
+@Composable fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->Unit,onOpen:(String)->Unit,onImport:()->Unit,onTool:(String)->Unit,onOpenLast:()->Unit){
+ val p=LocalBlueprintPalette.current
+ Column(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)){
+  Row(Modifier.height(42.dp).fillMaxWidth().border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){
+   Text("← МОДУЛИ",Modifier.clickable(onClick=onBack).padding(horizontal=8.dp),fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace)
+   Spacer(Modifier.weight(1f));Text("NAGAPLAS CAD · ФАСАД ПРОЕКТОВ",fontSize=11.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace);Spacer(Modifier.weight(1f));ThemeButton{BlueprintTheme.next()}
   }
-  // Project floor: windows/cards arranged in an adaptable row
-  Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.23f),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   FacadeCard("+  НОВЫЙ ПРОЕКТ", "ПУСТАЯ СЦЕНА",true,Modifier.weight(1f),onNew)
-   projects.take(2).forEach{p->FacadeCard(p.name,p.modified+" · ${p.nodeCount} УЗЛОВ",p.active,Modifier.weight(1f)){onOpen(p.id)}}
-   FacadeCard("↗  ИМПОРТ", "ФАЙЛ ПРОЕКТА",false,Modifier.weight(1f),onImport)
+  Row(Modifier.height(22.dp).fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+   Spacer(Modifier.width(54.dp))
+   Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.weight(2f)){listOf("А","Б").forEach{AxisBubble(it,p.accentAmber,Modifier.weight(1f))}}
+    AxisBubble("В",p.accentAmber,Modifier.width(76.dp))
+    Row(Modifier.weight(2f)){listOf("Г","Д").forEach{AxisBubble(it,p.accentAmber,Modifier.weight(1f))}}
+   }
   }
-  Column(Modifier.align(Alignment.CenterStart).padding(start=10.dp,top=height*.22f),verticalArrangement=Arrangement.spacedBy(height*.035f)){
-   listOf("+12.000","+9.000","+6.000","+3.000","0.000").forEach{level->
-    Row(verticalAlignment=Alignment.CenterVertically){
-     Canvas(Modifier.size(width=11.dp,height=10.dp)){val flag=Path().apply{moveTo(0f,0f);lineTo(size.width,size.height/2);lineTo(0f,size.height);close()};drawPath(flag,BP.AccentAmber)}
-     Text(level,fontSize=8.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)
+  Row(Modifier.weight(1f).fillMaxWidth()){
+   Column(Modifier.width(54.dp).fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween){
+    listOf("+12.000","+9.000","+6.000","+3.000","0.000").forEach{mark->Row(verticalAlignment=Alignment.CenterVertically){Text(mark,fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace);Canvas(Modifier.width(6.dp).height(5.dp)){drawLine(p.accentAmber,Offset(0f,0f),Offset(size.width,size.height/2),1.dp.toPx())}}}
+   }
+   Column(Modifier.weight(1f).fillMaxHeight().border(2.dp,p.linePrimary)){
+    // Four levels, exactly divided by weight. Cards are constrained to each floor.
+    Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){
+     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("+ СОЗДАТЬ ПРОЕКТ","НОВАЯ CAD-СЦЕНА",true,Modifier.weight(1f),onNew);FacadeCard("★ АКТИВНЫЙ ПРОЕКТ",projects.firstOrNull{it.active}?.name?: "Продолжить",true,Modifier.weight(1f)){projects.firstOrNull{it.active}?.let{onOpen(it.id)}?:onOpenLast()}}
+      };Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ШАБЛОН 01","СЕТКА ОСЕЙ",false,Modifier.weight(1f)){onTool("СЕТКА ОСЕЙ")};FacadeCard("ШАБЛОН 02","СОПРЯЖЕНИЕ УЗЛОВ",false,Modifier.weight(1f)){onTool("СОПРЯЖЕНИЕ УЗЛОВ")}}
+     }
+     Column(Modifier.width(76.dp).fillMaxHeight().border(1.dp,p.accentAmber),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+      Text("ЯДРО",fontSize=8.sp,color=p.textMuted,fontFamily=FontFamily.Monospace);Text("C++20",fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Spacer(Modifier.height(6.dp));Text("READY",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)
+     }
+     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ПРОЕКТ #02",projects.getOrNull(1)?.name?: "Каркас · Секция Б",false,Modifier.weight(1f)){projects.getOrNull(1)?.let{onOpen(it.id)}?:onOpenLast()};FacadeCard("[↗] ИМПОРТ ФАЙЛА","JSON / CAD",false,Modifier.weight(1f),onImport)}
+      ;Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ШАБЛОН 03","СЕЧЕНИЯ И ПРОФИЛИ",false,Modifier.weight(1f)){onTool("СЕЧЕНИЯ И ПРОФИЛИ")};FacadeCard("АРХИВ","ВСЕ ПРОЕКТЫ",false,Modifier.weight(1f)){onTool("ВСЕ ПРОЕКТЫ")}}
+     }
+    }
+    Row(Modifier.weight(1f).fillMaxWidth().border(1.dp,p.linePrimary)){
+     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("СОРТАМЕНТ ГОСТ / ISO","БАЗА ТИПОВЫХ СЕЧЕНИЙ",false,Modifier.weight(1f)){onTool("СОРТАМЕНТ ГОСТ / ISO")};FacadeCard("ТИПОВЫЕ УЗЛЫ","БИБЛИОТЕКА ФРАГМЕНТОВ",false,Modifier.weight(1f)){onTool("ТИПОВЫЕ УЗЛЫ")}}
+      Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("НАСТРОЙКИ ГРАФИКИ","ЛИНИИ · МАСШТАБ · FULLSCREEN",false,Modifier.fillMaxWidth()){onTool("НАСТРОЙКИ ГРАФИКИ")}}
+     }
+     Box(Modifier.width(76.dp).fillMaxHeight().border(1.dp,p.linePrimary),contentAlignment=Alignment.Center){Column(Modifier.fillMaxHeight().clickable(onClick=onOpenLast).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text("ВХОД",fontSize=8.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Text("В СЦЕНУ",fontSize=7.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Canvas(Modifier.size(18.dp)){drawCircle(p.accentAmber,2.dp.toPx());drawCircle(p.accentAmber,2.dp.toPx(),Offset(size.width,size.height));drawCircle(p.accentAmber,2.dp.toPx(),Offset(size.width/2,size.height/2))}}}
+     Column(Modifier.weight(2f).fillMaxHeight()){Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ЭКСПОРТ ЧЕРТЕЖЕЙ","JSON · DXF · PDF",false,Modifier.weight(1f)){onTool("ЭКСПОРТ")};FacadeCard("НАСТРОЙКИ ПРИВЯЗОК","OSNAP · ШАГ · ЕДИНИЦЫ",false,Modifier.weight(1f)){onTool("SNAP")}}
+      Row(Modifier.weight(1f).fillMaxWidth()){FacadeCard("ДИАГНОСТИКА C++20","JNI · ПАМЯТЬ · КОМАНДЫ",false,Modifier.fillMaxWidth()){onTool("ДИАГНОСТИКА")}}
+     }
     }
    }
   }
-  Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.13f),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
-   listOf("А","Б","В","Г","Д").forEach{axis->Box(Modifier.size(18.dp).border(1.dp,BP.AccentAmber,CircleShape),contentAlignment=Alignment.Center){Text(axis,fontSize=8.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)}}}
-  Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.48f),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-   listOf("КАРКАС / ОСИ","СОПРЯЖЕНИЯ","СЕЧЕНИЯ","АРХИВ").forEach{FacadeCard(it,"CAD TOOLS",false,Modifier.weight(1f)){onTool(it)}}
-  }
-  Row(Modifier.fillMaxWidth().padding(start=width*.24f,end=width*.12f,top=height*.70f),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-   listOf("ГОСТ / ISO","ТИПОВЫЕ УЗЛЫ","PDF / DXF","SNAP").forEach{FacadeCard(it,"БИБЛИОТЕКА",false,Modifier.weight(1f)){onTool(it)}}
-  }
-  Column(Modifier.align(Alignment.BottomCenter).padding(bottom=height*.06f),horizontalAlignment=Alignment.CenterHorizontally){
-   Box(Modifier.background(BP.BgSurface).border(2.dp,BP.AccentAmber).clickable(onClick=onOpenLast).padding(horizontal=18.dp,vertical=10.dp)){
-    Text("ВХОД В ПОСЛЕДНЮЮ СЦЕНУ  ·  C++20 CORE READY",fontSize=10.sp,color=BP.AccentCyan,fontFamily=FontFamily.Monospace)
-   }
-  }
-  FacadeStamp(Modifier.align(Alignment.BottomEnd).padding(12.dp))
+  Row(Modifier.height(16.dp).fillMaxWidth().border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){Canvas(Modifier.weight(1f).fillMaxHeight()){var x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,size.height),Offset(x-8.dp.toPx(),0f),1.dp.toPx());x+=12.dp.toPx()}};Text("ФУНДАМЕНТ · 0.000",fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)}
  }
 }
-
-@Composable
-private fun FacadeCard(title:String,subtitle:String,primary:Boolean,modifier:Modifier=Modifier,onClick:()->Unit){
- Column(modifier.heightIn(min=64.dp).background(if(primary)BP.AccentAmber.copy(alpha=.12f) else BP.BgSurface).border(if(primary)2.dp else 1.dp,if(primary)BP.AccentAmber else BP.LinePrimary.copy(alpha=.6f),RectangleShape).clickable(onClick=onClick).padding(5.dp),verticalArrangement=Arrangement.Center){
-  Canvas(Modifier.fillMaxWidth().height(22.dp)){val preview=Path().apply{moveTo(0f,size.height*.5f);lineTo(size.width,size.height*.5f);moveTo(size.width*.25f,0f);lineTo(size.width*.25f,size.height);moveTo(size.width*.5f,0f);lineTo(size.width*.5f,size.height);moveTo(size.width*.75f,0f);lineTo(size.width*.75f,size.height);moveTo(size.width*.25f,size.height*.25f);lineTo(size.width*.75f,size.height*.25f);moveTo(size.width*.25f,size.height*.75f);lineTo(size.width*.75f,size.height*.75f)};drawPath(preview,BP.LinePrimary,style=Stroke(1.dp.toPx()));if(primary)drawRect(BP.AccentAmber.copy(alpha=.4f),style=Stroke(1.dp.toPx()))}
-  Text(title,fontSize=10.sp,color=if(primary)BP.AccentAmber else BP.TextPrimary,fontFamily=FontFamily.Monospace,maxLines=2,textAlign=TextAlign.Center)
-  Text(subtitle,fontSize=8.sp,color=BP.TextMuted,fontFamily=FontFamily.Monospace,maxLines=1,textAlign=TextAlign.Center)
- }
-}
-
-@Composable
-private fun FacadeStamp(modifier:Modifier){
- Column(modifier.widthIn(min=190.dp).border(1.dp,BP.LinePrimary).background(BP.BgPrimary.copy(alpha=.92f))){
-  Text("ПРОЕКТ: NAGAPLAS  |  АВТОР: Nagaplezhev A.",Modifier.fillMaxWidth().padding(horizontal=5.dp,vertical=3.dp),fontSize=7.sp,color=BP.LinePrimary,fontFamily=FontFamily.Monospace)
-  Text("ЭКРАН: ФАСАД-НАВИГАТОР CAD",Modifier.fillMaxWidth().padding(horizontal=5.dp,vertical=3.dp),fontSize=7.sp,color=BP.TextPrimary,fontFamily=FontFamily.Monospace)
-  Text("СТАДИЯ: Stage H  |  16:9 / ADAPTIVE",Modifier.fillMaxWidth().padding(horizontal=5.dp,vertical=3.dp),fontSize=7.sp,color=BP.AccentAmber,fontFamily=FontFamily.Monospace)
+@Composable private fun AxisBubble(label:String,color:androidx.compose.ui.graphics.Color,modifier:Modifier){Box(modifier.fillMaxHeight(),contentAlignment=Alignment.Center){Box(Modifier.size(15.dp).border(1.dp,color,CircleShape),contentAlignment=Alignment.Center){Text(label,fontSize=7.sp,color=color,fontFamily=FontFamily.Monospace)}}}
+@Composable private fun FacadeCard(title:String,subtitle:String,primary:Boolean,modifier:Modifier=Modifier,onClick:()->Unit){
+ val p=LocalBlueprintPalette.current
+ Column(modifier.fillMaxSize().padding(2.dp).background(if(primary)p.accentAmber.copy(alpha=.10f)else p.bgSurface).border(if(primary)1.5.dp else 1.dp,if(primary)p.accentAmber else p.linePrimary.copy(alpha=.75f),RectangleShape).clickable(onClick).padding(4.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
+  Canvas(Modifier.fillMaxWidth().height(20.dp)){val cx=size.width/2;val cy=size.height/2;drawLine(p.linePrimary,Offset(0f,cy),Offset(size.width,cy),1.dp.toPx());drawLine(p.linePrimary,Offset(cx,0f),Offset(cx,size.height),1.dp.toPx());drawRect(p.accentCyan.copy(alpha=.35f),style=Stroke(1.dp.toPx()))}
+  Text(title,fontSize=if(primary)8.sp else 7.sp,color=if(primary)p.accentAmber else p.textPrimary,fontFamily=FontFamily.Monospace,maxLines=2,textAlign=TextAlign.Center)
+  Text(subtitle,fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=2,textAlign=TextAlign.Center)
  }
 }
