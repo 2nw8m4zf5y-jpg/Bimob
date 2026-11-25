@@ -104,13 +104,13 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
    }
    if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(62.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
     if(ribbonTab=="Архитектура"){
-     RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT},RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties}))
-     RibbonGroup("Построение",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}))
-     RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}))
+     RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT},RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties}),showTooltip)
+     RibbonGroup("Построение",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}),showTooltip)
+     RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("↔","Размер",tool==EditorTool.RESIZE){tool=EditorTool.RESIZE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
     }else{
-     RibbonGroup("История",listOf(RibbonItem("↶","Отменить",false,state.canUndo){viewModel.undo()},RibbonItem("↷","Повторить",false,state.canRedo){viewModel.redo()}))
-     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked){orthoLocked=!orthoLocked},RibbonItem("S","Snap",snapEnabled){snapEnabled=!snapEnabled}))
-     RibbonGroup("Инспектор",listOf(RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}))
+     RibbonGroup("История",listOf(RibbonItem("↶","Отменить",false,state.canUndo){viewModel.undo()},RibbonItem("↷","Повторить",false,state.canRedo){viewModel.redo()}),showTooltip)
+     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked){orthoLocked=!orthoLocked},RibbonItem("S","Snap",snapEnabled){snapEnabled=!snapEnabled}),showTooltip)
+     RibbonGroup("Инспектор",listOf(RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
     }
    }
   }
@@ -406,12 +406,12 @@ private data class RibbonItem(val glyph:String,val label:String,val active:Boole
 @Composable private fun RibbonQuickButton(glyph:String,label:String,enabled:Boolean,action:()->Unit,tooltip:(String)->Unit){
  Surface(onClick={tooltip(label);action()},enabled=enabled,shape=RectangleShape,color=Color(0xFFF5F6F8),modifier=Modifier.size(26.dp)) {Box(contentAlignment=Alignment.Center){Text(glyph,fontSize=17.sp,color=if(enabled)Color(0xFF0F172A)else Color(0xFF94A3B8))}}
 }
-@Composable private fun RibbonGroup(name:String,items:List<RibbonItem>){
+@Composable private fun RibbonGroup(name:String,items:List<RibbonItem>,tooltip:(String)->Unit){
  Row(Modifier.height(58.dp).padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically){
   Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
    Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){
     items.forEach{item->
-     Surface(onClick=item.action,enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else null,modifier=Modifier.size(46.dp)){
+     Surface(onClick={tooltip(item.label);item.action()},enabled=item.enabled,shape=RectangleShape,color=when{item.danger&&item.enabled->Color(0xFFFEE2E2);item.active->Color(0xFFDCEBFA);else->Color(0xFFF5F6F8)},border=if(item.danger&&item.enabled)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFDC2626))else if(item.active)androidx.compose.foundation.BorderStroke(1.dp,Color(0xFF1E6BB8))else null,modifier=Modifier.size(46.dp)){
       Column(horizontalAlignment=Alignment.Center,verticalArrangement=Arrangement.Center){Text(item.glyph,fontSize=18.sp,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A));Text(item.label,fontSize=9.sp,maxLines=1,color=if(item.danger)Color(0xFFB91C1C)else Color(0xFF0F172A))}
      }
     }
@@ -466,7 +466,7 @@ private fun SelectionInspector(state:NativeEditorState,modifier:Modifier=Modifie
  if(details!=null)Surface(modifier,color=Color(0xFFF5F6F8),border=androidx.compose.foundation.BorderStroke(1.dp,Color(0xFFCBD5E1)),tonalElevation=0.dp,shape=RectangleShape){
   Column(Modifier.padding(horizontal=4.dp,vertical=3.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
-    Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A),modifier=Modifier.weight(1f))
+    Column(Modifier.weight(1f)){Text(typeName,style=MaterialTheme.typography.labelSmall,maxLines=1,color=Color(0xFF0F172A));Text(selected.id,fontSize=8.sp,maxLines=1,color=Color(0xFF475569))}
     Surface(onClick=onClose,shape=RectangleShape,color=Color(0xFFE8ECF0),modifier=Modifier.size(22.dp).semantics{contentDescription="Закрыть свойства";role=Role.Button}){
      Box(contentAlignment=Alignment.Center){Text("×",fontSize=16.sp)}
     }
