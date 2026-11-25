@@ -98,25 +98,40 @@ fun NativeEditorViewport(viewModel:NativeEditorViewModel,modifier:Modifier=Modif
     RibbonQuickButton("↷","Повторить",state.canRedo,viewModel::redo,showTooltip)
     RibbonToggleButton("⌖","Привязка",snapEnabled){snapEnabled=!snapEnabled}
     RibbonToggleButton("90°","Орто",orthoLocked){orthoLocked=!orthoLocked}
-    listOf("Архитектура","Изменить").forEach{tab->
-     Box(Modifier.wrapContentWidth().height(32.dp).background(if(ribbonTab==tab&&!ribbonCollapsed)Color(0xFFF5F6F8)else Color.Transparent).clickable{if(ribbonTab==tab)ribbonCollapsed=!ribbonCollapsed else{ribbonTab=tab;ribbonCollapsed=false}}.padding(horizontal=5.dp),contentAlignment=Alignment.Center){
-      Column(Modifier.fillMaxHeight(),verticalArrangement=Arrangement.Bottom,horizontalAlignment=Alignment.CenterHorizontally){
-       if(ribbonTab==tab)Box(Modifier.fillMaxWidth().height(2.dp).background(Color(0xFF1E6BB8)))
-       Text(tab,fontSize=10.sp,color=if(ribbonTab==tab&&!ribbonCollapsed)Color(0xFF0F172A)else Color(0xFF475569),maxLines=1)
-      }
+   }
+   Row(Modifier.fillMaxWidth().height(30.dp).background(Color(0xFFE8ECF0)).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically) {
+    listOf("Архитектура","Конструкции","Системы","Правка").forEach{tab->
+     val active=ribbonTab==tab
+     Box(Modifier.height(30.dp).background(if(active)Color(0xFFF5F6F8)else Color(0xFFE8ECF0)).drawBehind{
+      val edge=1.dp.toPx()
+      if(active){
+       drawLine(Color(0xFF1E6BB8),Offset(0f,0f),Offset(size.width,0f),2.dp.toPx())
+       drawLine(Color(0xFFCBD5E1),Offset(0f,0f),Offset(0f,size.height),edge)
+       drawLine(Color(0xFFCBD5E1),Offset(size.width-edge,0f),Offset(size.width-edge,size.height),edge)
+      }else drawLine(Color(0xFFCBD5E1),Offset(0f,size.height-edge),Offset(size.width,size.height-edge),edge)
+     }.clickable{if(active)ribbonCollapsed=!ribbonCollapsed else{ribbonTab=tab;ribbonCollapsed=false}}.padding(horizontal=12.dp),contentAlignment=Alignment.Center){
+      Text(tab,fontSize=11.sp,fontWeight=if(active)androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,color=if(active)Color(0xFF0F172A)else Color(0xFF475569),maxLines=1)
      }
     }
+   }
     TextButton(onClick={ribbonCollapsed=!ribbonCollapsed},modifier=Modifier.width(24.dp),contentPadding=PaddingValues(0.dp)){Text(if(ribbonCollapsed)"▼" else "▲",fontSize=11.sp,color=Color(0xFF0F172A))}
    }
    if(!ribbonCollapsed)Row(Modifier.fillMaxWidth().height(68.dp).background(Color(0xFFF5F6F8)).horizontalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(horizontal=3.dp).borderBottomEngineering(),verticalAlignment=Alignment.CenterVertically) {
-    if(ribbonTab=="Архитектура"){
-     RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT},RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties}),showTooltip)
-     RibbonGroup("Построение",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true}),showTooltip)
-     RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
-    }else{
-     RibbonGroup("История",listOf(RibbonItem("↶","Отменить",false,state.canUndo){viewModel.undo()},RibbonItem("↷","Повторить",false,state.canRedo){viewModel.redo()}),showTooltip)
-     RibbonGroup("Привязки",listOf(RibbonItem("⊥","Орто 90°",orthoLocked,tooltipOverride="Орто 90° (прямые углы)"){orthoLocked=!orthoLocked},RibbonItem("S","Привязка",snapEnabled,tooltipOverride=if(snapEnabled)"Магнитная привязка ВКЛ" else "Магнитная привязка ВЫКЛ"){snapEnabled=!snapEnabled}),showTooltip)
-     RibbonGroup("Инспектор",listOf(RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
+    when(ribbonTab){
+     "Архитектура"->{
+      RibbonGroup("Выбор",listOf(RibbonItem("⌖","Выбор",tool==EditorTool.SELECT){tool=EditorTool.SELECT},RibbonItem("▤","Свойства",showProperties){showProperties=!showProperties}),showTooltip)
+      RibbonGroup("Построение",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("▦","Проёмы",tool==EditorTool.CATALOG){catalogCategory="openings";tool=EditorTool.CATALOG;showCatalogPicker=true}),showTooltip)
+     }
+     "Конструкции"->{
+      RibbonGroup("Несущие",listOf(RibbonItem("╱","Стена",tool==EditorTool.WALL){tool=EditorTool.WALL},RibbonItem("⌑","Узел",false){tool=EditorTool.SELECT}),showTooltip)
+     }
+     "Системы"->{
+      RibbonGroup("Оборудование",listOf(RibbonItem("▦","Каталог",tool==EditorTool.CATALOG){tool=EditorTool.CATALOG;showCatalogPicker=true},RibbonItem("⌖","Привязка",snapEnabled){snapEnabled=!snapEnabled}),showTooltip)
+     }
+     else->{
+      RibbonGroup("Изменение",listOf(RibbonItem("↻","Поворот",tool==EditorTool.ROTATE){tool=EditorTool.ROTATE},RibbonItem("×","Удалить",false,state.selection!=null,true){viewModel.deleteSelection()}),showTooltip)
+      RibbonGroup("Точность",listOf(RibbonItem("⌖","Привязка",snapEnabled){snapEnabled=!snapEnabled},RibbonItem("90°","Орто 90°",orthoLocked){orthoLocked=!orthoLocked}),showTooltip)
+     }
     }
    }
   }
