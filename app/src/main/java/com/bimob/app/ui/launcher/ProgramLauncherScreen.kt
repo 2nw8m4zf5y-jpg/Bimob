@@ -59,6 +59,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
     drawLine(BP.LinePrimary,Offset(towerX-10,y),Offset(towerX+10,y),1.2.dp.toPx())
     drawLine(BP.LinePrimary,Offset(towerX-10,y),Offset(towerX+10,y+34.dp.toPx()),1.dp.toPx())
     drawLine(BP.LinePrimary,Offset(towerX+10,y),Offset(towerX-10,y+34.dp.toPx()),1.dp.toPx())
+    y += 34.dp.toPx()
    }
    // Crane jib and counterweight
    drawLine(BP.LinePrimary,Offset(towerX,top+8),Offset(size.width*.92f,top+8),2.dp.toPx())
