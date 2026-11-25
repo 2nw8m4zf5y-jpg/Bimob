@@ -47,11 +47,11 @@ fun ProjectFacadeScreen(projects:List<FacadeProject>,onBack:()->Unit,onNew:()->U
    val levelY=(0..4).map{roof+(base-roof)*it/4}
    val levelTicks=Path().apply{levelY.forEach{moveTo(16.dp.toPx(),it);lineTo(left-12.dp.toPx(),it)}}
    onDrawBehind{
-    drawPath(grid,BP.GridMinor,.5.dp.toPx());drawPath(majorGrid,BP.GridMajor,1.dp.toPx())
+    drawPath(grid,BP.GridMinor,style=Stroke(.5.dp.toPx()));drawPath(majorGrid,BP.GridMajor,style=Stroke(1.dp.toPx()))
     drawPath(frame,BP.LinePrimary,style=Stroke(1.dp.toPx()))
-    drawPath(axisPath,BP.AccentAmber.copy(alpha=.35f),1.dp.toPx(),pathEffect=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(),5.dp.toPx())))
-    drawPath(facade,BP.LinePrimary,2.dp.toPx());drawPath(foundation,BP.GridMajor,1.dp.toPx())
-    drawPath(levelTicks,BP.AccentAmber,1.dp.toPx())
+    drawPath(axisPath,BP.AccentAmber.copy(alpha=.35f),style=Stroke(1.dp.toPx(),pathEffect=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(),5.dp.toPx()))))
+    drawPath(facade,BP.LinePrimary,style=Stroke(2.dp.toPx()));drawPath(foundation,BP.GridMajor,style=Stroke(1.dp.toPx()))
+    drawPath(levelTicks,BP.AccentAmber,style=Stroke(1.dp.toPx()))
     drawLine(BP.AccentAmber,Offset(left,base),Offset(right,base),2.dp.toPx())
    }
   }) { }
