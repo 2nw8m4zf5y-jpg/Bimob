@@ -120,7 +120,7 @@ Result<WallJoinGeometry> solveWallJoinGeometry(const Project&project,const WallJ
  if(std::abs(cross)<0.25)return buttFallback();
  std::array<Point2,4>v{};size_t k=0;
  for(int sideA:{-1,1})for(int sideB:{-1,1}){
-  const double off1=sideA*a->thickness.value*.5,off2=(cross>0.0?-1.0:1.0)*static_cast<double>(sideA)*b->thickness.value*.5;
+  const double off1=static_cast<double>(sideA)*a->thickness.value*.5,off2=static_cast<double>(sideB)*b->thickness.value*.5;
   const double p1x=join.joint.x.value+A[2]*off1,p1y=join.joint.y.value+A[3]*off1,p2x=join.joint.x.value+B[2]*off2,p2y=join.joint.y.value+B[3]*off2;
   const double t=((p2x-p1x)*B[1]-(p2y-p1y)*B[0])/cross;
   Point2 m{Meters{p1x+t*A[0]},Meters{p1y+t*A[1]}};
