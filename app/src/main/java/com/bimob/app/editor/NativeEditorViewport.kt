@@ -409,7 +409,7 @@ private fun CompactActionButton(symbol:String,description:String,enabled:Boolean
 }
 
 internal fun compactInspectorLabel(kind:EditorElementKind,field:String):String = when(kind){
- EditorElementKind.WALL->when(field){"Длина (м)"->"Д:";"Ширина (м)"->"Ш:";"Высота (м)"->"В:";"Отметка"->"О:";else->field}
+ EditorElementKind.WALL->when(field){"Длина" ,"Длина (м)"->"Д:";"Ширина","Ширина (м)"->"Ш:";"Высота","Высота (м)"->"В:";"Отметка"->"О:";else->field}
  EditorElementKind.OPENING->when(field){"Ширина"->"Ш:";"Высота"->"В:";"Подоконник"->"П:";"Положение"->"С:";else->field}
  EditorElementKind.CATALOG->when(field){"Ширина"->"Ш:";"Глубина"->"Г:";"Высота"->"В:";"Поворот"->"∠:";else->field}
 }
