@@ -114,7 +114,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    }
    if(jx<jr){val end=Path().apply{moveTo(jx,jt);lineTo(jr,jb);moveTo(jx,jb);lineTo(jr,jt);moveTo(jr,jt);lineTo(jr,jb)};drawPath(end,p.linePrimary,bevel)}
    // Symmetric triangular king-post/ties.
-   val peak=Offset(towerX,jt-3dpPx(5.dp))
+   val peak=Offset(towerX,jt-dpPx(35.dp))
    drawLine(p.accentCyan,peak,Offset(jl+dpPx(8.dp),jt),thin,StrokeCap.Butt)
    drawLine(p.accentCyan,peak,Offset(jl+(jr-jl)*.75f,jt),thin,StrokeCap.Butt)
    drawLine(p.accentCyan,Offset(towerX,peak.y),Offset(towerX,jt),thin,StrokeCap.Butt)
@@ -143,7 +143,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    drawLine(p.linePrimary,Offset(stampX,stampY+stampH*.5f),Offset(stampX+stampW,stampY+stampH*.5f),thin,StrokeCap.Butt)
   }
   Column(Modifier.fillMaxSize()) {
-   Spacer(Modifier.height((h*.355f).toDp()))
+   Spacer(Modifier.height(pxDp(h*.355f)))
    repeat(2){row->
     Row(Modifier.fillMaxWidth().height(pxDp(cardH)),horizontalArrangement=Arrangement.spacedBy(pxDp(gap))){
      repeat(4){col->
@@ -153,18 +153,18 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
        .clickable{if(m.active)onCad()else Toast.makeText(context,"МОДУЛЬ В РАЗРАБОТКЕ",Toast.LENGTH_SHORT).show()}
        .padding(horizontal=2.dp,vertical=3.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        Text("0${row*4+col+1}",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace,maxLines=1)
-       Text(m.title,fontSize=(colW.toDp().value*.12f).coerceIn(6.5f,9f).sp,lineHeight=10.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
+       Text(m.title,fontSize=(pxDp(colW).value*.12f).coerceIn(6.5f,9f).sp,lineHeight=10.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
        Text(m.detail,fontSize=(colW.toDp().value*.09f).coerceIn(5.5f,7f).sp,lineHeight=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
        Text(if(m.active)"[ ОТКРЫТЬ ]" else "[ В РАЗРАБОТКЕ ]",fontSize=(colW.toDp().value*.075f).coerceIn(5f,6.5f).sp,lineHeight=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
       }
      }
     }
-    if(row==0)Spacer(Modifier.height(rowGap.toDp()))
+    if(row==0)Spacer(Modifier.height(pxDp(rowGap)))
    }
    Spacer(Modifier.weight(1f))
    Spacer(Modifier.height(5.dp))
    // Stamp content is kept inside its CAD border, with explicit theme controls.
-   Row(Modifier.width(pxDp(stampW)).height((stampH*.5f).toDp())){
+   Row(Modifier.width(pxDp(stampW)).height(pxDp(stampH*.5f))){
     Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("NAGAPLAS",fontSize=8.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace,maxLines=1)}
     Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=Alignment.Center){Text("STAGE H · CAD/BIM",fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)}
    }
