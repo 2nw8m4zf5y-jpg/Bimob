@@ -17,7 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color\nimport androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -60,7 +60,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   }
   Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}.pointerInput(camera){detectTapGestures{tap->val raw=Vec2((tap.x-size.width/2-camera.panX)/camera.zoom.toDouble(),(size.height/2-tap.y-camera.panY)/camera.zoom.toDouble());val step=gp.minorMm/1000.0;val pt=if(gp.snap)Vec2(kotlin.math.round(raw.x/step)*step,kotlin.math.round(raw.y/step)*step)else raw;cursor=pt;if(drawWall){val start=firstPoint;if(start==null)firstPoint=pt else{editor.createWall(start.x,start.y,pt.x,pt.y,.2,"ОСЬ");firstPoint=null;drawWall=false}}else editor.selectAt(pt.x,pt.y)}}){val center=androidx.compose.ui.geometry.Offset(size.width/2+camera.panX,size.height/2+camera.panY);fun point(v:Vec2)=androidx.compose.ui.geometry.Offset(center.x+(v.x*camera.zoom).toFloat(),center.y-(v.y*camera.zoom).toFloat());geo?.walls?.forEach{wall->val a=point(wall.axisStart);val b=point(wall.axisEnd);drawLine(if(wall.id==state.selection?.id)p.accent else p.ink,a,b,maxOf(2f,(wall.thicknessMeters*camera.zoom).toFloat()),cap=androidx.compose.ui.graphics.StrokeCap.Butt);drawLine(p.ink.copy(alpha=.5f),a,b,1f);if(wall.id==state.selection?.id){drawCircle(p.accent,4f,a);drawCircle(p.accent,4f,b)}}}
   MatrixCellButton(cellBlock(0,0,2,2),"⌂","ДОМОЙ",p){homeMenu=!homeMenu}
-  MatrixCellButton(cellBlock(31,0,1,1),"◉","ТЕМА",p){theme=(theme+1)%8;pref.edit().putInt("themeIndex",theme).apply()}
+  MatrixCellButton(cellBlock(31,0,1,1),"◉","ТЕМА",p){theme=(theme+1)%8;pref.edit().putInt("themeIndex",theme).apply();val palette=palettes[theme];NagaGridSettings.update(context,gp.copy(background=palette.bg.hex(),minor=palette.minor.hex(),major=palette.major.hex()))}
   MatrixCellButton(cellBlock(26,1,2,2),"⌫","УДАЛИТЬ",p,state.selection!=null){editor.deleteSelection()}
   MatrixCellButton(cellBlock(28,1,2,2),"↶","ОТМЕНИТЬ",p,state.canUndo){editor.undo()}
   MatrixCellButton(cellBlock(30,1,2,2),"↷","ВПЕРЁД",p,state.canRedo){editor.redo()}
@@ -119,3 +119,4 @@ private fun matrixDxf(g:TypedGeometry?):String{
  sb.append(listOf("0","ENDSEC","0","EOF").joinToString(System.lineSeparator(),postfix=System.lineSeparator()))
  return sb.toString()
 }
+private fun Color.hex():String="#"+String.format("%06X",toArgb() and 0xFFFFFF)
