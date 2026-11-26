@@ -14,7 +14,7 @@ sealed interface CadCommand {
 data class CadBridgeResult(val success: Boolean, val message: String, val elapsedNanos: Long)
 
 fun interface AiBridgeProvider {
-    fun execute(input: String, editor: NativeEditorViewModel, origin: Vec2 = Vec2(0.0, 0.0)): CadBridgeResult
+    fun execute(input: String, editor: NativeEditorViewModel, origin: Vec2 = Vec2(0.0, 0.0), thicknessMeters: Double = 0.2, anchor: String = "ОСЬ"): CadBridgeResult
 }
 
 /** Deterministic offline parser. CAD distances without suffix are millimetres. */
@@ -49,19 +49,19 @@ class LocalCadCommandParser {
 }
 
 class AiCommandBridge(private val parser: LocalCadCommandParser = LocalCadCommandParser()) : AiBridgeProvider {
-    override fun execute(input:String,editor:NativeEditorViewModel,origin:Vec2):CadBridgeResult {
+    override fun execute(input:String,editor:NativeEditorViewModel,origin:Vec2,thicknessMeters:Double,anchor:String):CadBridgeResult {
         val started=System.nanoTime()
         val command=parser.parse(input,origin) ?: return CadBridgeResult(false,"Команда не распознана",System.nanoTime()-started)
         val ok=when(command){
             CadCommand.Undo->editor.undo()
             CadCommand.Redo->editor.redo()
-            is CadCommand.Wall->editor.createWall(command.start.x,command.start.y,command.end.x,command.end.y,command.thicknessMeters,command.anchor)
+            is CadCommand.Wall->editor.createWall(command.start.x,command.start.y,command.end.x,command.end.y,thicknessMeters,anchor)
             is CadCommand.Room->{
                 val a=command.origin;val b=Vec2(a.x+command.widthMeters,a.y);val c=Vec2(b.x,b.y+command.depthMeters);val d=Vec2(a.x,a.y+command.depthMeters)
-                editor.createWall(a.x,a.y,b.x,b.y,command.thicknessMeters) &&
-                editor.createWall(b.x,b.y,c.x,c.y,command.thicknessMeters) &&
-                editor.createWall(c.x,c.y,d.x,d.y,command.thicknessMeters) &&
-                editor.createWall(d.x,d.y,a.x,a.y,command.thicknessMeters)
+                editor.createWall(a.x,a.y,b.x,b.y,thicknessMeters,anchor) &&
+                editor.createWall(b.x,b.y,c.x,c.y,thicknessMeters,anchor) &&
+                editor.createWall(c.x,c.y,d.x,d.y,thicknessMeters,anchor) &&
+                editor.createWall(d.x,d.y,a.x,a.y,thicknessMeters,anchor)
             }
         }
         return CadBridgeResult(ok,if(ok)"Выполнено: ${command.javaClass.simpleName}" else editor.state.value.error ?: "Ядро отклонило команду",System.nanoTime()-started)
