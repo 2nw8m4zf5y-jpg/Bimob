@@ -42,6 +42,8 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   val cell=minOf(maxWidth/32,maxHeight/18);val gap=2.dp;val matrixW=cell*32+gap*31;val matrixH=cell*18+gap*17;val originX=(maxWidth-matrixW)/2;val originY=(maxHeight-matrixH)/2
   fun cellBlock(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(originX+col*(cell+gap),originY+row*(cell+gap)).size(cell*w+gap*(w-1),cell*h+gap*(h-1))
   Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}){
+   drawRect(Color(android.graphics.Color.parseColor(gp.background)))
+   val lineEffect=if(gp.lineStyle=="DASH")PathEffect.dashPathEffect(floatArrayOf(6f,4f)) else if(gp.lineStyle=="DOT")PathEffect.dashPathEffect(floatArrayOf(1f,3f)) else null
    if(gp.enabled){val step=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(2f);val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
     var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),style=Stroke(gp.minorWidth,lineEffect));x+=step}
     var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),style=Stroke(gp.minorWidth,lineEffect));y+=step}
