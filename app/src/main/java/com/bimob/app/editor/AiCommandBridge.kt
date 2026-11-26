@@ -27,7 +27,7 @@ class LocalCadCommandParser {
         val room = Regex("""^(?:КОМНАТА|ROOM)\s+(\d+(?:\.\d+)?)\s*[XХ*]\s*(\d+(?:\.\d+)?)$""").matchEntire(text)
         if (room != null) return CadCommand.Room(origin, room.groupValues[1].toDouble()/1000.0, room.groupValues[2].toDouble()/1000.0)
 
-        val line = Regex("""^(?:L|LINE)\s+(-?\d+(?:\.\d+)?)[ ]*\s*[, ]\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)[ ]*\s*[, ]\s*(-?\d+(?:\.\d+)?)$""").matchEntire(text)
+        val line = Regex("""^(?:L|LINE)\\s+(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s+(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)$""").matchEntire(text)
         if(line!=null) return CadCommand.Wall(Vec2(line.groupValues[1].toDouble()/1000.0,line.groupValues[2].toDouble()/1000.0),Vec2(line.groupValues[3].toDouble()/1000.0,line.groupValues[4].toDouble()/1000.0))
 
         val polar = Regex("""^(?:WALL\s+)?(\d+(?:\.\d+)?)\s*<\s*(-?\d+(?:\.\d+)?)$""").matchEntire(text)
