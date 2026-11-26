@@ -61,7 +61,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
   }
   Row(Modifier.fillMaxWidth().height(58.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
    Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.Center){
-    Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){tools.forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==7)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}}
+    Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){tools.forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==7)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}
     Row(Modifier.fillMaxWidth().height(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Txt("ПОСТРОЕНИЕ",c.muted,6.sp);Txt("РЕДАКТИРОВАНИЕ",c.muted,6.sp);Txt("АРХИТЕКТУРА / BIM",c.muted,6.sp)}
    }
    Column(Modifier.width(120.dp),verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,6.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},116.dp)}
