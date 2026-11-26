@@ -1,62 +1,166 @@
 package com.bimob.app.ui.launcher
+
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.bimob.app.AppVersion
 import com.bimob.app.ui.blueprint.BlueprintTheme
 import com.bimob.app.ui.blueprint.LocalBlueprintPalette
-import com.bimob.app.ui.blueprint.ThemeButton
-private data class Module(val title:String,val subtitle:String,val status:String,val active:Boolean)
-private val modules=listOf(Module("NAGAPLAS CAD","2D/3D ЧЕРЧЕНИЕ · УЗЛЫ · ОСИ","ОТКРЫТЬ ФАСАД",true),Module("NAGAPLAS BIM","ИНФОРМАЦИОННАЯ МОДЕЛЬ · IFC","В РАЗРАБОТКЕ",false),Module("УЗЛЫ И КМ","СОПРЯЖЕНИЯ · ФАСОНКИ · БОЛТЫ","ЗАПЛАНИРОВАНО",false),Module("2D ЛИСТЫ ГОСТ","ПЛАНЫ · РАЗРЕЗЫ · КОМПОНОВКА","ЗАПЛАНИРОВАНО",false),Module("РАСЧЁТ МКЭ","ЭПЮРЫ МОМЕНТОВ · ПРОГИБЫ","ЗАПЛАНИРОВАНО",false),Module("СПЕЦИФИКАЦИИ","ВЕДОМОСТИ СТАЛИ И БЕТОНА","ЗАПЛАНИРОВАНО",false),Module("ОБМЕН DXF / IFC","ИМПОРТ И ЭКСПОРТ ФОРМАТОВ","ЗАПЛАНИРОВАНО",false),Module("AI-МОСТ АГЕНТОВ","JSON-RPC · КОМАНДЫ В ЯДРО","АРХИТЕКТУРА STAGE H",false))
-@Composable fun ProgramLauncherScreen(onCad:()->Unit){
- val context=LocalContext.current;val p=LocalBlueprintPalette.current
- Box(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing)){
-  Canvas(Modifier.fillMaxSize()){val minor=16.dp.toPx();val major=80.dp.toPx();var x=0f;while(x<size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),.5.dp.toPx());x+=minor};var y=0f;while(y<size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),.5.dp.toPx());y+=minor};x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,0f),Offset(x,size.height),1.dp.toPx());x+=major};y=0f;while(y<size.height){drawLine(p.gridMajor,Offset(0f,y),Offset(size.width,y),1.dp.toPx());y+=major}}
-  Row(Modifier.fillMaxSize()){
-  Box(Modifier.weight(.14f).fillMaxHeight()){
-   Canvas(Modifier.fillMaxSize()){val x=size.width*.54f;val step=36.dp.toPx();val path=Path().apply{moveTo(x-8.dp.toPx(),0f);lineTo(x+8.dp.toPx(),size.height);moveTo(x+8.dp.toPx(),0f);lineTo(x-8.dp.toPx(),size.height);var y=0f;while(y<size.height){moveTo(x-8.dp.toPx(),y);lineTo(x+8.dp.toPx(),y+step);moveTo(x+8.dp.toPx(),y);lineTo(x-8.dp.toPx(),y+step);moveTo(x-8.dp.toPx(),y);lineTo(x+8.dp.toPx(),y);y+=step};moveTo(x-24.dp.toPx(),0f);lineTo(x+24.dp.toPx(),0f);moveTo(x,0f);lineTo(x+12.dp.toPx(),-14.dp.toPx())};drawPath(path,p.linePrimary,style=Stroke(1.dp.toPx()));drawLine(p.accentAmber,Offset(x,0f),Offset(x,size.height),1.dp.toPx())}
-  }
-  Column(Modifier.weight(.86f).fillMaxHeight()){
-   Row(Modifier.fillMaxWidth().height(44.dp).border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){
-    Canvas(Modifier.weight(1f).fillMaxHeight()){val path=Path().apply{moveTo(0f,size.height*.2f);lineTo(size.width,size.height*.2f);var x=0f;val step=38.dp.toPx();while(x<size.width){moveTo(x,size.height*.2f);lineTo(x+step/2,size.height*.8f);lineTo(x+step,size.height*.2f);x+=step}};drawPath(path,p.linePrimary,style=Stroke(1.dp.toPx()))}
-    Column(Modifier.padding(horizontal=8.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("NAGAPLAS · ЛАУНЧЕР",fontSize=11.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace);Text("C++20 CORE · IDLE",fontSize=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace)}
-    ThemeButton{BlueprintTheme.next()}
+
+private data class LauncherModule(val title: String, val detail: String, val active: Boolean)
+private val launcherModules = listOf(
+ LauncherModule("NAGAPLAS CAD","2D / 3D · ОСИ · УЗЛЫ",true),
+ LauncherModule("NAGAPLAS BIM","ИНФОРМАЦИОННАЯ МОДЕЛЬ",false),
+ LauncherModule("СМЕТЫ","ВЕДОМОСТИ · РАСЧЁТ",false),
+ LauncherModule("АРМАТУРА","КАРКАСЫ · СПЕЦИФИКАЦИИ",false),
+ LauncherModule("КОНСТРУКТОР","ЭЛЕМЕНТЫ · СОЕДИНЕНИЯ",false),
+ LauncherModule("ГЕНПЛАН","УЧАСТОК · ПОСАДКА",false),
+ LauncherModule("ИНЖЕНЕРИЯ","MEP · СЕТИ",false),
+ LauncherModule("АРХИВ","ПРОЕКТЫ · БИБЛИОТЕКА",false)
+)
+
+@Composable
+fun ProgramLauncherScreen(onCad:()->Unit) {
+ val context=LocalContext.current
+ val p=LocalBlueprintPalette.current
+ BoxWithConstraints(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
+  val w=constraints.maxWidth.toFloat()
+  val h=constraints.maxHeight.toFloat()
+  val towerX=w*.14f
+  val jibY=h*.22f
+  val cardL=w*.205f
+  val cardR=w*.95f
+  val gap=w*.014f
+  val colW=(cardR-cardL-gap*3)/4
+  val centers=List(4){i->cardL+colW*(i+.5f)+gap*i}
+  val cardTop=h*.355f
+  val cardH=h*.225f
+  val rowGap=h*.035f
+  val stampW=(w*.42f).coerceAtMost(220.dp.toPx())
+  val stampH=42.dp.toPx()
+  val stampX=w-stampW-5.dp.toPx()
+  val stampY=h-stampH-5.dp.toPx()
+  Canvas(Modifier.fillMaxSize()) {
+   val thin=1.dp.toPx()
+   val main=2.dp.toPx()
+   val bevel=Stroke(thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel)
+   // Grid, 20-unit minor / 100-unit major.
+   var x=0f
+   while(x<=size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),thin*.55f,StrokeCap.Butt);x+=20.dp.toPx()}
+   var y=0f
+   while(y<=size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),thin*.55f,StrokeCap.Butt);y+=20.dp.toPx()}
+   x=0f
+   while(x<=size.width){drawLine(p.gridMajor,Offset(x,0f),Offset(x,size.height),thin,StrokeCap.Butt);x+=100.dp.toPx()}
+   y=0f
+   while(y<=size.height){drawLine(p.gridMajor,Offset(0f,y),Offset(size.width,y),thin,StrokeCap.Butt);y+=100.dp.toPx()}
+   // Double border, all joins explicitly bevelled.
+   drawRect(p.linePrimary,style=Stroke(main,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
+   val inset=4.dp.toPx()
+   drawRect(p.linePrimary,Offset(inset,inset),Size(size.width-inset*2,size.height-inset*2),bevel)
+   // Tower: regular bays; diagonal ends coincide with chord-axis points.
+   val half=10.dp.toPx()
+   val top=jibY+3.dp.toPx()
+   val bottom=h-8.dp.toPx()
+   drawLine(p.linePrimary,Offset(towerX-half,top),Offset(towerX-half,bottom),thin,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(towerX+half,top),Offset(towerX+half,bottom),thin,StrokeCap.Butt)
+   val step=34.dp.toPx()
+   var ty=top
+   while(ty+step<=bottom){
+    val next=ty+step
+    val bay=Path().apply{moveTo(towerX-half,ty);lineTo(towerX+half,next);moveTo(towerX+half,ty);lineTo(towerX-half,next);moveTo(towerX-half,next);lineTo(towerX+half,next)}
+    drawPath(bay,p.linePrimary,bevel);ty=next
    }
-   Column(Modifier.weight(1f)){
-    repeat(2){row->Row(Modifier.weight(1f).fillMaxWidth()){
-     modules.subList(row*4,row*4+4).forEachIndexed{index,m->val axis=index+1+row*4
-      Column(Modifier.weight(1f).fillMaxHeight().padding(3.dp).drawBehind{val cx=size.width/2;drawLine(p.accentAmber,Offset(cx,0f),Offset(cx,size.height),1.dp.toPx());drawCircle(p.accentAmber,4.dp.toPx(),Offset(cx,5.dp.toPx()),style=Stroke(1.dp.toPx()));val hook=Path().apply{moveTo(cx-4.dp.toPx(),size.height*.08f);lineTo(cx,size.height*.1f);lineTo(cx+4.dp.toPx(),size.height*.08f)};drawPath(hook,p.accentAmber,style=Stroke(1.dp.toPx()))}.background(p.bgSurface).border(if(m.active)2.dp else 1.dp,if(m.active)p.accentCyan else p.linePrimary.copy(alpha=.65f),RectangleShape).clickable{if(m.active)onCad()else Toast.makeText(context,"Модуль запланирован",Toast.LENGTH_SHORT).show()}.padding(6.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-       Box(Modifier.size(16.dp).border(1.dp,p.accentAmber,androidx.compose.foundation.shape.CircleShape),contentAlignment=Alignment.Center){Text("${index+1}",fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)}
-       Canvas(Modifier.size(34.dp)){val path=Path().apply{moveTo(size.width*.1f,size.height*.8f);lineTo(size.width*.9f,size.height*.2f);moveTo(size.width*.1f,size.height*.2f);lineTo(size.width*.9f,size.height*.8f)};drawPath(path,p.linePrimary,style=Stroke(1.2.dp.toPx()));drawCircle(p.accentCyan,2.dp.toPx(),Offset(size.width*.1f,size.height*.8f));drawCircle(p.accentCyan,2.dp.toPx(),Offset(size.width*.9f,size.height*.2f))}
-       Text(m.title,fontSize=if(m.active)10.sp else 8.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2)
-       Text(m.subtitle,fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2)
-       Text("[ ${m.status} ]",fontSize=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
+   if(ty<bottom){
+    val endBay=Path().apply{moveTo(towerX-half,ty);lineTo(towerX+half,bottom);moveTo(towerX+half,ty);lineTo(towerX-half,bottom);moveTo(towerX-half,bottom);lineTo(towerX+half,bottom)}
+    drawPath(endBay,p.linePrimary,bevel)
+   }
+   // Jib lattice.
+   val jl=5.dp.toPx();val jr=w*.92f;val jt=jibY-12.dp.toPx();val jb=jibY
+   drawLine(p.linePrimary,Offset(jl,jt),Offset(jr,jt),thin,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(jl,jb),Offset(jr,jb),main,StrokeCap.Butt)
+   val js=42.dp.toPx();var jx=jl
+   while(jx+js<=jr){
+    val nx=jx+js
+    val bay=Path().apply{moveTo(jx,jt);lineTo(nx,jb);moveTo(jx,jb);lineTo(nx,jt);moveTo(nx,jt);lineTo(nx,jb)}
+    drawPath(bay,p.linePrimary,bevel);jx=nx
+   }
+   if(jx<jr){val end=Path().apply{moveTo(jx,jt);lineTo(jr,jb);moveTo(jx,jb);lineTo(jr,jt);moveTo(jr,jt);lineTo(jr,jb)};drawPath(end,p.linePrimary,bevel)}
+   // Symmetric triangular king-post/ties.
+   val peak=Offset(towerX,jt-35.dp.toPx())
+   drawLine(p.accentCyan,peak,Offset(jl+8.dp.toPx(),jt),thin,StrokeCap.Butt)
+   drawLine(p.accentCyan,peak,Offset(jl+(jr-jl)*.75f,jt),thin,StrokeCap.Butt)
+   drawLine(p.accentCyan,Offset(towerX,peak.y),Offset(towerX,jt),thin,StrokeCap.Butt)
+   drawLine(p.accentAmber,Offset(towerX,jb),Offset(towerX,top),thin,StrokeCap.Butt)
+   // Trolley/spreader, exactly four vertical sling axes.
+   val spreadL=cardL-gap*.5f;val spreadR=cardR+gap*.5f;val spreadY=cardTop-8.dp.toPx()
+   drawRect(p.bgSurface,Rect(Offset(spreadL,spreadY-5.dp.toPx()),Offset(spreadR,spreadY+5.dp.toPx())))
+   drawLine(p.accentAmber,Offset(spreadL,spreadY),Offset(spreadR,spreadY),main,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(spreadL,spreadY-5.dp.toPx()),Offset(spreadR,spreadY-5.dp.toPx()),thin,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(spreadL,spreadY+5.dp.toPx()),Offset(spreadR,spreadY+5.dp.toPx()),thin,StrokeCap.Butt)
+   centers.forEach{cx->
+    drawLine(p.accentAmber,Offset(cx,jb),Offset(cx,spreadY-5.dp.toPx()),thin,StrokeCap.Butt)
+    drawLine(p.accentAmber,Offset(cx,spreadY+5.dp.toPx()),Offset(cx,cardTop),thin,StrokeCap.Butt)
+    drawLine(p.accentAmber,Offset(cx,cardTop+cardH),Offset(cx,cardTop+cardH+rowGap),thin,StrokeCap.Butt)
+    drawLine(p.accentAmber,Offset(cx,cardTop+cardH+rowGap+cardH),Offset(cx,cardTop+cardH+rowGap+cardH),thin,StrokeCap.Butt)
+   }
+   // Compact 2x2 GOST/CAD stamp.
+   drawRect(p.linePrimary,Offset(stampX,stampY),Size(stampW,stampH),bevel)
+   drawLine(p.linePrimary,Offset(stampX+stampW*.5f,stampY),Offset(stampX+stampW*.5f,stampY+stampH),thin,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(stampX,stampY+stampH*.5f),Offset(stampX+stampW,stampY+stampH*.5f),thin,StrokeCap.Butt)
+  }
+  Column(Modifier.fillMaxSize()) {
+   Spacer(Modifier.height((h*.31f).toDp()))
+   repeat(2){row->
+    Row(Modifier.fillMaxWidth().height(cardH.toDp()),horizontalArrangement=Arrangement.spacedBy(gap.toDp())){
+     repeat(4){col->
+      val m=launcherModules[row*4+col]
+      Column(Modifier.weight(1f).fillMaxHeight().background(p.bgSurface,RectangleShape)
+       .clickable{if(m.active)onCad()else Toast.makeText(context,"МОДУЛЬ В РАЗРАБОТКЕ",Toast.LENGTH_SHORT).show()}
+       .padding(horizontal=2.dp,vertical=3.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+       Text("0${row*4+col+1}",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace,maxLines=1)
+       Text(m.title,fontSize=9.sp,lineHeight=10.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
+       Text(m.detail,fontSize=6.sp,lineHeight=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
+       Text(if(m.active)"[ ОТКРЫТЬ ]" else "[ В РАЗРАБОТКЕ ]",fontSize=6.sp,lineHeight=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
       }
      }
-    }}
+    }
+    if(row==0)Spacer(Modifier.height(rowGap.toDp()))
    }
-   Row(Modifier.fillMaxWidth().height(18.dp).border(1.dp,p.linePrimary),verticalAlignment=Alignment.CenterVertically){Canvas(Modifier.weight(1f).fillMaxHeight()){var x=0f;while(x<size.width){drawLine(p.gridMajor,Offset(x,size.height),Offset(x-8.dp.toPx(),0f),1.dp.toPx());x+=12.dp.toPx()}};Text("УР. ЗЕМЛИ 0.000",fontSize=7.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace)}
-  }
+   Spacer(Modifier.weight(1f))
+   // Stamp content is kept inside its CAD border, with explicit theme controls.
+   Row(Modifier.width(stampW.toDp()).height((stampH*.5f).toDp())){
+    Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("NAGAPLAS",fontSize=8.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace,maxLines=1)}
+    Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=Alignment.Center){Text("STAGE H · CAD/BIM",fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)}
+   }
+   Row(Modifier.width(stampW.toDp()).height((stampH*.5f).toDp())){
+    Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("ВЕРСИЯ: ${AppVersion.VERSION_LABEL}",fontSize=7.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1)}
+    Row(Modifier.weight(1f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){
+     BlueprintTheme.palettes.forEach{theme->Text(theme.label,fontSize=6.sp,color=if(BlueprintTheme.active.value==theme)p.accentAmber else p.textMuted,fontFamily=FontFamily.Monospace,modifier=Modifier.clickable{BlueprintTheme.select(theme)}.padding(horizontal=2.dp))}
+    }
+   }
   }
  }
 }
