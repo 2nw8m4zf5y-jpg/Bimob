@@ -61,9 +61,12 @@ class MainActivity:ComponentActivity(){
    var projectId by rememberSaveable{mutableStateOf(selectedProject)}
    var dialog by remember{mutableStateOf(false)}
    var projectName by rememberSaveable{mutableStateOf(newProjectName)}
-   var importJson by remember{mutableStateOf<String?>(null)}\n   var pendingVector by remember{mutableStateOf("")}
+   var importJson by remember{mutableStateOf<String?>(null)}
+   var pendingVector by remember{mutableStateOf("")}
    val opener=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->uri?.let{readImport(it){json,name->importJson=json;projectName=name;projectId="import-"+System.currentTimeMillis();route="workspace"}}}
-   val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}\n   val svgExporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/svg+xml")){uri->uri?.let{writeJson(it,pendingVector)}}\n   val dxfExporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/dxf")){uri->uri?.let{writeJson(it,pendingVector)}}
+   val exporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->uri?.let{writeJson(it,pendingJson)}}
+   val svgExporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/svg+xml")){uri->uri?.let{writeJson(it,pendingVector)}}
+   val dxfExporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/dxf")){uri->uri?.let{writeJson(it,pendingVector)}}
 
    BlueprintThemeProvider {
     MaterialTheme(colorScheme=if(BlueprintTheme.active.value.id=="paper")lightColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted)else darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
