@@ -7,9 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
@@ -75,7 +72,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))};var wallThickness by remember{mutableStateOf(0.2)};var pendingWallStart by remember{mutableStateOf<Vec2?>(null)};var bridgeStatus by remember{mutableStateOf("ОФЛАЙН · ГОТОВ")};var bridgeElapsedMs by remember{mutableStateOf(0.0)};val commandBridge=remember{AiCommandBridge()}
  val submitCadCommand={val input=cmd.trim();if(input.isNotEmpty()){val result=commandBridge.execute(input,editor,cursor,wallThickness,anchor);bridgeStatus=result.message;bridgeElapsedMs=result.elapsedNanos/1_000_000.0;cmd=""}}
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
- Column(Modifier.fillMaxSize().background(c.canvas).windowInsetsPadding(WindowInsets.safeDrawing)){
+ Column(Modifier.fillMaxSize().background(c.canvas)){
   Row(Modifier.fillMaxWidth().weight(0.042f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
    BrandMark(c);Txt("NAGAPLAS",c.ink,9.sp,bold=true)
    Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,8.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
