@@ -11,7 +11,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions\nimport androidx.compose.foundation.text.KeyboardActions\nimport androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions\nimport androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.platform.LocalContext
@@ -70,7 +71,8 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  val context=LocalContext.current;val p=BlueprintTheme.active.value;val c=wc(p);val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val g=state.typedGeometry
  var tab by remember{mutableStateOf("ГЛАВНАЯ")};var tool by remember{mutableStateOf("WALL")};var activeRail by remember{mutableStateOf("SELECT")};var layer by remember{mutableStateOf(layers[0])};var anchor by remember{mutableStateOf("ОСЬ")}
  var props by remember{mutableStateOf(true)};var grid by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var track by remember{mutableStateOf(false)};var weights by remember{mutableStateOf(false)};var debug by remember{mutableStateOf(false)}
- var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))};var wallThickness by remember{mutableStateOf(0.2)};var pendingWallStart by remember{mutableStateOf<Vec2?>(null)};var bridgeStatus by remember{mutableStateOf("ОФЛАЙН · ГОТОВ")};var bridgeElapsedMs by remember{mutableStateOf(0.0)};val commandBridge=remember{AiCommandBridge()}\n val submitCadCommand={val input=cmd.trim();if(input.isNotEmpty()){val result=commandBridge.execute(input,editor,cursor,wallThickness,anchor);bridgeStatus=result.message;bridgeElapsedMs=result.elapsedNanos/1_000_000.0;cmd=""}}
+ var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))};var wallThickness by remember{mutableStateOf(0.2)};var pendingWallStart by remember{mutableStateOf<Vec2?>(null)};var bridgeStatus by remember{mutableStateOf("ОФЛАЙН · ГОТОВ")};var bridgeElapsedMs by remember{mutableStateOf(0.0)};val commandBridge=remember{AiCommandBridge()}
+ val submitCadCommand={val input=cmd.trim();if(input.isNotEmpty()){val result=commandBridge.execute(input,editor,cursor,wallThickness,anchor);bridgeStatus=result.message;bridgeElapsedMs=result.elapsedNanos/1_000_000.0;cmd=""}}
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
  Column(Modifier.fillMaxSize().background(c.canvas).windowInsetsPadding(WindowInsets.safeDrawing)){
   Row(Modifier.fillMaxWidth().weight(0.042f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
