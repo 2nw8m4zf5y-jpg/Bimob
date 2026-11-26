@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -174,8 +175,37 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
  Column(modifier.background(c.panel).border(1.dp,c.grid).verticalScroll(rememberScrollState()).padding(vertical=2.dp,horizontal=2.dp),verticalArrangement=Arrangement.spacedBy(2.dp),horizontalAlignment=Alignment.CenterHorizontally){
   listOf("SELECT","LINE","PLINE","WALL","RECT","CIRCLE","ARC","MOVE","COPY","TRIM","OFFSET","DOOR","WINDOW","DIM","NODE","ROTATE").forEach { id ->
    val isActive=active==id
-   Box(Modifier.fillMaxWidth().height(42.dp).clickable{choose(id)}.background(if(isActive)c.accent.copy(alpha=.12f)else Color.Transparent).border(if(isActive)1.dp else .5.dp,c.grid),contentAlignment=Alignment.Center){
-    CadVectorIcon(cadGlyph(id),c.accent,physicalSizeMm=6f)
+   Box(
+    Modifier.fillMaxWidth().height(48.dp)
+     .clickable{choose(id)}
+     .semantics {
+      contentDescription = when(id) {
+       "SELECT" -> "Выбор объектов"
+       "LINE" -> "Отрезок"
+       "PLINE" -> "Полилиния"
+       "WALL" -> "Стена"
+       "RECT" -> "Прямоугольник"
+       "CIRCLE" -> "Окружность"
+       "ARC" -> "Дуга"
+       "MOVE" -> "Перенести"
+       "COPY" -> "Копировать"
+       "TRIM" -> "Обрезать"
+       "OFFSET" -> "Смещение"
+       "DOOR" -> "Дверь"
+       "WINDOW" -> "Окно"
+       "DIM" -> "Размер"
+       "NODE" -> "Узел"
+       "ROTATE" -> "Поворот"
+       else -> id
+      }
+      role = androidx.compose.ui.semantics.Role.Button
+      selected = isActive
+     }
+     .background(if(isActive)c.accent.copy(alpha=.12f)else Color.Transparent)
+     .border(if(isActive)1.dp else .5.dp,if(isActive)c.accent else c.grid),
+    contentAlignment=Alignment.Center
+   ){
+    CadVectorIcon(cadGlyph(id),if(isActive)c.accent else c.ink,physicalSizeMm=6f)
    }
   }
  }
