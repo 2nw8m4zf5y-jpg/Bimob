@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.bimob.app.editor.*
 import kotlinx.coroutines.flow.collect
 import kotlin.math.hypot
+import kotlin.math.ceil
 
 @Composable
 fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onBack:()->Unit,onSave:()->Unit,onExport:()->Unit,onImport:()->Unit,onExportVector:(String,String)->Unit){
@@ -52,7 +53,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}){
    drawRect(Color(android.graphics.Color.parseColor(gp.background)))
    val lineEffect=if(gp.lineStyle=="DASH")PathEffect.dashPathEffect(floatArrayOf(6f,4f)) else if(gp.lineStyle=="DOT")PathEffect.dashPathEffect(floatArrayOf(1f,3f)) else null
-   if(gp.enabled){val rawStep=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(.1f);val lod=maxOf(1,(4f/rawStep).toInt());val step=rawStep*lod;val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
+   if(gp.enabled){val rawStep=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(.1f);val lod=maxOf(1,ceil(4f/rawStep).toInt());val step=rawStep*lod;val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
     var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),style=Stroke(width=gp.minorWidth,pathEffect=lineEffect));x+=step}
     var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),style=Stroke(width=gp.minorWidth,pathEffect=lineEffect));y+=step}
     x=((cx%major)+major)%major;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),style=Stroke(width=gp.majorWidth,pathEffect=lineEffect));x+=major}
