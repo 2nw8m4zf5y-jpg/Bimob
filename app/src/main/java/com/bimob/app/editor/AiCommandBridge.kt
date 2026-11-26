@@ -56,13 +56,7 @@ class AiCommandBridge(private val parser: LocalCadCommandParser = LocalCadComman
             CadCommand.Undo->editor.undo()
             CadCommand.Redo->editor.redo()
             is CadCommand.Wall->editor.createWall(command.start.x,command.start.y,command.end.x,command.end.y,thicknessMeters,anchor)
-            is CadCommand.Room->{
-                val a=command.origin;val b=Vec2(a.x+command.widthMeters,a.y);val c=Vec2(b.x,b.y+command.depthMeters);val d=Vec2(a.x,a.y+command.depthMeters)
-                editor.createWall(a.x,a.y,b.x,b.y,thicknessMeters,anchor) &&
-                editor.createWall(b.x,b.y,c.x,c.y,thicknessMeters,anchor) &&
-                editor.createWall(c.x,c.y,d.x,d.y,thicknessMeters,anchor) &&
-                editor.createWall(d.x,d.y,a.x,a.y,thicknessMeters,anchor)
-            }
+            is CadCommand.Room->editor.createRoom(command.origin.x,command.origin.y,command.widthMeters,command.depthMeters,thicknessMeters,anchor)
         }
         return CadBridgeResult(ok,if(ok)"Выполнено: ${command.javaClass.simpleName}" else editor.state.value.error ?: "Ядро отклонило команду",System.nanoTime()-started)
     }
