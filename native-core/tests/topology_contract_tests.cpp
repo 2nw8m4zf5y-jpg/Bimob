@@ -23,7 +23,7 @@ int main(){
  auto first=snap;d.addNode(5,5);assert(first->nodes.size()==3); // immutable render snapshot
  auto n4=d.snapshot()->nodes.back().id;assert(d.undo());auto afterUndo=d.snapshot();assert(std::none_of(afterUndo->nodes.begin(),afterUndo->nodes.end(),[&](auto n){return n.id==n4;}));
  bool bad=false;try{d.addWallSegment(n1,n1,.2);}catch(const std::invalid_argument&){bad=true;}assert(bad);
- CommandDispatcher concurrent;std::vector<std::thread> workers;for(int i=0;i<8;i++)workers.emplace_back([&]{for(int j=0;j<100;j++)concurrent.addNode(j*2.0,0);});for(auto&t:workers)t.join();assert(concurrent.snapshot()->nodes.size()==800);
+ CommandDispatcher concurrent;std::vector<std::thread> workers;for(int i=0;i<8;i++)workers.emplace_back([&,i]{for(int j=0;j<100;j++)concurrent.addNode(i*1000.0+j*2.0,0);});for(auto&t:workers)t.join();assert(concurrent.snapshot()->nodes.size()==800);
  concurrent.closeAndReset();assert(concurrent.snapshot()->nodes.empty()&&concurrent.snapshot()->segments.empty()&&concurrent.snapshot()->undoDepth==0);
  (void)s1;(void)s2;
 }
