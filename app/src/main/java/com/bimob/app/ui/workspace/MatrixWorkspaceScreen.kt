@@ -1,0 +1,80 @@
+package com.bimob.app.ui.workspace
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.bimob.app.editor.*
+import kotlinx.coroutines.flow.collect
+import kotlin.math.hypot
+
+@Composable
+fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onBack:()->Unit,onSave:()->Unit,onExport:()->Unit,onImport:()->Unit){
+ val context=LocalContext.current;NagaGridSettings.load(context);val gp by NagaGridSettings.state.collectAsState()
+ val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val geo=state.typedGeometry
+ val palettes=listOf(
+  MatrixPalette(Color(0xFFFAF9F6),Color(0xFF1E242B),Color(0xFF0066CC),Color(0xFFDCE3EA),Color(0xFFB8C4D0)),
+  MatrixPalette(Color(0xFF071324),Color(0xFFE6F2FF),Color(0xFF4DE8F4),Color(0xFF102847),Color(0xFF1A385C)),
+  MatrixPalette(Color(0xFF181A1F),Color(0xFFE8EBF0),Color(0xFFA0AAB8),Color(0xFF292E36),Color(0xFF424A55)),
+  MatrixPalette(Color(0xFF160E24),Color(0xFFECE4F7),Color(0xFFB388FF),Color(0xFF2A1D3D),Color(0xFF47325F)),
+  MatrixPalette(Color(0xFF221308),Color(0xFFFFE9D6),Color(0xFFFF9E40),Color(0xFF382213),Color(0xFF5A3820)),
+  MatrixPalette(Color(0xFF0B1E14),Color(0xFFE0F4E7),Color(0xFF4CE08A),Color(0xFF1B3525),Color(0xFF31543D)),
+  MatrixPalette(Color(0xFF220B0E),Color(0xFFF8E4E6),Color(0xFFFF6B6B),Color(0xFF3B171C),Color(0xFF5A252B)),
+  MatrixPalette(Color(0xFF1D140E),Color(0xFFF2E5D9),Color(0xFFD7A87E),Color(0xFF38291D),Color(0xFF57402F)))
+ val pref=context.getSharedPreferences("nagaplas_ui",0);var theme by remember{mutableIntStateOf(pref.getInt("themeIndex",0).coerceIn(0,7))};val p=palettes[theme]
+ var homeMenu by remember{mutableStateOf(false)};var askNew by remember{mutableStateOf(false)};var infoExpanded by remember{mutableStateOf(true)};var infoSettings by remember{mutableStateOf(false)};var drawWall by remember{mutableStateOf(false)};var cursor by remember{mutableStateOf(Vec2(0.0,0.0))};var firstPoint by remember{mutableStateOf<Vec2?>(null)}
+ BoxWithConstraints(Modifier.fillMaxSize().background(p.bg)){
+  val cell=minOf(maxWidth/32,maxHeight/18);val gap=2.dp
+  fun cellBlock(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(col*(cell+gap),row*(cell+gap)).size(cell*w+gap*(w-1),cell*h+gap*(h-1))
+  Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}){
+   if(gp.enabled){val step=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(2f);val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
+    var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),gp.minorWidth);x+=step}
+    var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),gp.minorWidth);y+=step}
+    x=((cx%major)+major)%major;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),gp.majorWidth);x+=major}
+    y=((cy%major)+major)%major;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),gp.majorWidth);y+=major}
+    drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(cx,0f),androidx.compose.ui.geometry.Offset(cx,size.height),1f);drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(0f,cy),androidx.compose.ui.geometry.Offset(size.width,cy),1f)
+   }
+  }
+  VectorCanvas(Modifier.fillMaxSize(),WC(p.bg,p.bg,p.accent,p.minor,p.major,p.accent,p.accent,p.accent,p.ink,p.ink,p.accent.copy(alpha=.12f)),geo,state.selection?.id,camera.zoom,camera.panX,camera.panY,false,false,cursor,firstPoint,gp.snap,{cursor=it},{pt->if(drawWall){val s=firstPoint;if(s==null)firstPoint=pt else{editor.createWall(s.x,s.y,pt.x,pt.y,.2,"ОСЬ");firstPoint=null;drawWall=false}}else editor.selectAt(pt.x,pt.y)})
+  MatrixCellButton(cellBlock(0,0,2,2),"⌂","ДОМОЙ",p){homeMenu=!homeMenu}
+  MatrixCellButton(cellBlock(31,0,1,1),"◉","ТЕМА",p){theme=(theme+1)%8;pref.edit().putInt("themeIndex",theme).apply()}
+  MatrixCellButton(cellBlock(26,1,2,2),"⌫","УДАЛИТЬ",p,state.selection!=null){editor.deleteSelection()}
+  MatrixCellButton(cellBlock(28,1,2,2),"↶","ОТМЕНИТЬ",p,state.canUndo){editor.undo()}
+  MatrixCellButton(cellBlock(30,1,2,2),"↷","ВПЕРЁД",p,state.canRedo){editor.redo()}
+  Row(cellBlock(27,3,5,1),horizontalArrangement=Arrangement.spacedBy(gap)){
+   MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),"⌃","",p){infoExpanded=!infoExpanded}
+   MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),"⚙","",p){infoSettings=true}
+   Box(Modifier.weight(3f).fillMaxHeight().background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)),contentAlignment=Alignment.Center){Text("ИНФОРМАЦИЯ",fontSize=8.sp,color=p.ink,maxLines=1)}
+  }
+  if(infoExpanded)Column(Modifier.offset(27*(cell+gap),4*(cell+gap)).width(cell*5+gap*4).heightIn(max=maxHeight-4*(cell+gap)).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(4.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(4.dp)){
+   InfoBox("СВОЙСТВА",p){val wall=geo?.walls?.firstOrNull{it.id==state.selection?.id};Text(if(state.selection==null)"Объект не выбран" else "ID: "+state.selection.id,color=p.ink,fontSize=8.sp);if(wall!=null){Text("Длина: "+(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Толщина: "+(wall.thicknessMeters*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("X/Y: "+(wall.axisStart.x*1000).toInt()+" / "+(wall.axisStart.y*1000).toInt(),color=p.ink,fontSize=8.sp)}}
+   InfoBox("СЛОИ",p){Text("A-WALL-MAIN · активный",color=p.accent,fontSize=8.sp);Text("A-WALL-PART · видимый",color=p.ink,fontSize=8.sp)}
+   InfoBox("КООРДИНАТЫ / СЕТКА",p){Text("X "+(cursor.x*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Y "+(cursor.y*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Шаг "+gp.minorMm+" · SNAP "+if(gp.snap)"ВКЛ" else "ВЫКЛ",color=p.accent,fontSize=8.sp)}
+  }
+  if(homeMenu)Column(Modifier.offset(0.dp,2*(cell+gap)+gap).width(cell*3+gap*2).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+   MenuItem("＋","НОВЫЙ",p){homeMenu=false;askNew=true};MenuItem("▣","СОХРАНИТЬ",p){homeMenu=false;onSave()};MenuItem("⇧","ЭКСПОРТ",p){homeMenu=false;onExport()};MenuItem("⇩","ИМПОРТ",p){homeMenu=false;onImport()};MenuItem("↩","ВЫХОД",p){homeMenu=false;editor.closeAndReset();onBack()}
+  }
+  Row(Modifier.align(Alignment.BottomStart).padding(3.dp),horizontalArrangement=Arrangement.spacedBy(3.dp)){MenuItem("＋","ZOOM",p){editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY)};MenuItem("－","ZOOM",p){editor.setCamera(camera.zoom/1.2f,camera.panX,camera.panY)};MenuItem("✚","СТЕНА",p){drawWall=true};MenuItem("↖","ВЫБОР",p){drawWall=false}}
+  if(askNew)AlertDialog(onDismissRequest={askNew=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("НОВАЯ СЦЕНА",color=p.ink)},text={Text("Сбросить текущий проект?",color=p.ink)},confirmButton={TextButton(onClick={askNew=false;editor.resetProject("matrix-"+System.currentTimeMillis(),projectName);firstPoint=null;drawWall=false}){Text("СБРОС",color=p.accent)}},dismissButton={TextButton(onClick={askNew=false}){Text("ОТМЕНА",color=p.ink)}})
+  if(infoSettings)AlertDialog(onDismissRequest={infoSettings=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("ИНФО-ПАНЕЛЬ",color=p.ink)},text={Text("Секции: свойства, слои, координаты/сетка. Настройки порядка и видимости полей будут подключены в следующем шаге.",color=p.ink)},confirmButton={TextButton(onClick={infoSettings=false}){Text("ОК",color=p.accent)}})
+ }
+}
+data class MatrixPalette(val bg:Color,val ink:Color,val accent:Color,val minor:Color,val major:Color){val panel=bg.copy(alpha=.96f);val border=major}
+@Composable private fun MatrixCellButton(modifier:Modifier,icon:String,label:String,p:MatrixPalette,enabled:Boolean=true,onClick:()->Unit){Column(modifier.background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border.copy(alpha=if(enabled)1f else .25f),RoundedCornerShape(6.dp)).clickable(enabled=enabled,onClick=onClick).padding(2.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(icon,color=if(enabled)p.accent else p.ink.copy(alpha=.35f),fontSize=16.sp,maxLines=1);if(label.isNotEmpty())Text(label,color=if(enabled)p.ink else p.ink.copy(alpha=.35f),fontSize=7.sp,fontFamily=FontFamily.Monospace,maxLines=1)}}
+@Composable private fun MenuItem(icon:String,label:String,p:MatrixPalette,onClick:()->Unit){Row(Modifier.height(26.dp).fillMaxWidth().background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).clickable(onClick=onClick).padding(horizontal=5.dp),verticalAlignment=Alignment.CenterVertically){Text(icon,color=p.accent,fontSize=12.sp);Spacer(Modifier.width(5.dp));Text(label,color=p.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace,maxLines=1)}}
+@Composable private fun InfoBox(title:String,p:MatrixPalette,body:@Composable ColumnScope.()->Unit){Column(Modifier.fillMaxWidth().border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(4.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){Text(title,color=p.accent,fontSize=8.sp);body()}}
