@@ -116,7 +116,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
    MenuItem("＋","НОВЫЙ",p){homeMenu=false;askNew=true};MenuItem("▣","СОХРАНИТЬ",p){homeMenu=false;onSave()};MenuItem("⇧","ЭКСПОРТ",p){homeMenu=false;exportDialog=true};MenuItem("⇩","ИМПОРТ",p){homeMenu=false;onImport()};MenuItem("↩","ВЫХОД",p){homeMenu=false;editor.closeAndReset();onBack()}
   }
   MatrixCellButton(cellBlock(0,17,1,1),"＋","ZOOM",p){editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY)}\n  MatrixCellButton(cellBlock(1,17,1,1),"－","ZOOM",p){editor.setCamera(camera.zoom/1.2f,camera.panX,camera.panY)}\n  MatrixCellButton(cellBlock(2,17,1,1),"✚","СТЕНА",p){drawWall=true}\n  MatrixCellButton(cellBlock(3,17,1,1),"↖","ВЫБОР",p){drawWall=false}
-  if(exportDialog)AlertDialog(onDismissRequest={exportDialog=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("ЭКСПОРТ",color=p.ink)},text={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){MenuItem("▣","JSON · ПРОЕКТ",p){exportDialog=false;onExport()};MenuItem("◇","SVG · ВЕКТОР",p){exportDialog=false;onExportVector("SVG",matrixSvg(geo))};MenuItem("▱","DXF · CAD",p){exportDialog=false;onExportVector("DXF",matrixDxf(geo)}}},confirmButton={TextButton(onClick={exportDialog=false}){Text("ОТМЕНА",color=p.ink)}})
+  if(exportDialog)AlertDialog(onDismissRequest={exportDialog=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("ЭКСПОРТ",color=p.ink)},text={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){MenuItem("▣","JSON · ПРОЕКТ",p){exportDialog=false;onExport()};MenuItem("◇","SVG · ВЕКТОР",p){exportDialog=false;onExportVector("SVG",matrixSvg(geo))};MenuItem("▱","DXF · CAD",p){exportDialog=false;onExportVector("DXF",matrixDxf(geo))}}},confirmButton={TextButton(onClick={exportDialog=false}){Text("ОТМЕНА",color=p.ink)}})
   if(askNew)AlertDialog(onDismissRequest={askNew=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("НОВАЯ СЦЕНА",color=p.ink)},text={Text("Сбросить текущий проект?",color=p.ink)},confirmButton={TextButton(onClick={askNew=false;editor.resetProject("matrix-"+System.currentTimeMillis(),projectName);firstPoint=null;drawWall=false}){Text("СБРОС",color=p.accent)}},dismissButton={TextButton(onClick={askNew=false}){Text("ОТМЕНА",color=p.ink)}})
   if(infoSettings) AlertDialog(
    onDismissRequest={infoSettings=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,
@@ -149,10 +149,17 @@ private fun matrixSvg(g:TypedGeometry?):String{
  return sb.append("</svg>").toString()
 }
 private fun matrixDxf(g:TypedGeometry?):String{
+ val nl=System.lineSeparator()
  val sb=StringBuilder()
- sb.append(listOf("0","SECTION","2","ENTITIES").joinToString(System.lineSeparator(),postfix=System.lineSeparator()))
- g?.walls.orEmpty().forEach{w->sb.append(listOf("0","LWPOLYLINE","8","WALLS","90",w.corners.size.toString(),"70","1").joinToString(System.lineSeparator(),postfix=System.lineSeparator()));w.corners.forEach{pt->sb.append(listOf("10",(pt.x*1000).toString(),"20",(pt.y*1000).toString()).joinToString(System.lineSeparator(),postfix=System.lineSeparator())}}
- sb.append(listOf("0","ENDSEC","0","EOF").joinToString(System.lineSeparator(),postfix=System.lineSeparator()))
+ sb.append(listOf("0","SECTION","2","ENTITIES").joinToString(nl,postfix=nl))
+ for(w in g?.walls.orEmpty()){
+  val header=listOf("0","LWPOLYLINE","8","WALLS","90",w.corners.size.toString(),"70","1").joinToString(nl,postfix=nl)
+  sb.append(header)
+  for(pt in w.corners){
+   val vertex=listOf("10",(pt.x*1000).toString(),"20",(pt.y*1000).toString()).joinToString(nl,postfix=nl)
+   sb.append(vertex)
+  }
+ }
+ sb.append(listOf("0","ENDSEC","0","EOF").joinToString(nl,postfix=nl))
  return sb.toString()
 }
-private fun Color.hex():String="#"+String.format("%06X",toArgb() and 0xFFFFFF)
