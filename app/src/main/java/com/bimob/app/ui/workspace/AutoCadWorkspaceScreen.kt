@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardOptions\nimport androidx.compose.foundation.text.KeyboardActions\nimport androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.platform.LocalContext
@@ -141,8 +141,10 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    }
   }
 Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
-   Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f));Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(0.615f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
-   ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ЛОКАЛЬНЫЙ · ГРАФ: 0.2 мс",c.muted,6.sp,Modifier.weight(0.28f),max=1)
+   Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f),bold=true)
+   BasicTextField(cmd,{cmd=it},Modifier.weight(0.615f).padding(horizontal=3.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Done),keyboardActions=KeyboardActions(onDone={submitCadCommand()}),decorationBox={inner->if(cmd.isEmpty())Txt("4000<0 · WALL 4000 0 · СТЕНА 4000 · КОМНАТА 4000x5000",c.muted,6.sp);inner()})
+   ButtonMini("↵",c,{submitCadCommand()},20.dp)
+   Txt("$bridgeStatus · ${"%.2f".format(bridgeElapsedMs)} ms",c.muted,6.sp,Modifier.weight(0.28f),max=1)
   }
   Row(Modifier.fillMaxWidth().weight(0.054f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
    Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(0.22f))
@@ -152,7 +154,7 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
  }
 }
 
-@Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onSelect:(EditorSelection?)->Unit){
+@Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onWorldTap:(Vec2)->Unit){
  Canvas(modifier
   .pointerInput(g,zoom,px,py){
    detectDragGestures(onDragStart={position->
@@ -164,7 +166,7 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
     onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw)
    })
   }
-  .pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val raw=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw);val w=g?.walls?.minByOrNull{dist(raw,it.axisStart,it.axisEnd)};onSelect(if(w!=null&&dist(raw,w.axisStart,w.axisEnd)<.18)EditorSelection(EditorElementKind.WALL,w.id)else null)}}){
+  .pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val raw=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());val snapped=if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw;onCursor(snapped);onWorldTap(snapped)}}){
   val center=Offset(size.width/2+px,size.height/2+py);fun s(v:Vec2)=Offset(center.x+(v.x*zoom).toFloat(),center.y-(v.y*zoom).toFloat())
   if(grid){val step=zoom*.1f;val major=zoom; if(step>3){var x=((center.x%step)+step)%step;while(x<size.width){drawLine(c.grid,Offset(x,0f),Offset(x,size.height),.45f);x+=step};var y=((center.y%step)+step)%step;while(y<size.height){drawLine(c.grid,Offset(0f,y),Offset(size.width,y),.45f);y+=step}};if(major>8){var x=((center.x%major)+major)%major;while(x<size.width){drawLine(c.major,Offset(x,0f),Offset(x,size.height),.65f);x+=major};var y=((center.y%major)+major)%major;while(y<size.height){drawLine(c.major,Offset(0f,y),Offset(size.width,y),.65f);y+=major}}}
   g?.joins?.forEach{j->val path=Path().apply{j.corners.forEachIndexed{i,v->val q=s(v);if(i==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()};drawPath(path,c.fill);drawPath(path,c.dim,style=Stroke(.7f))}
@@ -174,11 +176,11 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
   val q=s(cursor);drawRect(c.snap,Offset(q.x-3,q.y-3),Size(6f,6f),style=Stroke(1.2f));val u=Offset(22f,size.height-22f);drawLine(c.accent,u,u+Offset(22f,0f),1.4f);drawLine(c.snap,u,u+Offset(0f,-22f),1.4f)
  }
 }
-@Composable private fun Properties(modifier:Modifier,c:WC,g:TypedGeometry?,sel:EditorSelection?,degree:Map<String,Int>,vm:NativeEditorViewModel,layer:String,layers:List<String>,choose:(String)->Unit,debug:()->Unit){
+@Composable private fun Properties(modifier:Modifier,c:WC,g:TypedGeometry?,sel:EditorSelection?,degree:Map<String,Int>,vm:NativeEditorViewModel,layer:String,layers:List<String>,choose:(String)->Unit,debug:()->Unit,onThickness:(Double)->Unit){
  val wall=g?.walls?.firstOrNull{it.id==sel?.id&&sel.kind==EditorElementKind.WALL}
  Column(modifier.background(c.panel).border(1.dp,c.grid).padding(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
   Header("СВОЙСТВА (WALL)",c)
-  if(wall!=null){RowProp("ID / Слой",wall.id.take(7)+" · "+layer,c);RowProp("Длина L", "${(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)*1000).roundToInt()} мм",c);RowProp("Толщ. B","${(hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).roundToInt()} мм",c);Row(Modifier.fillMaxWidth().height(22.dp),horizontalArrangement=Arrangement.spacedBy(1.dp)){ listOf(100,120,200,300,400).forEach { v -> ButtonMini("$v",c,{vm.updateSelectedProperty("thickness",v/1000.0)},24.dp,((hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).roundToInt()==v)) } }
+  if(wall!=null){RowProp("ID / Слой",wall.id.take(7)+" · "+layer,c);RowProp("Длина L", "${(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)*1000).roundToInt()} мм",c);RowProp("Толщ. B","${(hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).roundToInt()} мм",c);Row(Modifier.fillMaxWidth().height(22.dp),horizontalArrangement=Arrangement.spacedBy(1.dp)){ listOf(100,120,200,300,400).forEach { v -> ButtonMini("$v",c,{vm.updateSelectedProperty("thickness",v/1000.0);onThickness(v/1000.0)},24.dp,((hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).roundToInt()==v)) } }
   RowProp("Высота H","${(wall.height*1000).roundToInt()} мм",c);RowProp("Привязка","ОСЬ",c);RowProp("Угол ∠","${(Math.toDegrees(atan2(wall.axisEnd.y-wall.axisStart.y,wall.axisEnd.x-wall.axisStart.x))*10).roundToInt()/10.0}°",c);RowProp("N1","(${(wall.axisStart.x*1000).roundToInt()}, ${(wall.axisStart.y*1000).roundToInt()})",c);RowProp("N2","(${(wall.axisEnd.x*1000).roundToInt()}, ${(wall.axisEnd.y*1000).roundToInt()})",c);RowProp("Degree","d=${degree[key(wall.axisStart)]?:1}/${degree[key(wall.axisEnd)]?:1}",c);RowProp("Объём","— м³",c);RowProp("Материал","—",c);EditProp("L · м",hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y).toString(),c){it.toDoubleOrNull()?.let{v->vm.updateSelectedProperty("length",v)}};EditProp("H · м",wall.height.toString(),c){it.toDoubleOrNull()?.let{v->vm.updateSelectedProperty("height",v)}}
   }else RowProp("Выбор","Нет объекта",c)
   Header("СЛОИ (LAYERS)",c);layers.forEachIndexed{i,name->Row(Modifier.fillMaxWidth().clickable{choose(name)},verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(6.dp).background(listOf(c.dim,c.select,c.snap,c.grid)[i]));Txt((if(name==layer)"● "else"○ ")+name,if(name==layer)c.accent else c.muted,6.sp,max=1)}}
