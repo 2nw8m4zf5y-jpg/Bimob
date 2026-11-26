@@ -157,8 +157,9 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
 }
 
 @Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,pendingStart:Vec2?,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onWorldTap:(Vec2)->Unit){
+ val latestWorldTap by rememberUpdatedState(onWorldTap)
  Canvas(modifier
-  .pointerInput(g,zoom,px,py){
+  .pointerInput(g,zoom,px,py,snapEnabled){
    detectDragGestures(onDragStart={position->
     val raw=Vec2(((position.x-size.width/2-px)/zoom).toDouble(),((size.height/2-position.y-py)/zoom).toDouble())
     onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw)
