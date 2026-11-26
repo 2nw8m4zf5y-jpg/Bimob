@@ -29,7 +29,7 @@ object BlueprintTheme {
  val EditorGridMinor get()=active.value.editorGridMinor;val EditorGridMajor get()=active.value.editorGridMajor;val EditorAxis get()=active.value.editorAxis
  val EditorWall get()=active.value.editorWall;val EditorSelection get()=active.value.editorSelection;val EditorSnap get()=active.value.editorSnap
  val EditorText get()=active.value.editorText;val EditorTextMuted get()=active.value.editorTextMuted;val EditorError get()=active.value.editorError
- fun next(){active.value=palettes[(palettes.indexOf(active.value)+1)%palettes.size]}
+ fun select(palette:BlueprintPalette){active.value=palette}\n fun next(){active.value=palettes[(palettes.indexOf(active.value)+1)%palettes.size]}
 }
 @Composable fun BlueprintThemeProvider(content:@Composable ()->Unit){CompositionLocalProvider(LocalBlueprintPalette provides BlueprintTheme.active.value){content()}}
 @Composable fun ThemeButton(onChange:()->Unit){
