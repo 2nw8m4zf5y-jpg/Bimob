@@ -22,9 +22,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.awaitPointerEventScope
-import androidx.compose.ui.input.pointer.awaitPointerEvent
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -68,15 +67,15 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  var props by remember{mutableStateOf(true)};var grid by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var track by remember{mutableStateOf(false)};var weights by remember{mutableStateOf(false)};var debug by remember{mutableStateOf(false)}
  var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))}
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
- Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).background(c.canvas)){
-  Row(Modifier.fillMaxWidth().height(32.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
+ Column(Modifier.fillMaxSize().background(c.canvas)){
+  Row(Modifier.fillMaxWidth().height(38.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
    ButtonMini("← ФАСАД",c,onBack,56.dp)
    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){workspaceTabs.forEach{ButtonMini(it,c,{tab=it},if(tab==it)74.dp else 64.dp,tab==it)}}
    Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,8.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
    Txt(AppVersion.VERSION_LABEL,c.accent,8.sp,Modifier.border(.5.dp,c.grid).padding(horizontal=3.dp))
    ButtonMini("СОХРАНИТЬ",c,onSave,56.dp);ButtonMini("ЭКСПОРТ",c,onExport,42.dp);ButtonMini("ТЕМА: ${p.label}",c,{BlueprintTheme.next()},62.dp)
   }
-  Row(Modifier.fillMaxWidth().height(58.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
+  Row(Modifier.fillMaxWidth().height(86.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
    Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.Center){
     Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){(ribbonTools[tab]?:ribbonTools["ГЛАВНАЯ"]!!).forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==6)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}
     Row(Modifier.fillMaxWidth().height(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Txt(when(tab){"ГЛАВНАЯ"->"ПОСТРОЕНИЕ  ·  РЕДАКТИРОВАНИЕ";"ПОСТРОЕНИЕ"->"ГЕОМЕТРИЯ  ·  ПРИМИТИВЫ";"РЕДАКТИРОВАНИЕ"->"ТРАНСФОРМАЦИИ  ·  МОДИФИКАЦИЯ";"АРХИТЕКТУРА"->"СТЕНЫ  ·  ПРОЁМЫ  ·  УЗЛЫ";"BIM"->"МОДЕЛЬ  ·  КОНСТРУКЦИЯ";"АННОТАЦИИ"->"РАЗМЕРЫ  ·  МАРКИ";"СЛОИ"->"ВИДИМОСТЬ  ·  СТРУКТУРА";"ВИД"->"НАВИГАЦИЯ  ·  ОТОБРАЖЕНИЕ";else->"СИСТЕМНЫЕ ИНСТРУМЕНТЫ"},c.muted,6.sp)}
@@ -131,7 +130,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    }
    if(props) {
     Properties(
-     Modifier.width(164.dp).fillMaxHeight(), c, g, state.selection, degree, editor,
+     Modifier.width(180.dp).fillMaxHeight(), c, g, state.selection, degree, editor,
      layer, layers, { layer = it }, { debug = !debug }
     )
    }
@@ -150,14 +149,14 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
 @Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onSelect:(EditorSelection?)->Unit){
  Canvas(modifier
   .pointerInput(g,zoom,px,py){
-   awaitPointerEventScope {
-    while(true){
-     val event=awaitPointerEvent()
-     val position=event.changes.firstOrNull()?.position ?: continue
-     val raw=Vec2(((position.x-size.width/2-px)/zoom).toDouble(),((size.height/2-position.y-py)/zoom).toDouble())
-     onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw)
-    }
-   }
+   detectDragGestures(onDragStart={position->
+    val raw=Vec2(((position.x-size.width/2-px)/zoom).toDouble(),((size.height/2-position.y-py)/zoom).toDouble())
+    onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw)
+   },onDrag={change,_->
+    val position=change.position
+    val raw=Vec2(((position.x-size.width/2-px)/zoom).toDouble(),((size.height/2-position.y-py)/zoom).toDouble())
+    onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw)
+   })
   }
   .pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val raw=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw);val w=g?.walls?.minByOrNull{dist(raw,it.axisStart,it.axisEnd)};onSelect(if(w!=null&&dist(raw,w.axisStart,w.axisEnd)<.18)EditorSelection(EditorElementKind.WALL,w.id)else null)}}){
   val center=Offset(size.width/2+px,size.height/2+py);fun s(v:Vec2)=Offset(center.x+(v.x*zoom).toFloat(),center.y-(v.y*zoom).toFloat())
@@ -186,8 +185,8 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
  val glyph=cadGlyph(id)
  val hit=Modifier.width(48.dp).fillMaxHeight().clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent)
  Column(hit,horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-  CadVectorIcon(glyph,c.accent,physicalSizeMm=6f)
-  Txt(label,c.ink,8.sp,max=1)
+  CadVectorIcon(glyph,c.accent,iconSizeDp=26f)
+  Txt(label,c.ink,10.sp,max=1)
  }
 }
 @Composable private fun ToolDock(modifier:Modifier,c:WC,active:String,choose:(String)->Unit){
@@ -224,7 +223,7 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
      .border(if(isActive)1.dp else .5.dp,if(isActive)c.accent else c.grid),
     contentAlignment=Alignment.Center
    ){
-    CadVectorIcon(cadGlyph(id),if(isActive)c.accent else c.ink,physicalSizeMm=6f)
+    CadVectorIcon(cadGlyph(id),if(isActive)c.accent else c.ink,iconSizeDp=24f)
    }
   }
  }
