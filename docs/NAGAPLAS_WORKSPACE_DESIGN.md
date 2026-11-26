@@ -30,14 +30,15 @@ Build a professional drafting environment, not a mobile toolbar demo. The viewpo
 - Avoid fixed widths derived from screenshots. Use window size classes and constraints, with documented breakpoints.
 - Do not use decorative rounded cards. Use square/near-square CAD panels, fine dividers and aligned baselines.
 
-## 4. Physical icon specification
+## 4. Icon sizing and visual reference
 
-- **Glyph target: 6.0 mm × 6.0 mm physical visible artwork**, not the hit target.
-- Calculate px from display density / physical DPI, but Android reported DPI is not reliable on every device. Provide a calibration/measurement strategy and document uncertainty.
-- Tap target is larger than glyph; use a practical touch target around 9–10 mm minimum where possible, with visual glyph centered.
-- Vector artwork uses shared grid, optical margins, consistent stroke family and cap/join rules; glyph geometry remains sharp at all densities.
-- Icons are semantic, not arbitrary Unicode/emoji. Selected/pressed/disabled states are distinct and high-contrast.
-- Labels are not counted within the glyph's 6 mm box.
+- Cancel the 6 mm physical-glyph rule. It is not a product constraint and caused artwork to appear too small in the tested workspace.
+- Size visible vector glyphs by their role and by the approved CAD workspace reference, using dp-based responsive sizes rather than unreliable physical-DPI calculations.
+- Ribbon tool glyphs should be prominent (approximately 22–28 dp), with enough vertical space for icon, label and active state. Dock glyphs should be similarly legible (approximately 22–26 dp) inside larger hit areas.
+- Touch targets remain larger than visible artwork and must be accessible; visual icon size and hit-area size are separate.
+- Vector artwork uses a shared 24-unit grid, optical margins, consistent stroke family and cap/join rules; glyph geometry remains sharp at all densities.
+- Labels are outside the glyph sizing target and must be readable at the reference workspace scale.
+- Icons are semantic vector artwork, not arbitrary Unicode/emoji. Selected/pressed/disabled states are distinct and high-contrast.
 
 ## 5. Visual tokens (dark engineering theme)
 
