@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RectangleShape
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,6 +47,9 @@ private val launcherModules = listOf(
 @Composable
 fun ProgramLauncherScreen(onCad:()->Unit) {
  val context=LocalContext.current
+ val density=LocalDensity.current.density
+ fun dpPx(value: androidx.compose.ui.unit.Dp)=value.value*density
+ fun pxDp(value:Float)= (value/density).dp
  val p=LocalBlueprintPalette.current
  BoxWithConstraints(Modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
   val w=constraints.maxWidth.toFloat()
@@ -59,34 +64,34 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
   val cardTop=h*.355f
   val cardH=h*.225f
   val rowGap=h*.035f
-  val stampW=(w*.52f).coerceAtMost(240.dp.toPx())
-  val stampH=42.dp.toPx()
-  val stampX=w-stampW-5.dp.toPx()
-  val stampY=h-stampH-5.dp.toPx()
+  val stampW=(w*.52f).coerceAtMost(dpPx(240.dp))
+  val stampH=4dpPx(2.dp)
+  val stampX=w-stampW-dpPx(5.dp)
+  val stampY=h-stampH-dpPx(5.dp)
   Canvas(Modifier.fillMaxSize()) {
-   val thin=1.dp.toPx()
-   val main=2.dp.toPx()
+   val thin=dpPx(1.dp)
+   val main=dpPx(2.dp)
    val bevel=Stroke(thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel)
    // Grid, 20-unit minor / 100-unit major.
    var x=0f
-   while(x<=size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),thin*.55f,StrokeCap.Butt);x+=20.dp.toPx()}
+   while(x<=size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),thin*.55f,StrokeCap.Butt);x+=dpPx(20.dp)}
    var y=0f
-   while(y<=size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),thin*.55f,StrokeCap.Butt);y+=20.dp.toPx()}
+   while(y<=size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),thin*.55f,StrokeCap.Butt);y+=dpPx(20.dp)}
    x=0f
-   while(x<=size.width){drawLine(p.gridMajor,Offset(x,0f),Offset(x,size.height),thin,StrokeCap.Butt);x+=100.dp.toPx()}
+   while(x<=size.width){drawLine(p.gridMajor,Offset(x,0f),Offset(x,size.height),thin,StrokeCap.Butt);x+=dpPx(100.dp)}
    y=0f
-   while(y<=size.height){drawLine(p.gridMajor,Offset(0f,y),Offset(size.width,y),thin,StrokeCap.Butt);y+=100.dp.toPx()}
+   while(y<=size.height){drawLine(p.gridMajor,Offset(0f,y),Offset(size.width,y),thin,StrokeCap.Butt);y+=dpPx(100.dp)}
    // Double border, all joins explicitly bevelled.
    drawRect(p.linePrimary,style=Stroke(main,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
-   val inset=4.dp.toPx()
+   val inset=dpPx(4.dp)
    drawRect(p.linePrimary,Offset(inset,inset),Size(size.width-inset*2,size.height-inset*2),bevel)
    // Tower: regular bays; diagonal ends coincide with chord-axis points.
-   val half=10.dp.toPx()
-   val top=jibY+3.dp.toPx()
-   val bottom=h-8.dp.toPx()
+   val half=dpPx(10.dp)
+   val top=jibY+dpPx(3.dp)
+   val bottom=h-dpPx(8.dp)
    drawLine(p.linePrimary,Offset(towerX-half,top),Offset(towerX-half,bottom),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(towerX+half,top),Offset(towerX+half,bottom),thin,StrokeCap.Butt)
-   val step=34.dp.toPx()
+   val step=3dpPx(4.dp)
    var ty=top
    while(ty+step<=bottom){
     val next=ty+step
@@ -98,10 +103,10 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
     drawPath(endBay,p.linePrimary,bevel)
    }
    // Jib lattice.
-   val jl=5.dp.toPx();val jr=w*.92f;val jt=jibY-12.dp.toPx();val jb=jibY
+   val jl=dpPx(5.dp);val jr=w*.92f;val jt=jibY-1dpPx(2.dp);val jb=jibY
    drawLine(p.linePrimary,Offset(jl,jt),Offset(jr,jt),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(jl,jb),Offset(jr,jb),main,StrokeCap.Butt)
-   val js=42.dp.toPx();var jx=jl
+   val js=4dpPx(2.dp);var jx=jl
    while(jx+js<=jr){
     val nx=jx+js
     val bay=Path().apply{moveTo(jx,jt);lineTo(nx,jb);moveTo(jx,jb);lineTo(nx,jt);moveTo(nx,jt);lineTo(nx,jb)}
@@ -109,20 +114,20 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    }
    if(jx<jr){val end=Path().apply{moveTo(jx,jt);lineTo(jr,jb);moveTo(jx,jb);lineTo(jr,jt);moveTo(jr,jt);lineTo(jr,jb)};drawPath(end,p.linePrimary,bevel)}
    // Symmetric triangular king-post/ties.
-   val peak=Offset(towerX,jt-35.dp.toPx())
-   drawLine(p.accentCyan,peak,Offset(jl+8.dp.toPx(),jt),thin,StrokeCap.Butt)
+   val peak=Offset(towerX,jt-3dpPx(5.dp))
+   drawLine(p.accentCyan,peak,Offset(jl+dpPx(8.dp),jt),thin,StrokeCap.Butt)
    drawLine(p.accentCyan,peak,Offset(jl+(jr-jl)*.75f,jt),thin,StrokeCap.Butt)
    drawLine(p.accentCyan,Offset(towerX,peak.y),Offset(towerX,jt),thin,StrokeCap.Butt)
    drawLine(p.accentAmber,Offset(towerX,jb),Offset(towerX,top),thin,StrokeCap.Butt)
    // Trolley/spreader, exactly four vertical sling axes.
-   val spreadL=cardL-gap*.5f;val spreadR=cardR+gap*.5f;val spreadY=cardTop-8.dp.toPx()
-   drawRect(p.bgSurface,topLeft=Offset(spreadL,spreadY-5.dp.toPx()),size=Size(spreadR-spreadL,10.dp.toPx()))
+   val spreadL=cardL-gap*.5f;val spreadR=cardR+gap*.5f;val spreadY=cardTop-dpPx(8.dp)
+   drawRect(p.bgSurface,topLeft=Offset(spreadL,spreadY-dpPx(5.dp)),size=Size(spreadR-spreadL,dpPx(10.dp)))
    drawLine(p.accentAmber,Offset(spreadL,spreadY),Offset(spreadR,spreadY),main,StrokeCap.Butt)
-   drawLine(p.linePrimary,Offset(spreadL,spreadY-5.dp.toPx()),Offset(spreadR,spreadY-5.dp.toPx()),thin,StrokeCap.Butt)
-   drawLine(p.linePrimary,Offset(spreadL,spreadY+5.dp.toPx()),Offset(spreadR,spreadY+5.dp.toPx()),thin,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(spreadL,spreadY-dpPx(5.dp)),Offset(spreadR,spreadY-dpPx(5.dp)),thin,StrokeCap.Butt)
+   drawLine(p.linePrimary,Offset(spreadL,spreadY+dpPx(5.dp)),Offset(spreadR,spreadY+dpPx(5.dp)),thin,StrokeCap.Butt)
    centers.forEach{cx->
-    drawLine(p.accentAmber,Offset(cx,jb),Offset(cx,spreadY-5.dp.toPx()),thin,StrokeCap.Butt)
-    drawLine(p.accentAmber,Offset(cx,spreadY+5.dp.toPx()),Offset(cx,cardTop),thin,StrokeCap.Butt)
+    drawLine(p.accentAmber,Offset(cx,jb),Offset(cx,spreadY-dpPx(5.dp)),thin,StrokeCap.Butt)
+    drawLine(p.accentAmber,Offset(cx,spreadY+dpPx(5.dp)),Offset(cx,cardTop),thin,StrokeCap.Butt)
     drawLine(p.accentAmber,Offset(cx,cardTop+cardH),Offset(cx,cardTop+cardH+rowGap),thin,StrokeCap.Butt)
     
    }
@@ -130,7 +135,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
   repeat(2){r->repeat(4){col->
    val x0=cardL+col*(colW+gap);val y0=cardTop+r*(cardH+rowGap)
    val active=r==0&&col==0
-   drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),Stroke(if(active)2.dp.toPx() else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
+   drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),Stroke(if(active)dpPx(2.dp) else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
   }}
   // Compact 2x2 GOST/CAD stamp.
    drawRect(p.linePrimary,Offset(stampX,stampY),Size(stampW,stampH),bevel)
@@ -140,7 +145,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
   Column(Modifier.fillMaxSize()) {
    Spacer(Modifier.height((h*.355f).toDp()))
    repeat(2){row->
-    Row(Modifier.fillMaxWidth().height(cardH.toDp()),horizontalArrangement=Arrangement.spacedBy(gap.toDp())){
+    Row(Modifier.fillMaxWidth().height(pxDp(cardH)),horizontalArrangement=Arrangement.spacedBy(pxDp(gap))){
      repeat(4){col->
       val m=launcherModules[row*4+col]
       Column(Modifier.weight(1f).fillMaxHeight().background(p.bgSurface,RectangleShape)
@@ -159,11 +164,11 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    Spacer(Modifier.weight(1f))
    Spacer(Modifier.height(5.dp))
    // Stamp content is kept inside its CAD border, with explicit theme controls.
-   Row(Modifier.width(stampW.toDp()).height((stampH*.5f).toDp())){
+   Row(Modifier.width(pxDp(stampW)).height((stampH*.5f).toDp())){
     Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("NAGAPLAS",fontSize=8.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace,maxLines=1)}
     Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=Alignment.Center){Text("STAGE H · CAD/BIM",fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)}
    }
-   Row(Modifier.width(stampW.toDp()).height((stampH*.5f).toDp())){
+   Row(Modifier.width(pxDp(stampW)).height((stampH*.5f).toDp())){
     Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("ВЕРСИЯ: ${AppVersion.VERSION_LABEL}",fontSize=6.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1)}
     Row(Modifier.weight(1f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){
      BlueprintTheme.palettes.forEach{theme->Text(theme.label,fontSize=6.sp,color=if(BlueprintTheme.active.value==theme)p.accentAmber else p.textMuted,fontFamily=FontFamily.Monospace,modifier=Modifier.clickable{BlueprintTheme.select(theme)}.padding(horizontal=2.dp))}
