@@ -85,8 +85,8 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
   }
   Row(Modifier.fillMaxWidth().weight(0.142f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
    val groups=listOf("ЧЕРЧЕНИЕ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT"),"РЕДАКТИРОВАНИЕ" to listOf("ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET"),"BIM / АННОТАЦИИ" to listOf("ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"))
-   groups.forEach{group->Column(Modifier.weight(0.215f).fillMaxHeight().border(.5.dp,c.grid),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Row(Modifier.fillMaxWidth().weight(1f).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(1.dp)){group.second.forEach{(label,id)->Tool(id,label,tool==id,c){tool=id}}};Txt(group.first,c.muted,6.sp,max=1)}}
-   Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,6.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},80.dp);Txt("ПРИВЯЗКА СТЕНЫ",c.muted,6.sp);Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMini(it,c,{anchor=it},26.dp,anchor==it)}}}
+   groups.forEach{group->Column(Modifier.weight(0.215f).fillMaxHeight().border(.5.dp,c.grid).padding(horizontal=1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Row(Modifier.fillMaxWidth().weight(0.86f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(0.dp)){group.second.forEach{(label,id)->Tool(id,label,tool==id,c,Modifier.weight(1f).fillMaxHeight()){tool=id}}};Box(Modifier.fillMaxWidth().weight(0.14f),contentAlignment=Alignment.Center){Txt(group.first,c.muted,5.sp,max=1,center=true)}}}
+   Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid).padding(1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,5.sp);ButtonMiniFit("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},Modifier.fillMaxWidth(0.92f));Txt("ПРИВЯЗКА",c.muted,5.sp);Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMiniFit(it,c,{anchor=it},Modifier.weight(1f),anchor==it)}}}
    Row(Modifier.weight(0.12f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)}
   }
   Row(
@@ -188,64 +188,13 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
 @Composable private fun Header(t:String,c:WC){Txt(t,c.accent,7.sp,Modifier.fillMaxWidth().background(c.canvas).padding(vertical=2.dp),bold=true)}
 @Composable private fun RowProp(a:String,b:String,c:WC){Column{Txt(a,c.muted,6.sp);Txt(b,c.ink,7.sp,max=1)}}
 @Composable private fun EditProp(label:String,value:String,c:WC,commit:(String)->Unit){var v by remember(value){mutableStateOf(value)};Row(verticalAlignment=Alignment.CenterVertically){Txt(label,c.muted,6.sp,Modifier.width(27.dp));BasicTextField(v,{v=it},Modifier.weight(1f).border(.5.dp,c.grid).padding(2.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true);ButtonMini("↵",c,{commit(v)},16.dp)}}
-@Composable private fun Tool(id:String,label:String,active:Boolean,c:WC,click:()->Unit){
- val glyph=cadGlyph(id)
- val hit=Modifier.width(48.dp).fillMaxHeight().clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent)
- Column(hit,horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-  CadVectorIcon(glyph,c.accent,iconSizeDp=26f)
-  Txt(label,c.ink,8.sp,max=1)
+@Composable private fun Tool(id:String,label:String,active:Boolean,c:WC,modifier:Modifier=Modifier,click:()->Unit){
+ BoxWithConstraints(modifier.clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent),contentAlignment=Alignment.Center){
+  val iconDp=minOf(maxWidth.value*0.62f,maxHeight.value*0.43f,22f).coerceAtLeast(8f)
+  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){CadVectorIcon(cadGlyph(id),c.accent,iconSizeDp=iconDp);Txt(label,c.ink,6.sp,max=1,center=true)}
  }
 }
-@Composable private fun ToolDock(modifier:Modifier,c:WC,active:String,choose:(String)->Unit){
- Column(modifier.background(c.panel).border(1.dp,c.grid).verticalScroll(rememberScrollState()).padding(vertical=2.dp,horizontal=1.dp),verticalArrangement=Arrangement.spacedBy(2.dp),horizontalAlignment=Alignment.CenterHorizontally){
-  val items=listOf("SELECT","RECT","CENTER","ZOOM","VIEW3D","LAYERS","SETTINGS","GRID")
-  items.forEach { id ->
-   val isActive=active==id
-   val label=when(id){"SELECT"->"Курсор";"RECT"->"Рамка";"CENTER"->"Центр";"ZOOM"->"Масштаб";"VIEW3D"->"3D";"LAYERS"->"Слои";"SETTINGS"->"Настройки";else->"Сетка"}
-   Box(Modifier.fillMaxWidth().height(42.dp).clickable{choose(id)}
-     .semantics{contentDescription=label;role=androidx.compose.ui.semantics.Role.Button;selected=isActive}
-     .background(if(isActive)c.accent.copy(alpha=.12f)else Color.Transparent)
-     .border(if(isActive)1.dp else .5.dp,if(isActive)c.accent else c.grid),contentAlignment=Alignment.Center){
-    CadVectorIcon(cadGlyph(id),if(isActive)c.accent else c.ink,iconSizeDp=22f)
-   }
-  }
- }
-}
-private fun cadGlyph(id:String)=when(id){
- "SELECT"->CadGlyph.SELECT
- "LINE"->CadGlyph.LINE
- "PLINE"->CadGlyph.POLYLINE
- "WALL"->CadGlyph.WALL
- "RECT"->CadGlyph.RECT
- "CIRCLE"->CadGlyph.CIRCLE
- "ARC"->CadGlyph.ARC
- "MOVE"->CadGlyph.MOVE
- "COPY"->CadGlyph.COPY
- "TRIM"->CadGlyph.TRIM
- "OFFSET"->CadGlyph.OFFSET
- "DOOR"->CadGlyph.DOOR
- "WINDOW"->CadGlyph.WINDOW
- "DIM"->CadGlyph.DIMENSION
- "NODE"->CadGlyph.NODE
- "ROTATE"->CadGlyph.ROTATE
- "MIRROR"->CadGlyph.MIRROR
- "EXTEND"->CadGlyph.EXTEND
- "DELETE"->CadGlyph.DELETE
- "PAN"->CadGlyph.PAN
- "ZOOM"->CadGlyph.ZOOM
- "VIEW3D"->CadGlyph.VIEW3D
- "LAYERS"->CadGlyph.LAYERS
- "SETTINGS"->CadGlyph.SETTINGS
- "GRID"->CadGlyph.GRID
- else->CadGlyph.NODE
-}
-@Composable private fun Glyph(id:String,color:Color,m:Modifier){Canvas(m){val st=Stroke(1.1f);when(id){ "LINE","PLINE"->drawLine(color,Offset(1f,size.height-1),Offset(size.width-1,1f),1.2f);"WALL"->{drawRect(color,Offset(1f,2f),Size(size.width-2,size.height-4),style=st);drawLine(color,Offset(2f,size.height/2),Offset(size.width-2,size.height/2),.8f)};"RECT"->drawRect(color,Offset(2f,2f),Size(size.width-4,size.height-4),style=st);"MOVE"->{drawLine(color,Offset(size.width/2,0f),Offset(size.width/2,size.height),1f);drawLine(color,Offset(0f,size.height/2),Offset(size.width,size.height/2),1f)};"COPY"->{drawRect(color,Offset(2f,2f),Size(size.width-6,size.height-6),style=st);drawRect(color,Offset(5f,5f),Size(size.width-6,size.height-6),style=st)};"TRIM"->{drawLine(color,Offset(1f,size.height-1),Offset(size.width-1,1f),1f);drawLine(color,Offset(1f,1f),Offset(size.width-1,size.height-1),1f)};"OFFSET"->drawCircle(color,size.minDimension/3,style=st);"DOOR"->drawArc(color,0f,90f,false,Offset(1f,1f),Size(size.width-2,size.height-2),style=st);"WINDOW"->{drawRect(color,Offset(2f,2f),Size(size.width-4,size.height-4),style=st);drawLine(color,Offset(2f,size.height/2),Offset(size.width-2,size.height/2),1f)};"DIM"->drawLine(color,Offset(1f,size.height/2),Offset(size.width-1,size.height/2),1f);else->drawCircle(color,size.minDimension/3,style=st)}}}
-@Composable private fun BrandMark(c:WC){
- Row(Modifier.width(28.dp).fillMaxHeight().padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically){
-  Canvas(Modifier.size(24.dp)){val a=Offset(size.width*.5f,size.height*.08f);val b=Offset(size.width*.08f,size.height*.92f);val d=Offset(size.width*.92f,size.height*.92f);val st=Stroke(2.2.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Butt,join=androidx.compose.ui.graphics.StrokeJoin.Bevel);drawLine(c.accent,a,b,st.width);drawLine(c.accent,a,d,st.width);drawLine(c.accent,b,d,st.width);drawLine(c.accent,Offset(size.width*.31f,size.height*.65f),Offset(size.width*.69f,size.height*.65f),st.width)}
- }
-}
-@Composable private fun ButtonMini(text:String,c:WC,click:()->Unit,w:androidx.compose.ui.unit.Dp,active:Boolean=false){Box(Modifier.width(w).fillMaxHeight().clickable{click()}.background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent).border(.5.dp,c.grid).padding(horizontal=2.dp),contentAlignment=Alignment.Center){Txt(text,if(active)c.accent else c.ink,6.sp,max=1)}}
+@Composable private fun ButtonMiniFit(text:String,c:WC,click:()->Unit,modifier:Modifier,active:Boolean=false){Box(modifier.fillMaxHeight().clickable{click()}.background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent).border(.5.dp,c.grid).padding(horizontal=1.dp),contentAlignment=Alignment.Center){Txt(text,if(active)c.accent else c.ink,5.sp,max=1,center=true)}}
 @Composable private fun Toggle(t:String,on:Boolean,c:WC,click:()->Unit={}){Box(Modifier.clickable{click()}.background(if(on)c.accent.copy(alpha=.12f)else Color.Transparent).padding(horizontal=3.dp)){Txt(t,if(on)c.accent else c.muted,6.sp,max=1)}}
 @Composable private fun Txt(t:String,color:Color,size:androidx.compose.ui.unit.TextUnit,m:Modifier=Modifier,bold:Boolean=false,max:Int=Int.MAX_VALUE,center:Boolean=false){BoxWithConstraints(m){val scale=(maxHeight.value/24f).coerceIn(0.62f,1f);androidx.compose.material3.Text(t,color=color,fontFamily=FontFamily.Monospace,fontSize=size*scale,fontWeight=if(bold)FontWeight.Bold else FontWeight.Normal,maxLines=max,overflow=TextOverflow.Ellipsis,textAlign=if(center)androidx.compose.ui.text.style.TextAlign.Center else androidx.compose.ui.text.style.TextAlign.Start)}}
 private fun key(p:Vec2)="${(p.x*1000).roundToInt()}:${(p.y*1000).roundToInt()}"
