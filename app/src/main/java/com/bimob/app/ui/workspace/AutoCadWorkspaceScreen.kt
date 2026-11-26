@@ -64,7 +64,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
 
 @Composable fun AutoCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onBack:()->Unit,onSave:()->Unit,onExport:()->Unit){
  val context=LocalContext.current;val p=BlueprintTheme.active.value;val c=wc(p);val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val g=state.typedGeometry
- var tab by remember{mutableStateOf("ГЛАВНАЯ")};var tool by remember{mutableStateOf("WALL")};var layer by remember{mutableStateOf(layers[0])};var anchor by remember{mutableStateOf("ОСЬ")}
+ var tab by remember{mutableStateOf("ГЛАВНАЯ")};var tool by remember{mutableStateOf("WALL")};var activeRail by remember{mutableStateOf("SELECT")};var layer by remember{mutableStateOf(layers[0])};var anchor by remember{mutableStateOf("ОСЬ")}
  var props by remember{mutableStateOf(true)};var grid by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var track by remember{mutableStateOf(false)};var weights by remember{mutableStateOf(false)};var debug by remember{mutableStateOf(false)}
  var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))}
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
@@ -92,8 +92,8 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    ToolDock(
     modifier = Modifier.width(34.dp).fillMaxHeight(),
     c = c,
-    active = tool,
-    choose = { selectedTool -> when(selectedTool){ "CENTER"->editor.setCamera(72f,0f,0f); "ZOOM"->editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY); "GRID"->grid=!grid; "LAYERS"->props=!props; "SETTINGS"->debug=!debug; "VIEW3D"->android.widget.Toast.makeText(context,"3D-вид ещё не реализован",android.widget.Toast.LENGTH_SHORT).show(); else->tool=selectedTool } }
+    active = activeRail,
+    choose = { selectedTool -> activeRail=selectedTool; when(selectedTool){ "CENTER"->editor.setCamera(72f,0f,0f); "ZOOM"->editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY); "GRID"->grid=!grid; "LAYERS"->props=!props; "SETTINGS"->debug=!debug; "VIEW3D"->android.widget.Toast.makeText(context,"3D-вид ещё не реализован",android.widget.Toast.LENGTH_SHORT).show(); else->tool=selectedTool } }
    )
    Box(
     modifier = Modifier.weight(1f).fillMaxHeight().background(c.canvas),
