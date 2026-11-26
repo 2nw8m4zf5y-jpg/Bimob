@@ -113,6 +113,16 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$ax,"startY":$ay,"endX":$bx,"endY":$by,"heightMeters":2.7,"thicknessMeters":$thicknessMeters}""")
   return mutableState.value.error==null
  }
+ fun createRoom(x:Double,y:Double,width:Double,depth:Double,thicknessMeters:Double=0.2,anchor:String="ОСЬ"):Boolean{
+  if(levelId.isBlank()){publishError("Сначала создайте проект с активным уровнем.");return false}
+  if(!listOf(x,y,width,depth,thicknessMeters).all{it.isFinite()}||width<0.05||depth<0.05||thicknessMeters<=0.01||thicknessMeters>5.0){publishError("Параметры комнаты недопустимы.");return false}
+  val points=listOf(Vec2(x,y),Vec2(x+width,y),Vec2(x+width,y+depth),Vec2(x,y+depth),Vec2(x,y))
+  val offset=when(anchor.uppercase()){"НАРУЖ"->thicknessMeters/2.0;"ВНУТР"->-thicknessMeters/2.0;else->0.0}
+  val walls=(0 until 4).map{idx->val a=points[idx];val b=points[idx+1];val len=hypot(b.x-a.x,b.y-a.y);val nx=-(b.y-a.y)/len;val ny=(b.x-a.x)/len;val ax=a.x+nx*offset;val ay=a.y+ny*offset;val bx=b.x+nx*offset;val by=b.y+ny*offset;"""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$ax,"startY":$ay,"endX":$bx,"endY":$by,"heightMeters":2.7,"thicknessMeters":$thicknessMeters}"""}.joinToString(",")
+  mutableState.value=mutableState.value.copy(error=null)
+  mutate("""{"type":"Batch","commands":[$walls]}""")
+  return mutableState.value.error==null
+ }
  fun createOpening(kind:String,x:Double,y:Double,widthOverride:Double?=null,heightOverride:Double?=null,sillOverride:Double?=null):Boolean{
   require(kind=="DOOR"||kind=="WINDOW");val g=mutableState.value.typedGeometry?:return false
   var best=.35;var host:WallItem?=null;var along=0.0;var length=0.0
