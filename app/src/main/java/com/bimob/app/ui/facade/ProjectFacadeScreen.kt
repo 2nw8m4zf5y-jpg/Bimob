@@ -52,7 +52,7 @@ private val projectMenuSpecs=listOf(
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp)){
     for(row in 0..1)Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
      for(col in 0..3){val idx=row*4+col;val spec=projectMenuSpecs[idx]
-      ModuleTile(spec,p,Modifier.weight(1f).fillMaxHeight(),onClick={
+      ModuleTile(spec,p,Modifier.weight(1f).fillMaxHeight(),enabled=(idx==0||idx==1),onClick={
        when(idx){
         0->onNew()
         1->projects.getOrNull(0)?.let{onOpen(it.id)}?:onOpenLast()
