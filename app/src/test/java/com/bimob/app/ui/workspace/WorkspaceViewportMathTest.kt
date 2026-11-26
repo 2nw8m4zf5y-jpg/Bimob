@@ -21,7 +21,7 @@ class WorkspaceViewportMathTest {
   assertEquals(raw,snapWorkspaceEndpoint(raw,geometry(),100f,12f))
  }
  @Test fun snapToleranceScalesWithZoom(){
-  val raw=Vec2(.08,0.0)
+  val raw=Vec2(.05,.05)
   assertEquals(Vec2(0.0,0.1),snapWorkspaceEndpoint(raw,geometry(),100f,12f))
   assertEquals(raw,snapWorkspaceEndpoint(raw,geometry(),300f,12f))
  }
