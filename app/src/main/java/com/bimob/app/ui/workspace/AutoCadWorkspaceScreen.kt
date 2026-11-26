@@ -213,6 +213,56 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
 @Composable private fun Header(t:String,c:WC){Txt(t,c.accent,7.sp,Modifier.fillMaxWidth().background(c.canvas).padding(vertical=2.dp),bold=true)}
 @Composable private fun RowProp(a:String,b:String,c:WC){Column{Txt(a,c.muted,6.sp);Txt(b,c.ink,7.sp,max=1)}}
 @Composable private fun EditProp(label:String,value:String,c:WC,commit:(String)->Unit){var v by remember(value){mutableStateOf(value)};Row(verticalAlignment=Alignment.CenterVertically){Txt(label,c.muted,6.sp,Modifier.width(27.dp));BasicTextField(v,{v=it},Modifier.weight(1f).border(.5.dp,c.grid).padding(2.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true);ButtonMini("↵",c,{commit(v)},16.dp)}}
+@Composable private fun BrandMark(c:WC){
+ Row(Modifier.width(28.dp).fillMaxHeight().padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically){
+  Canvas(Modifier.size(24.dp)){val a=Offset(size.width*.5f,size.height*.08f);val b=Offset(size.width*.08f,size.height*.92f);val d=Offset(size.width*.92f,size.height*.92f);val st=Stroke(2.2.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Butt,join=androidx.compose.ui.graphics.StrokeJoin.Bevel);drawLine(c.accent,a,b,st.width);drawLine(c.accent,a,d,st.width);drawLine(c.accent,b,d,st.width);drawLine(c.accent,Offset(size.width*.31f,size.height*.65f),Offset(size.width*.69f,size.height*.65f),st.width)}
+ }
+}
+
+@Composable private fun ToolDock(modifier:Modifier,c:WC,active:String,choose:(String)->Unit){
+ Column(modifier.background(c.panel).border(1.dp,c.grid).verticalScroll(rememberScrollState()).padding(vertical=2.dp,horizontal=1.dp),verticalArrangement=Arrangement.spacedBy(2.dp),horizontalAlignment=Alignment.CenterHorizontally){
+  val items=listOf("SELECT","RECT","CENTER","ZOOM","VIEW3D","LAYERS","SETTINGS","GRID")
+  items.forEach { id ->
+   val isActive=active==id
+   val label=when(id){"SELECT"->"Курсор";"RECT"->"Рамка";"CENTER"->"Центр";"ZOOM"->"Масштаб";"VIEW3D"->"3D";"LAYERS"->"Слои";"SETTINGS"->"Настройки";else->"Сетка"}
+   Box(Modifier.fillMaxWidth().height(42.dp).clickable{choose(id)}
+     .semantics{contentDescription=label;role=androidx.compose.ui.semantics.Role.Button;selected=isActive}
+     .background(if(isActive)c.accent.copy(alpha=.12f)else Color.Transparent)
+     .border(if(isActive)1.dp else .5.dp,if(isActive)c.accent else c.grid),contentAlignment=Alignment.Center){
+    CadVectorIcon(cadGlyph(id),if(isActive)c.accent else c.ink,iconSizeDp=22f)
+   }
+  }
+ }
+}
+private fun cadGlyph(id:String)=when(id){
+ "SELECT"->CadGlyph.SELECT
+ "LINE"->CadGlyph.LINE
+ "PLINE"->CadGlyph.POLYLINE
+ "WALL"->CadGlyph.WALL
+ "RECT"->CadGlyph.RECT
+ "CIRCLE"->CadGlyph.CIRCLE
+ "ARC"->CadGlyph.ARC
+ "MOVE"->CadGlyph.MOVE
+ "COPY"->CadGlyph.COPY
+ "TRIM"->CadGlyph.TRIM
+ "OFFSET"->CadGlyph.OFFSET
+ "DOOR"->CadGlyph.DOOR
+ "WINDOW"->CadGlyph.WINDOW
+ "DIM"->CadGlyph.DIMENSION
+ "NODE"->CadGlyph.NODE
+ "ROTATE"->CadGlyph.ROTATE
+ "MIRROR"->CadGlyph.MIRROR
+ "EXTEND"->CadGlyph.EXTEND
+ "DELETE"->CadGlyph.DELETE
+ "PAN"->CadGlyph.PAN
+ "ZOOM"->CadGlyph.ZOOM
+ "VIEW3D"->CadGlyph.VIEW3D
+ "LAYERS"->CadGlyph.LAYERS
+ "SETTINGS"->CadGlyph.SETTINGS
+ "GRID"->CadGlyph.GRID
+ else->CadGlyph.NODE
+}
+
 @Composable private fun Tool(id:String,label:String,active:Boolean,c:WC,modifier:Modifier=Modifier,click:()->Unit){
  BoxWithConstraints(modifier.clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent),contentAlignment=Alignment.Center){
   val iconDp=minOf(maxWidth.value*0.62f,maxHeight.value*0.43f,22f).coerceAtLeast(8f)
