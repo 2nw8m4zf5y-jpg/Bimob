@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Stroke
@@ -117,7 +116,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    drawLine(p.accentAmber,Offset(towerX,jb),Offset(towerX,top),thin,StrokeCap.Butt)
    // Trolley/spreader, exactly four vertical sling axes.
    val spreadL=cardL-gap*.5f;val spreadR=cardR+gap*.5f;val spreadY=cardTop-8.dp.toPx()
-   drawRect(p.bgSurface,Rect(Offset(spreadL,spreadY-5.dp.toPx()),Offset(spreadR,spreadY+5.dp.toPx())))
+   drawRect(p.bgSurface,topLeft=Offset(spreadL,spreadY-5.dp.toPx()),size=Size(spreadR-spreadL,10.dp.toPx()))
    drawLine(p.accentAmber,Offset(spreadL,spreadY),Offset(spreadR,spreadY),main,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(spreadL,spreadY-5.dp.toPx()),Offset(spreadR,spreadY-5.dp.toPx()),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(spreadL,spreadY+5.dp.toPx()),Offset(spreadR,spreadY+5.dp.toPx()),thin,StrokeCap.Butt)
