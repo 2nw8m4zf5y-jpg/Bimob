@@ -59,9 +59,9 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
    val lineEffect=if(gp.lineStyle=="DASH")PathEffect.dashPathEffect(floatArrayOf(6f,4f)) else if(gp.lineStyle=="DOT")PathEffect.dashPathEffect(floatArrayOf(1f,3f)) else null
    if(gp.enabled){val rawStep=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(.1f);val lod=maxOf(1,ceil(4f/rawStep).toInt());val step=rawStep*lod;val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
     var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),strokeWidth=gp.minorWidth,pathEffect=lineEffect);x+=step}
-    var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),style=Stroke(width=gp.minorWidth,pathEffect=lineEffect));y+=step}
+    var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),strokeWidth=gp.minorWidth,pathEffect=lineEffect);y+=step}
     x=((cx%major)+major)%major;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),strokeWidth=gp.majorWidth,pathEffect=lineEffect);x+=major}
-    y=((cy%major)+major)%major;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),style=Stroke(width=gp.majorWidth,pathEffect=lineEffect));y+=major}
+    y=((cy%major)+major)%major;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),strokeWidth=gp.majorWidth,pathEffect=lineEffect);y+=major}
     drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(cx,0f),androidx.compose.ui.geometry.Offset(cx,size.height),1f);drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(0f,cy),androidx.compose.ui.geometry.Offset(size.width,cy),1f)
    }
   }
