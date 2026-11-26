@@ -100,12 +100,18 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
   return mutableState.value.projectId==pid && mutableState.value.geometry!=null
  }
  fun closeAndReset(){requestGeneration++;synchronized(nativeSessionLock){cancelActiveGesture();if(handle!=0L)engine.destroySession(handle);handle=engine.createSession();levelId="";mutableState.value=NativeEditorState()}}
- fun createWall(sx:Double,sy:Double,ex:Double,ey:Double){
-  if(levelId.isBlank()){publishError("Сначала создайте проект с активным уровнем.");return}
-  if(!listOf(sx,sy,ex,ey).all{it.isFinite()}){publishError("Координаты стены должны быть конечными числами.");return}
+ fun createWall(sx:Double,sy:Double,ex:Double,ey:Double,thicknessMeters:Double=0.2,anchor:String="ОСЬ"):Boolean{
+  if(levelId.isBlank()){publishError("Сначала создайте проект с активным уровнем.");return false}
+  if(!listOf(sx,sy,ex,ey,thicknessMeters).all{it.isFinite()}){publishError("Координаты и толщина стены должны быть конечными числами.");return false}
   val length=hypot(ex-sx,ey-sy)
-  if(!length.isFinite()||length<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return}
-  mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$sx,"startY":$sy,"endX":$ex,"endY":$ey,"heightMeters":2.7,"thicknessMeters":0.2}""")
+  if(!length.isFinite()||length<0.05){publishError("Длина стены должна быть не менее 0,05 м.");return false}
+  if(thicknessMeters<=0.01||thicknessMeters>5.0){publishError("Толщина стены должна быть > 0,01 и <= 5,0 м.");return false}
+  val offset=when(anchor.uppercase()){"НАРУЖ"->thicknessMeters/2.0;"ВНУТР"->-thicknessMeters/2.0;else->0.0}
+  val nx=-(ey-sy)/length;val ny=(ex-sx)/length
+  val ax=sx+nx*offset;val ay=sy+ny*offset;val bx=ex+nx*offset;val by=ey+ny*offset
+  mutableState.value=mutableState.value.copy(error=null)
+  mutate("""{"type":"CreateWall","id":"wall-${UUID.randomUUID()}","levelId":"$levelId","startX":$ax,"startY":$ay,"endX":$bx,"endY":$by,"heightMeters":2.7,"thicknessMeters":$thicknessMeters}""")
+  return mutableState.value.error==null
  }
  fun createOpening(kind:String,x:Double,y:Double,widthOverride:Double?=null,heightOverride:Double?=null,sillOverride:Double?=null):Boolean{
   require(kind=="DOOR"||kind=="WINDOW");val g=mutableState.value.typedGeometry?:return false
@@ -250,8 +256,8 @@ class NativeEditorViewModel internal constructor(private val engine:NativeEditor
  fun commitGesture(id:String){if(activeGestureId!=id)return;try{if(engine.commitGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture commit failed.")}finally{activeGestureId=null}}
  fun cancelGesture(id:String){if(activeGestureId!=id)return;try{if(engine.cancelGesture(handle,id))refresh(mutableState.value.projectId)else publishError("Native gesture cancellation failed.")}finally{activeGestureId=null}}
  fun cancelActiveGesture(){activeGestureId?.let(::cancelGesture)}
- fun undo()=history("Undo");fun redo()=history("Redo")
- private fun history(t:String){if(handle==0L)return;val r=engine.dispatch(handle,"""{"type":"$t"}""");if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}
+ fun undo():Boolean=history("Undo");fun redo():Boolean=history("Redo")
+ private fun history(t:String):Boolean{if(handle==0L)return false;mutableState.value=mutableState.value.copy(error=null);val r=engine.dispatch(handle,"""{"type":"$t"}""");if(isOk(r)){refresh(mutableState.value.projectId);return mutableState.value.error==null}else{publishError(errorFrom(r));return false}}
  private fun mutate(c:String){try{if(handle==0L){publishError("Native session is closed.");return};val r=engine.dispatch(handle,c);if(isOk(r))refresh(mutableState.value.projectId)else publishError(errorFrom(r))}catch(e:Exception){publishError(e.message?:"Native command failed safely.")}catch(e:LinkageError){publishError(e.message?:"Native engine linkage failed safely.")}}
  private fun refresh(projectId:String){try{
   val g=engine.export(handle);val snap=engine.snapshot(handle);val h=engine.dispatch(handle,"""{"type":"HistoryState"}""")
