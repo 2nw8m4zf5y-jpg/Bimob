@@ -37,10 +37,9 @@ fun launcherModuleSpecs()=listOf(
  LauncherModuleSpec("05","PLANNED","РАСЧЁТ МКЭ","АНАЛИЗ КОНСТРУКЦИЙ","ЗАПЛАНИРОВАНО",false,4),
  LauncherModuleSpec("06","PLANNED","СПЕЦИФИКАЦИИ","ВЕДОМОСТИ МАТЕРИАЛОВ","ЗАПЛАНИРОВАНО",false,5),
  LauncherModuleSpec("07","PLANNED","ОБМЕН DXF / IFC","ИМПОРТ · ЭКСПОРТ","ЗАПЛАНИРОВАНО",false,6),
- LauncherModuleSpec("08","STAGE H","AI-МОСТ АГЕНТОВ","JSON-RPC · CORE","АРХИТЕКТУРА STAGE H",false,7)
-)
-@Composable fun ProgramLauncherScreen(onCad:()->Unit){ProgramLauncherScreen(BlueprintTheme.active.value,AppVersion.VERSION_LABEL,BlueprintTheme::select,onCad)}
-@Composable fun ProgramLauncherScreen(currentTheme:BlueprintPalette,versionLabel:String,onSelectTheme:(BlueprintPalette)->Unit,onOpenCadFacade:()->Unit,modifier:Modifier=Modifier){
+ LauncherModuleSpec("08","STAGE H","AI-МОСТ АГЕНТОВ","JSON-RPC · CORE","АРХИТЕКТУРА STAGE H",false,7),\n LauncherModuleSpec("09","SETTINGS","ОБЩАЯ НАСТРОЙКА","СЕТКА · ПРИВЯЗКА · ТЕМА","ОТКРЫТЬ →",true,0)\n)
+@Composable fun ProgramLauncherScreen(onCad:()->Unit,onSettings:()->Unit={}){ProgramLauncherScreen(BlueprintTheme.active.value,AppVersion.VERSION_LABEL,BlueprintTheme::select,onCad,onSettings)}
+@Composable fun ProgramLauncherScreen(currentTheme:BlueprintPalette,versionLabel:String,onSelectTheme:(BlueprintPalette)->Unit,onOpenCadFacade:()->Unit,onOpenSettings:()->Unit={},modifier:Modifier=Modifier){
  val p=LocalBlueprintPalette.current
  BoxWithConstraints(modifier.fillMaxSize().background(p.bgPrimary).windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal=10.dp,vertical=6.dp)){
   val gap=if(maxWidth>900.dp)24.dp else 12.dp
