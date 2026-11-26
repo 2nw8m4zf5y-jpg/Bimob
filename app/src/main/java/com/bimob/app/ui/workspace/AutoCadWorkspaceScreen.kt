@@ -108,7 +108,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
     VectorCanvas(
      modifier = Modifier.fillMaxSize(), c = c, g = g, selected = state.selection?.id,
      zoom = camera.zoom, px = camera.panX, py = camera.panY, grid = grid, weight = weights,
-     cursor = cursor, snapEnabled = snap, onCursor = { cursor = it }, onWorldTap = { point -> if(tool=="WALL"){val start=pendingWallStart;if(start==null){pendingWallStart=point;bridgeStatus="УЗЕЛ 1 ЗАДАН";}else{val constrained=if(ortho){if(abs(point.x-start.x)>=abs(point.y-start.y))Vec2(point.x,start.y)else Vec2(start.x,point.y)}else point;val end=if(snap)snapWorkspaceEndpoint(constrained,g,camera.zoom,22f)else constrained;val ok=editor.createWall(start.x,start.y,end.x,end.y,wallThickness,anchor);pendingWallStart=null;bridgeStatus=if(ok)"СТЕНА СОЗДАНА" else editor.state.value.error?: "ОШИБКА ЯДРА"}}else{editor.selectAt(point.x,point.y);bridgeStatus="ВЫБОР ОБЪЕКТА"}}
+     cursor = cursor, pendingStart = pendingWallStart, snapEnabled = snap, onCursor = { cursor = it }, onWorldTap = { point -> if(tool=="WALL"){val start=pendingWallStart;if(start==null){pendingWallStart=point;bridgeStatus="УЗЕЛ 1 ЗАДАН";}else{val constrained=if(ortho){if(abs(point.x-start.x)>=abs(point.y-start.y))Vec2(point.x,start.y)else Vec2(start.x,point.y)}else point;val end=if(snap)snapWorkspaceEndpoint(constrained,g,camera.zoom,22f)else constrained;val ok=editor.createWall(start.x,start.y,end.x,end.y,wallThickness,anchor);pendingWallStart=null;bridgeStatus=if(ok)"СТЕНА СОЗДАНА" else editor.state.value.error?: "ОШИБКА ЯДРА"}}else{editor.selectAt(point.x,point.y);bridgeStatus="ВЫБОР ОБЪЕКТА"}}
     )
     Column(Modifier.align(Alignment.TopStart).padding(4.dp)) {
      Txt("А    Б    В",c.dim,8.sp); Txt("3\n2\n1",c.dim,7.sp)
@@ -156,7 +156,7 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
  }
 }
 
-@Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onWorldTap:(Vec2)->Unit){
+@Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,pendingStart:Vec2?,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onWorldTap:(Vec2)->Unit){
  Canvas(modifier
   .pointerInput(g,zoom,px,py){
    detectDragGestures(onDragStart={position->
@@ -175,7 +175,7 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
   g?.walls?.forEach{w->val path=Path().apply{w.corners.forEachIndexed{i,v->val q=s(v);if(i==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()};drawPath(path,if(w.id==selected)c.select.copy(alpha=.18f)else c.fill);clipPath(path){val xs=w.corners.map{ s(it).x };val ys=w.corners.map{ s(it).y };val left=xs.minOrNull()?:0f;val right=xs.maxOrNull()?:0f;val top=ys.minOrNull()?:0f;val bottom=ys.maxOrNull()?:0f;var hx=left-(bottom-top);while(hx<right){drawLine(if(w.id==selected)c.select.copy(alpha=.5f)else c.ink.copy(alpha=.42f),Offset(hx,top),Offset(hx+(bottom-top),bottom),.55f);hx+=5f}};drawPath(path,if(w.id==selected)c.select else c.ink,style=Stroke(if(weight)1.8f else .9f));val a=s(w.axisStart);val b=s(w.axisEnd);drawLine(if(w.id==selected)c.select else c.dim,a,b,.65f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(7f,4f,2f,4f)));if(w.id==selected)listOf(a,b).forEach{drawRect(c.select,Offset(it.x-3,it.y-3),Size(6f,6f))}}
   g?.openings?.forEach{o->val wall=g.walls.firstOrNull{it.id==o.hostWallId}?:return@forEach;val dx=wall.axisEnd.x-wall.axisStart.x;val dy=wall.axisEnd.y-wall.axisStart.y;val len=hypot(dx,dy);if(len>1e-6){val ux=dx/len;val uy=dy/len;val a=s(Vec2(o.center.x-ux*o.width/2,o.center.y-uy*o.width/2));val b=s(Vec2(o.center.x+ux*o.width/2,o.center.y+uy*o.width/2));drawLine(c.canvas,a,b,5f);drawLine(c.dim,a,b,.8f);if(o.kind=="WINDOW"){val n=Offset(-(b.y-a.y)*.07f,(b.x-a.x)*.07f);drawLine(c.dim,a+n,b+n,.8f);drawLine(c.dim,a-n,b-n,.8f)}else drawArc(c.dim,0f,90f,false,Offset(a.x-(o.width*zoom).toFloat(),a.y-(o.width*zoom).toFloat()),Size((o.width*zoom*2).toFloat(),(o.width*zoom*2).toFloat()),style=Stroke(.7f))}}
   g?.catalog?.forEach{o->val q=s(o.center);drawRect(c.dim,Offset(q.x-(o.width*zoom/2).toFloat(),q.y-(o.depth*zoom/2).toFloat()),Size((o.width*zoom).toFloat(),(o.depth*zoom).toFloat()),style=Stroke(1f))}
-  val q=s(cursor);drawRect(c.snap,Offset(q.x-3,q.y-3),Size(6f,6f),style=Stroke(1.2f));val u=Offset(22f,size.height-22f);drawLine(c.accent,u,u+Offset(22f,0f),1.4f);drawLine(c.snap,u,u+Offset(0f,-22f),1.4f)
+  val q=s(cursor);pendingStart?.let{start->val p=s(start);drawLine(c.snap,p,q,1f,pathEffect=PathEffect.dashPathEffect(floatArrayOf(5f,4f)));drawCircle(c.snap,3.5f,p,style=Stroke(1.1f))};drawRect(c.snap,Offset(q.x-3,q.y-3),Size(6f,6f),style=Stroke(1.2f));val u=Offset(22f,size.height-22f);drawLine(c.accent,u,u+Offset(22f,0f),1.4f);drawLine(c.snap,u,u+Offset(0f,-22f),1.4f)
  }
 }
 @Composable private fun Properties(modifier:Modifier,c:WC,g:TypedGeometry?,sel:EditorSelection?,degree:Map<String,Int>,vm:NativeEditorViewModel,layer:String,layers:List<String>,choose:(String)->Unit,debug:()->Unit,onThickness:(Double)->Unit){
