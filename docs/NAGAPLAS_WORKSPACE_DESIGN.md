@@ -93,7 +93,7 @@ Do not put all zones and all interaction logic in one giant composable. Keep sta
 - Compare device screenshots against approved layout reference at the same aspect ratio.
 - All zones are present and in intended hierarchy.
 - No clipping, overlap, unexplained blank space, tiny illegible labels, or accidental horizontal compression.
-- Icon visible artwork measured/calibrated to target 6 mm; touch target measured separately.
+- Vector glyphs match reference proportions and are visually legible; touch targets are measured separately.
 - Canvas dominates; panels adapt rather than crushing viewport.
 
 ### Functional
@@ -108,7 +108,7 @@ Do not put all zones and all interaction logic in one giant composable. Keep sta
 W0 design contract (this document)  
 W1 component architecture, responsive zone layout, theme/token and icon grid  
 W2 project bar + ribbon/tab/group behavior  
-W3 dock and vector icon system with physical sizing/calibration  
+W3 dock and vector icon system with reference-based sizing  
 W4 viewport overlay and interaction integration  
 W5 contextual inspector and real editable fields  
 W6 command input and status modes wired to real state  
