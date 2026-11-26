@@ -153,8 +153,8 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
        .padding(horizontal=2.dp,vertical=3.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        Text("0${row*4+col+1}",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace,maxLines=1)
        Text(m.title,fontSize=(pxDp(colW).value*.12f).coerceIn(6.5f,9f).sp,lineHeight=10.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
-       Text(m.detail,fontSize=(colW.toDp().value*.09f).coerceIn(5.5f,7f).sp,lineHeight=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
-       Text(if(m.active)"[ ОТКРЫТЬ ]" else "[ В РАЗРАБОТКЕ ]",fontSize=(colW.toDp().value*.075f).coerceIn(5f,6.5f).sp,lineHeight=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
+       Text(m.detail,fontSize=(pxDp(colW).value*.09f).coerceIn(5.5f,7f).sp,lineHeight=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
+       Text(if(m.active)"[ ОТКРЫТЬ ]" else "[ В РАЗРАБОТКЕ ]",fontSize=(pxDp(colW).value*.075f).coerceIn(5f,6.5f).sp,lineHeight=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
       }
      }
     }
@@ -167,7 +167,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
     Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("NAGAPLAS",fontSize=8.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace,maxLines=1)}
     Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=Alignment.Center){Text("STAGE H · CAD/BIM",fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)}
    }
-   Row(Modifier.width(pxDp(stampW)).height((stampH*.5f).toDp())){
+   Row(Modifier.width(pxDp(stampW)).height(pxDp(stampH*.5f))){
     Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("ВЕРСИЯ: ${AppVersion.VERSION_LABEL}",fontSize=6.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1)}
     Row(Modifier.weight(1f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){
      BlueprintTheme.palettes.forEach{theme->Text(theme.label,fontSize=6.sp,color=if(BlueprintTheme.active.value==theme)p.accentAmber else p.textMuted,fontFamily=FontFamily.Monospace,modifier=Modifier.clickable{BlueprintTheme.select(theme)}.padding(horizontal=2.dp))}
