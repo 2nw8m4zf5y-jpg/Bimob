@@ -83,7 +83,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    // Double border, all joins explicitly bevelled.
    drawRect(p.linePrimary,style=Stroke(main,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
    val inset=dpPx(4.dp)
-   drawRect(p.linePrimary,Offset(inset,inset),Size(size.width-inset*2,size.height-inset*2),bevel)
+   drawRect(p.linePrimary,Offset(inset,inset),Size(size.width-inset*2,size.height-inset*2),style=bevel)
    // Tower: regular bays; diagonal ends coincide with chord-axis points.
    val half=dpPx(10.dp)
    val top=jibY+dpPx(3.dp)
@@ -95,11 +95,11 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    while(ty+step<=bottom){
     val next=ty+step
     val bay=Path().apply{moveTo(towerX-half,ty);lineTo(towerX+half,next);moveTo(towerX+half,ty);lineTo(towerX-half,next);moveTo(towerX-half,next);lineTo(towerX+half,next)}
-    drawPath(bay,p.linePrimary,bevel);ty=next
+    drawPath(bay,p.linePrimary,style=bevel);ty=next
    }
    if(ty<bottom){
     val endBay=Path().apply{moveTo(towerX-half,ty);lineTo(towerX+half,bottom);moveTo(towerX+half,ty);lineTo(towerX-half,bottom);moveTo(towerX-half,bottom);lineTo(towerX+half,bottom)}
-    drawPath(endBay,p.linePrimary,bevel)
+    drawPath(endBay,p.linePrimary,style=bevel)
    }
    // Jib lattice.
    val jl=dpPx(5.dp);val jr=w*.92f;val jt=jibY-dpPx(12.dp);val jb=jibY
@@ -109,9 +109,9 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    while(jx+js<=jr){
     val nx=jx+js
     val bay=Path().apply{moveTo(jx,jt);lineTo(nx,jb);moveTo(jx,jb);lineTo(nx,jt);moveTo(nx,jt);lineTo(nx,jb)}
-    drawPath(bay,p.linePrimary,bevel);jx=nx
+    drawPath(bay,p.linePrimary,style=bevel);jx=nx
    }
-   if(jx<jr){val end=Path().apply{moveTo(jx,jt);lineTo(jr,jb);moveTo(jx,jb);lineTo(jr,jt);moveTo(jr,jt);lineTo(jr,jb)};drawPath(end,p.linePrimary,bevel)}
+   if(jx<jr){val end=Path().apply{moveTo(jx,jt);lineTo(jr,jb);moveTo(jx,jb);lineTo(jr,jt);moveTo(jr,jt);lineTo(jr,jb)};drawPath(end,p.linePrimary,style=bevel)}
    // Symmetric triangular king-post/ties.
    val peak=Offset(towerX,jt-dpPx(35.dp))
    drawLine(p.accentCyan,peak,Offset(jl+dpPx(8.dp),jt),thin,StrokeCap.Butt)
@@ -137,7 +137,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),Stroke(if(active)dpPx(2.dp) else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
   }}
   // Compact 2x2 GOST/CAD stamp.
-   drawRect(p.linePrimary,Offset(stampX,stampY),Size(stampW,stampH),bevel)
+   drawRect(p.linePrimary,Offset(stampX,stampY),Size(stampW,stampH),style=bevel)
    drawLine(p.linePrimary,Offset(stampX+stampW*.5f,stampY),Offset(stampX+stampW*.5f,stampY+stampH),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(stampX,stampY+stampH*.5f),Offset(stampX+stampW,stampY+stampH*.5f),thin,StrokeCap.Butt)
   }
