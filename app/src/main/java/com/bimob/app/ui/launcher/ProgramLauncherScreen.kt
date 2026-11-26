@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
@@ -201,7 +203,7 @@ fun ProgramLauncherScreen(
                 Text("NAGAPLAS · ЛАУНЧЕР ИНЖЕНЕРНЫХ МОДУЛЕЙ", color = palette.textPrimary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("ВЫБЕРИТЕ ПРОГРАММУ · C++20 CORE: IDLE (0 MB) · $versionLabel", color = palette.textMuted, fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            ThemeButton(onChange = { onSelectTheme(BlueprintTheme.palettes[(BlueprintTheme.palettes.indexOf(currentTheme) + 1) % BlueprintTheme.palettes.size]) })
+            ThemeSwitcherBox(currentTheme = currentTheme, onSelectTheme = onSelectTheme, palette = palette)
         }
 
         val specs = launcherModuleSpecs()
@@ -230,41 +232,100 @@ fun ProgramLauncherScreen(
 }
 
 @Composable
+private fun ThemeSwitcherBox(
+    currentTheme: BlueprintPalette,
+    onSelectTheme: (BlueprintPalette) -> Unit,
+    palette: BlueprintPalette
+) {
+    Row(
+        modifier = Modifier.border(1.dp, palette.linePrimary, RectangleShape)
+            .background(palette.bgSurface, RectangleShape)
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text("ТЕМА:", color = palette.textMuted, fontFamily = FontFamily.Monospace, fontSize = 8.sp)
+        BlueprintTheme.palettes.forEach { theme ->
+            val label = when (theme.id) { "blue" -> "BLUE"; "dark" -> "DARK"; else -> "CAD" }
+            val selected = currentTheme.id == theme.id
+            Row(
+                modifier = Modifier.clickable { onSelectTheme(theme) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Box(Modifier.size(7.dp).border(1.dp, if (selected) palette.accentAmber else palette.linePrimary, CircleShape)
+                    .background(if (selected) palette.accentAmber else Color.Transparent, CircleShape))
+                Text(label, color = if (selected) palette.textPrimary else palette.textMuted,
+                    fontFamily = FontFamily.Monospace, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, fontSize = 8.sp)
+            }
+        }
+    }
+}
+
+@Composable
 private fun LauncherModuleCard(
     spec: LauncherModuleSpec,
     palette: BlueprintPalette,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accent = if (spec.isActive) palette.accentCyan else palette.linePrimary
+    val borderColor = if (spec.isActive) palette.accentAmber else palette.gridMajor
+    val headerBg = if (spec.isActive) palette.accentAmber.copy(alpha = 0.14f) else palette.bgSurface
     Column(
-        modifier.background(palette.bgSurface, RectangleShape)
-            .border(if (spec.isActive) 1.5.dp else 1.dp, accent, RectangleShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 3.dp, vertical = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = modifier.border(if (spec.isActive) 1.5.dp else 1.dp, borderColor, RectangleShape)
+            .background(palette.bgPrimary.copy(alpha = 0.92f), RectangleShape)
+            .clickable(enabled = spec.isActive, onClick = onClick),
+        verticalArrangement = Arrangement.Top
     ) {
-        Text(spec.code, color = palette.accentAmber, fontFamily = FontFamily.Monospace, fontSize = 7.sp, maxLines = 1)
-        Canvas(Modifier.fillMaxWidth().height(24.dp)) {
-            val c = if (spec.isActive) palette.accentCyan else palette.gridMajor
-            val t = 1.dp.toPx()
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            when (spec.iconType % 8) {
-                0 -> { drawRect(c, Offset(cx - size.width * .22f, cy - size.height * .32f), Size(size.width * .44f, size.height * .64f), style = Stroke(t)); drawLine(c, Offset(cx - size.width * .22f, cy), Offset(cx + size.width * .22f, cy), t); drawLine(c, Offset(cx, cy - size.height * .32f), Offset(cx, cy + size.height * .32f), t) }
-                1 -> { drawRect(c, Offset(cx - size.width * .3f, cy - size.height * .3f), Size(size.width * .6f, size.height * .6f), style = Stroke(t)); drawLine(c, Offset(cx - size.width * .3f, cy - size.height * .3f), Offset(cx + size.width * .3f, cy + size.height * .3f), t); drawLine(c, Offset(cx - size.width * .3f, cy + size.height * .3f), Offset(cx + size.width * .3f, cy - size.height * .3f), t) }
-                2 -> { drawCircle(c, size.height * .25f, Offset(cx, cy), style = Stroke(t)); drawLine(c, Offset(cx - size.width * .3f, cy), Offset(cx + size.width * .3f, cy), t) }
-                3 -> { val path = Path().apply { moveTo(cx - size.width * .3f, cy + size.height * .25f); lineTo(cx, cy - size.height * .3f); lineTo(cx + size.width * .3f, cy + size.height * .25f); close() }; drawPath(path, c, style = Stroke(t)) }
-                4 -> { drawLine(c, Offset(cx - size.width * .28f, cy - size.height * .28f), Offset(cx + size.width * .28f, cy + size.height * .28f), t); drawLine(c, Offset(cx - size.width * .28f, cy + size.height * .28f), Offset(cx + size.width * .28f, cy - size.height * .28f), t); drawCircle(c, size.height * .1f, Offset(cx, cy)) }
-                5 -> { drawRect(c, Offset(cx - size.width * .3f, cy - size.height * .32f), Size(size.width * .6f, size.height * .64f), style = Stroke(t)); for (i in 1..2) drawLine(c, Offset(cx - size.width * .3f, cy - size.height * .32f + size.height * i / 3f), Offset(cx + size.width * .3f, cy - size.height * .32f + size.height * i / 3f), t) }
-                6 -> { drawRect(c, Offset(cx - size.width * .3f, cy - size.height * .25f), Size(size.width * .6f, size.height * .5f), style = Stroke(t)); drawLine(c, Offset(cx - size.width * .15f, cy), Offset(cx + size.width * .15f, cy), t) }
-                else -> { drawCircle(c, size.height * .28f, Offset(cx, cy), style = Stroke(t)); drawLine(c, Offset(cx - size.width * .32f, cy), Offset(cx + size.width * .32f, cy), t); drawLine(c, Offset(cx, cy - size.height * .32f), Offset(cx, cy + size.height * .32f), t) }
+        Row(
+            modifier = Modifier.fillMaxWidth().background(headerBg, RectangleShape).padding(horizontal = 6.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "${if (spec.isActive) "● " else ""}${spec.code} · ${spec.statusBadge}",
+                color = if (spec.isActive) palette.accentAmber else palette.textMuted,
+                fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 8.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Canvas(Modifier.size(26.dp)) {
+                val color = if (spec.isActive) palette.accentAmber else palette.linePrimary
+                val style = Stroke(width = 1.5f, cap = StrokeCap.Butt, join = StrokeJoin.Bevel)
+                when (spec.iconType) {
+                    0 -> {
+                        drawRect(color, Offset(2f, 2f), Size(size.width - 4f, size.height - 4f), style = style)
+                        drawLine(color, Offset(6f, size.height - 6f), Offset(size.width - 6f, 6f), strokeWidth = 1.5f)
+                        drawLine(color, Offset(6f, size.height - 6f), Offset(size.width - 6f, size.height - 6f), strokeWidth = 1.5f)
+                    }
+                    1 -> {
+                        drawRect(color, Offset(4f, 8f), Size(13f, 13f), style = style)
+                        drawRect(color, Offset(9f, 4f), Size(13f, 13f), style = style)
+                        drawLine(color, Offset(4f, 8f), Offset(9f, 4f), strokeWidth = 1.2f)
+                        drawLine(color, Offset(17f, 8f), Offset(22f, 4f), strokeWidth = 1.2f)
+                    }
+                    else -> {
+                        drawRect(color, Offset(4f, 4f), Size(size.width - 8f, size.height - 8f), style = style)
+                        drawLine(color, Offset(size.width / 2f, 4f), Offset(size.width / 2f, size.height - 4f), strokeWidth = 1.2f)
+                        drawLine(color, Offset(4f, size.height / 2f), Offset(size.width - 4f, size.height / 2f), strokeWidth = 1.2f)
+                    }
+                }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(spec.title, color = palette.textPrimary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(spec.subtitle, color = palette.textMuted, fontFamily = FontFamily.Monospace, fontSize = 7.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Box(Modifier.border(1.dp, if (spec.isActive) palette.accentAmber else palette.gridMajor, RectangleShape)
+                .background(if (spec.isActive) palette.accentAmber.copy(alpha = 0.16f) else Color.Transparent, RectangleShape)
+                .padding(horizontal = 8.dp, vertical = 2.dp)) {
+                Text(spec.actionLabel, color = if (spec.isActive) palette.textPrimary else palette.textMuted,
+                    fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 7.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Text(spec.statusBadge, color = if (spec.isActive) palette.accentCyan else palette.textMuted, fontFamily = FontFamily.Monospace, fontSize = 6.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(spec.title, color = if (spec.isActive) palette.accentCyan else palette.textPrimary, fontFamily = FontFamily.Monospace, fontWeight = if (spec.isActive) FontWeight.Bold else FontWeight.Normal, fontSize = 8.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(spec.subtitle, color = palette.textMuted, fontFamily = FontFamily.Monospace, fontSize = 6.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 7.sp)
-        Text(spec.actionLabel, color = if (spec.isActive) palette.accentCyan else palette.accentAmber, fontFamily = FontFamily.Monospace, fontSize = 6.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
