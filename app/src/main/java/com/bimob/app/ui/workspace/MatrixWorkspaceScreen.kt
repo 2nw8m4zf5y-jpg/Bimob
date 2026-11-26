@@ -32,6 +32,8 @@ import com.bimob.app.editor.*
 import kotlinx.coroutines.flow.collect
 import kotlin.math.hypot
 import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.ceil
 
 @Composable
@@ -84,6 +86,13 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
     val a=screenPoint(wall.axisStart);val b=screenPoint(wall.axisEnd)
     drawLine(p.ink.copy(alpha=.4f),a,b,1f)
     if(selected){drawCircle(p.accent,4f,a);drawCircle(p.accent,4f,b)}
+   }
+   if(wallLayerVisible)geo?.openings?.forEach{opening->
+    val host=geo.walls.firstOrNull{it.id==opening.hostWallId}
+    if(host!=null){val dx=host.axisEnd.x-host.axisStart.x;val dy=host.axisEnd.y-host.axisStart.y;val len=hypot(dx,dy);if(len>1e-6){val ux=dx/len;val uy=dy/len;val start=screenPoint(Vec2(opening.center.x-ux*opening.width/2,opening.center.y-uy*opening.width/2));val end=screenPoint(Vec2(opening.center.x+ux*opening.width/2,opening.center.y+uy*opening.width/2));val selected=opening.id==state.selection?.id;drawLine(p.bg,start,end,4f);drawLine(if(selected)p.accent else p.ink,start,end,1.2f);if(opening.kind=="WINDOW"){val normal=androidx.compose.ui.geometry.Offset(-(end.y-start.y)*.06f,(end.x-start.x)*.06f);drawLine(p.ink,start+normal,end+normal,1f)}}}
+   }
+   geo?.catalog?.forEach{item->
+    val ca=cos(item.rotationRadians);val sa=sin(item.rotationRadians);val local=listOf(Vec2(-item.width/2,-item.depth/2),Vec2(item.width/2,-item.depth/2),Vec2(item.width/2,item.depth/2),Vec2(-item.width/2,item.depth/2));val polygon=Path().apply{local.forEachIndexed{index,v->val world=Vec2(item.center.x+v.x*ca-v.y*sa,item.center.y+v.x*sa+v.y*ca);val q=screenPoint(world);if(index==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()};val selected=item.id==state.selection?.id;drawPath(polygon,p.accent.copy(alpha=if(selected).2f else .08f));drawPath(polygon,if(selected)p.accent else p.ink,style=Stroke(width=1f))
    }
   }
   MatrixCellButton(cellBlock(0,0,2,2),"⌂","ДОМОЙ",p){homeMenu=!homeMenu}
