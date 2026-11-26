@@ -141,12 +141,7 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
    Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f));Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(0.615f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
    ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ЛОКАЛЬНЫЙ · ГРАФ: 0.2 мс",c.muted,6.sp,Modifier.weight(0.28f),max=1)
   }
-  Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
-   Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f),bold=true)
-   Row(Modifier.weight(0.615f),verticalAlignment=Alignment.CenterVertically){Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(1f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,7.sp);inner()});ButtonMini("↵",c,{cmd="";},20.dp)}
-   Txt("ПАРСЕР: ЛОКАЛЬНЫЙ · ГРАФ: 0.2 мс",c.muted,6.sp,Modifier.weight(0.28f),max=1)
-  }
-  Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+  Row(Modifier.fillMaxWidth().weight(0.054f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
    Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(0.22f))\n   Spacer(Modifier.weight(0.26f))
    listOf("МОДЕЛЬ" to true,"СЕТКА [F7]" to grid,"ОРТО [F8]" to ortho,"OSNAP [F3]" to snap,"ОТСЛЕЖ" to track,"ВЕС ЛИНИЙ" to weights,"СВОЙСТВА" to props).forEach{(name,on)->Box(Modifier.weight(0.52f/7f),contentAlignment=Alignment.Center){Toggle(name,on,c){when(name){"СЕТКА [F7]"->grid=!grid;"ОРТО [F8]"->ortho=!ortho;"OSNAP [F3]"->snap=!snap;"ОТСЛЕЖ"->track=!track;"ВЕС ЛИНИЙ"->weights=!weights;"СВОЙСТВА"->props=!props}}}}
   }
