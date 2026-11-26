@@ -4,10 +4,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -111,7 +113,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
 @Composable private fun Header(t:String,c:WC){Txt(t,c.accent,7.sp,Modifier.fillMaxWidth().background(c.canvas).padding(vertical=2.dp),bold=true)}
 @Composable private fun RowProp(a:String,b:String,c:WC){Column{Txt(a,c.muted,6.sp);Txt(b,c.ink,7.sp,max=1)}}
 @Composable private fun EditProp(label:String,value:String,c:WC,commit:(String)->Unit){var v by remember(value){mutableStateOf(value)};Row(verticalAlignment=Alignment.CenterVertically){Txt(label,c.muted,6.sp,Modifier.width(27.dp));BasicTextField(v,{v=it},Modifier.weight(1f).border(.5.dp,c.grid).padding(2.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true);ButtonMini("↵",c,{commit(v)},16.dp)}}
-@Composable private fun Tool(id:String,label:String,active:Boolean,c:WC,click:()->Unit){Column(Modifier.width(34.dp).fillMaxHeight().clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Glyph(id,c.accent,Modifier.size(14.dp));Txt(label,c.ink,6.sp,max=1)}}
+@Composable private fun Tool(id:String,label:String,active:Boolean,c:WC,click:()->Unit){Column(Modifier.width(48.dp).fillMaxHeight().clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Glyph(id,c.accent,Modifier.size(23.dp));Txt(label,c.ink,7.sp,max=1)}}
 @Composable private fun Glyph(id:String,color:Color,m:Modifier){Canvas(m){val st=Stroke(1.1f);when(id){ "LINE","PLINE"->drawLine(color,Offset(1f,size.height-1),Offset(size.width-1,1f),1.2f);"WALL"->{drawRect(color,Offset(1f,2f),Size(size.width-2,size.height-4),style=st);drawLine(color,Offset(2f,size.height/2),Offset(size.width-2,size.height/2),.8f)};"RECT"->drawRect(color,Offset(2f,2f),Size(size.width-4,size.height-4),style=st);"MOVE"->{drawLine(color,Offset(size.width/2,0f),Offset(size.width/2,size.height),1f);drawLine(color,Offset(0f,size.height/2),Offset(size.width,size.height/2),1f)};"COPY"->{drawRect(color,Offset(2f,2f),Size(size.width-6,size.height-6),style=st);drawRect(color,Offset(5f,5f),Size(size.width-6,size.height-6),style=st)};"TRIM"->{drawLine(color,Offset(1f,size.height-1),Offset(size.width-1,1f),1f);drawLine(color,Offset(1f,1f),Offset(size.width-1,size.height-1),1f)};"OFFSET"->drawCircle(color,size.minDimension/3,style=st);"DOOR"->drawArc(color,0f,90f,false,Offset(1f,1f),Size(size.width-2,size.height-2),style=st);"WINDOW"->{drawRect(color,Offset(2f,2f),Size(size.width-4,size.height-4),style=st);drawLine(color,Offset(2f,size.height/2),Offset(size.width-2,size.height/2),1f)};"DIM"->drawLine(color,Offset(1f,size.height/2),Offset(size.width-1,size.height/2),1f);else->drawCircle(color,size.minDimension/3,style=st)}}}
 @Composable private fun ButtonMini(text:String,c:WC,click:()->Unit,w:androidx.compose.ui.unit.Dp,active:Boolean=false){Box(Modifier.width(w).fillMaxHeight().clickable{click()}.background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent).border(.5.dp,c.grid).padding(horizontal=2.dp),contentAlignment=Alignment.Center){Txt(text,if(active)c.accent else c.ink,6.sp,max=1)}}
 @Composable private fun Toggle(t:String,on:Boolean,c:WC,click:()->Unit={}){Box(Modifier.clickable{click()}.background(if(on)c.accent.copy(alpha=.12f)else Color.Transparent).padding(horizontal=3.dp)){Txt(t,if(on)c.accent else c.muted,6.sp,max=1)}}
