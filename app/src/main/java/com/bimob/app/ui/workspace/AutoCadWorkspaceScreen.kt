@@ -55,8 +55,8 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
   Row(Modifier.fillMaxWidth().height(32.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
    ButtonMini("← ФАСАД",c,onBack,56.dp)
    listOf("ГЛАВНАЯ","АННОТАЦИИ","СЛОИ","ВИД").forEach{ButtonMini(it,c,{tab=it},if(tab==it)54.dp else 54.dp,tab==it)}
-   Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,7.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
-   Txt(AppVersion.VERSION_LABEL,c.accent,7.sp,Modifier.border(.5.dp,c.grid).padding(horizontal=3.dp))
+   Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,8.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
+   Txt(AppVersion.VERSION_LABEL,c.accent,8.sp,Modifier.border(.5.dp,c.grid).padding(horizontal=3.dp))
    ButtonMini("СОХРАНИТЬ",c,onSave,56.dp);ButtonMini("ЭКСПОРТ",c,onExport,42.dp);ButtonMini("ТЕМА: ${p.label}",c,{BlueprintTheme.next()},62.dp)
   }
   Row(Modifier.fillMaxWidth().height(58.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
@@ -71,21 +71,21 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
   Row(Modifier.weight(1f).fillMaxWidth()){
    ToolDock(Modifier.width(46.dp).fillMaxHeight(),c,tool){tool=it}\n   Box(Modifier.weight(1f).fillMaxHeight().background(c.canvas)){
     VectorCanvas(Modifier.fillMaxSize(),c,g,state.selection?.id,camera.zoom,camera.panX,camera.panY,grid,weights,cursor,{cursor=it},{editor.selectElement(it)})
-    Column(Modifier.align(Alignment.TopStart).padding(4.dp)){Txt("А    Б    В",c.dim,7.sp);Txt("3\n2\n1",c.dim,7.sp)}
+    Column(Modifier.align(Alignment.TopStart).padding(4.dp)){Txt("А    Б    В",c.dim,8.sp);Txt("3\n2\n1",c.dim,7.sp)}
     Row(Modifier.align(Alignment.TopCenter).padding(top=3.dp).background(c.panel).border(1.dp,c.dim).padding(3.dp),verticalAlignment=Alignment.CenterVertically){
-     Txt("L:",c.dim,7.sp);BasicTextField(length,{length=it},Modifier.width(35.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));Txt("мм ∠",c.dim,7.sp);BasicTextField(angle,{angle=it},Modifier.width(24.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));Txt("°",c.dim,7.sp)
+     Txt("L:",c.dim,7.sp);BasicTextField(length,{length=it},Modifier.width(35.dp),textStyle=TextStyle(color=c.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));Txt("мм ∠",c.dim,7.sp);BasicTextField(angle,{angle=it},Modifier.width(24.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));Txt("°",c.dim,7.sp)
     }
     Txt("UCS X / Y",c.accent,7.sp,Modifier.align(Alignment.BottomStart).padding(5.dp))
-    Txt("OSNAP: УЗЕЛ N3",c.snap,7.sp,Modifier.align(Alignment.BottomEnd).padding(5.dp).background(c.panel).border(1.dp,c.snap).padding(3.dp))
+    Txt("OSNAP: УЗЕЛ N3",c.snap,8.sp,Modifier.align(Alignment.BottomEnd).padding(5.dp).background(c.panel).border(1.dp,c.snap).padding(3.dp))
     if(debug&&selectedWall!=null)Column(Modifier.align(Alignment.Center).background(c.panel).border(1.dp,c.select).padding(4.dp)){Txt("N1 d=${degree[key(selectedWall.axisStart)]?:1}",c.select,7.sp);Txt("N2 d=${degree[key(selectedWall.axisEnd)]?:1}",c.select,7.sp)}
    }
-   if(props)Properties(Modifier.width(156.dp).fillMaxHeight(),c,g,state.selection,degree,editor,layer,layers,{layer=it},{debug=!debug})
+   if(props)Properties(Modifier.width(164.dp).fillMaxHeight(),c,g,state.selection,degree,editor,layer,layers,{layer=it},{debug=!debug})
   }
-  Row(Modifier.fillMaxWidth().height(22.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically){
-   Txt("[AI МОСТ-H]",c.snap,7.sp);Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(1f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,7.sp);inner()})
+  Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
+   Txt("[AI МОСТ-H]",c.snap,7.sp);Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(1f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
    ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ОФЛАЙН · ГРАФ —",c.muted,6.sp)
   }
-  Row(Modifier.fillMaxWidth().height(20.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+  Row(Modifier.fillMaxWidth().height(26.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
    Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(1f))
    Toggle("МОДЕЛЬ",true,c);Toggle("СЕТКА [F7]",grid,c){grid=!grid};Toggle("ОРТО [F8]",ortho,c){ortho=!ortho};Toggle("OSNAP [F3]",snap,c){snap=!snap};Toggle("ОТСЛЕЖ",track,c){track=!track};Toggle("ВЕС ЛИНИЙ",weights,c){weights=!weights};Toggle("СВОЙСТВА",props,c){props=!props}
   }
@@ -121,7 +121,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  val hit=Modifier.width(48.dp).fillMaxHeight().clickable{click()}.border(if(active)1.dp else 0.dp,c.accent).background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent)
  Column(hit,horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
   CadVectorIcon(glyph,c.accent,physicalSizeMm=6f)
-  Txt(label,c.ink,7.sp,max=1)
+  Txt(label,c.ink,8.sp,max=1)
  }
 }
 @Composable private fun ToolDock(modifier:Modifier,c:WC,active:String,choose:(String)->Unit){
