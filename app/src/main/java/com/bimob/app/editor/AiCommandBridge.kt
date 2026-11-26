@@ -20,7 +20,7 @@ fun interface AiBridgeProvider {
 /** Deterministic offline parser. CAD distances without suffix are millimetres. */
 class LocalCadCommandParser {
     fun parse(raw: String, origin: Vec2 = Vec2(0.0, 0.0)): CadCommand? {
-        val text = raw.trim().uppercase().replace(',', '.')
+        val text = raw.trim().uppercase()
         if (text.isEmpty()) return null
         if (text in setOf("UNDO", "ОТМЕНА", "CTRL+Z")) return CadCommand.Undo
         if (text in setOf("REDO", "ПОВТОР", "CTRL+Y")) return CadCommand.Redo
