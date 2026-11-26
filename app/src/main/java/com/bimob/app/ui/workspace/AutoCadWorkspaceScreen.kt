@@ -68,21 +68,55 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    Column(Modifier.width(64.dp),verticalArrangement=Arrangement.Center){Txt("ПРИВЯЗКА",c.muted,6.sp);ButtonMini("$anchor ▼",c,{anchor=when(anchor){"ОСЬ"->"НАРУЖ";"НАРУЖ"->"ВНУТР";else->"ОСЬ"}},60.dp)}
    ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)
   }
-  Row(Modifier.weight(1f).fillMaxWidth()){
-   ToolDock(Modifier.width(46.dp).fillMaxHeight(),c,tool){tool=it}
-   Box(Modifier.weight(1f).fillMaxHeight().background(c.canvas)){
-    VectorCanvas(Modifier.fillMaxSize(),c,g,state.selection?.id,camera.zoom,camera.panX,camera.panY,grid,weights,cursor,{cursor=it},{editor.selectElement(it)})
-    Column(Modifier.align(Alignment.TopStart).padding(4.dp)){Txt("А    Б    В",c.dim,8.sp);Txt("3\n2\n1",c.dim,7.sp)}
-    Row(Modifier.align(Alignment.TopCenter).padding(top=3.dp).background(c.panel).border(1.dp,c.dim).padding(3.dp),verticalAlignment=Alignment.CenterVertically){
-     Txt("L:",c.dim,7.sp);BasicTextField(length,{length=it},Modifier.width(35.dp),textStyle=TextStyle(color=c.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));Txt("мм ∠",c.dim,7.sp);BasicTextField(angle,{angle=it},Modifier.width(24.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal));Txt("°",c.dim,7.sp)
+  Row(
+   modifier = Modifier.weight(1f).fillMaxWidth(),
+   verticalAlignment = Alignment.CenterVertically
+  ) {
+   ToolDock(
+    modifier = Modifier.width(46.dp).fillMaxHeight(),
+    c = c,
+    active = tool,
+    choose = { selectedTool -> tool = selectedTool }
+   )
+   Box(
+    modifier = Modifier.weight(1f).fillMaxHeight().background(c.canvas),
+    contentAlignment = Alignment.Center
+   ) {
+    VectorCanvas(
+     modifier = Modifier.fillMaxSize(), c = c, g = g, selected = state.selection?.id,
+     zoom = camera.zoom, px = camera.panX, py = camera.panY, grid = grid, weight = weights,
+     cursor = cursor, onCursor = { cursor = it }, onSelect = { editor.selectElement(it) }
+    )
+    Column(Modifier.align(Alignment.TopStart).padding(4.dp)) {
+     Txt("А    Б    В",c.dim,8.sp); Txt("3\n2\n1",c.dim,7.sp)
+    }
+    Row(
+     modifier = Modifier.align(Alignment.TopCenter).padding(top=3.dp).background(c.panel).border(1.dp,c.dim).padding(3.dp),
+     verticalAlignment = Alignment.CenterVertically
+    ) {
+     Txt("L:",c.dim,7.sp)
+     BasicTextField(length,{length=it},Modifier.width(35.dp),textStyle=TextStyle(color=c.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+     Txt("мм ∠",c.dim,7.sp)
+     BasicTextField(angle,{angle=it},Modifier.width(24.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+     Txt("°",c.dim,7.sp)
     }
     Txt("UCS X / Y",c.accent,7.sp,Modifier.align(Alignment.BottomStart).padding(5.dp))
     Txt("OSNAP: УЗЕЛ N3",c.snap,8.sp,Modifier.align(Alignment.BottomEnd).padding(5.dp).background(c.panel).border(1.dp,c.snap).padding(3.dp))
-    if(debug&&selectedWall!=null)Column(Modifier.align(Alignment.Center).background(c.panel).border(1.dp,c.select).padding(4.dp)){Txt("N1 d=${degree[key(selectedWall.axisStart)]?:1}",c.select,7.sp);Txt("N2 d=${degree[key(selectedWall.axisEnd)]?:1}",c.select,7.sp)}
+    if(debug && selectedWall != null) {
+     Column(Modifier.align(Alignment.Center).background(c.panel).border(1.dp,c.select).padding(4.dp)) {
+      Txt("N1 d=${degree[key(selectedWall.axisStart)]?:1}",c.select,7.sp)
+      Txt("N2 d=${degree[key(selectedWall.axisEnd)]?:1}",c.select,7.sp)
+     }
+    }
    }
-   if(props)Properties(Modifier.width(164.dp).fillMaxHeight(),c,g,state.selection,degree,editor,layer,layers,{layer=it},{debug=!debug})
+   if(props) {
+    Properties(
+     Modifier.width(164.dp).fillMaxHeight(), c, g, state.selection, degree, editor,
+     layer, layers, { layer = it }, { debug = !debug }
+    )
+   }
   }
-  Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
+Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
    Txt("[AI МОСТ-H]",c.snap,7.sp);Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(1f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
    ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ОФЛАЙН · ГРАФ —",c.muted,6.sp)
   }
