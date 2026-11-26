@@ -48,8 +48,8 @@ fun launcherModuleSpecs()=listOf(
   Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)){
    HeaderBar("NAGAPLAS · ИНЖЕНЕРНЫЕ МОДУЛИ","CORE: C++20 · READY  |  ${versionLabel}",currentTheme,onSelectTheme,p,Modifier.height(44.dp))
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(gap)){
-    for(row in 0..1) Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
-     for(col in 0..3){val spec=launcherModuleSpecs()[row*4+col];ModuleTile(spec,p,Modifier.weight(1f).fillMaxHeight(),onClick={if(spec.isActive)onOpenCadFacade()})}
+    for(row in 0..2) Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(gap)){
+     for(col in 0..2){val spec=launcherModuleSpecs()[row*3+col];ModuleTile(spec,p,Modifier.weight(1f).fillMaxHeight(),onClick={if(spec.code=="09")onOpenSettings() else if(spec.code=="01")onOpenCadFacade()})}
     }
    }
    Text("NAGAPLAS.H-UI-005 ВО · ENGINEERING MODULE MATRIX",color=p.textMuted,fontSize=8.sp,fontFamily=FontFamily.Monospace,modifier=Modifier.align(Alignment.End))
