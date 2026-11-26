@@ -12,7 +12,7 @@ internal fun snapWorkspaceEndpoint(raw: Vec2, geometry: TypedGeometry?, zoomPxPe
     if (geometry == null || !zoomPxPerMeter.isFinite() || zoomPxPerMeter <= 0f || !thresholdPx.isFinite() || thresholdPx <= 0f) return raw
     val thresholdMeters = thresholdPx / zoomPxPerMeter
     var best: Vec2? = null
-    var bestDistance = thresholdMeters
+    var bestDistance = thresholdMeters.toDouble()
     geometry.walls.forEach { wall ->
         listOf(wall.axisStart, wall.axisEnd).forEach { endpoint ->
             val distance = hypot(raw.x - endpoint.x, raw.y - endpoint.y)
