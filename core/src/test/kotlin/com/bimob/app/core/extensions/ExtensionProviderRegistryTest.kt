@@ -94,7 +94,7 @@ class ExtensionProviderContractTest {
         mutableDefaults.clear()
         assertEquals(1, family.parameterDefinitions.size)
         assertEquals(1, family.defaultValues.size)
-        assertTrue(runCatching { family.parameterDefinitions.add(ParameterDefinition(ModelId("extra"), "Extra", ParameterDataType.STRING, ParameterScope.INSTANCE)) }.isFailure)
+        assertTrue(runCatching { (family.parameterDefinitions as MutableList).add(ParameterDefinition(ModelId("extra"), "Extra", ParameterDataType.STRING, ParameterScope.INSTANCE)) }.isFailure)
         assertTrue(runCatching { FamilyDefinition("door.bad", "Bad", ElementCategory.DOOR, listOf(ParameterDefinition(parameterId, "Width", ParameterDataType.LENGTH, ParameterScope.INSTANCE)), mapOf(parameterId to ParameterValue.Text("wide"))) }.isFailure)
     }
 
