@@ -93,7 +93,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
     modifier = Modifier.width(34.dp).fillMaxHeight(),
     c = c,
     active = tool,
-    choose = { selectedTool -> tool = selectedTool }
+    choose = { selectedTool -> when(selectedTool){ "CENTER"->editor.setCamera(72f,0f,0f); "ZOOM"->editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY); "GRID"->grid=!grid; "LAYERS"->props=!props; "SETTINGS"->debug=!debug; "VIEW3D"->android.widget.Toast.makeText(LocalContext.current,"3D-вид ещё не реализован",android.widget.Toast.LENGTH_SHORT).show(); else->tool=selectedTool } }
    )
    Box(
     modifier = Modifier.weight(1f).fillMaxHeight().background(c.canvas),
@@ -191,39 +191,15 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
  }
 }
 @Composable private fun ToolDock(modifier:Modifier,c:WC,active:String,choose:(String)->Unit){
- Column(modifier.background(c.panel).border(1.dp,c.grid).verticalScroll(rememberScrollState()).padding(vertical=2.dp,horizontal=2.dp),verticalArrangement=Arrangement.spacedBy(2.dp),horizontalAlignment=Alignment.CenterHorizontally){
-  listOf("SELECT","LINE","PLINE","WALL","RECT","CIRCLE","ARC","MOVE","COPY","TRIM","OFFSET","DOOR","WINDOW","DIM","NODE","ROTATE").forEach { id ->
+ Column(modifier.background(c.panel).border(1.dp,c.grid).verticalScroll(rememberScrollState()).padding(vertical=2.dp,horizontal=1.dp),verticalArrangement=Arrangement.spacedBy(2.dp),horizontalAlignment=Alignment.CenterHorizontally){
+  val items=listOf("SELECT","RECT","CENTER","ZOOM","VIEW3D","LAYERS","SETTINGS","GRID")
+  items.forEach { id ->
    val isActive=active==id
-   Box(
-    Modifier.fillMaxWidth().height(48.dp)
-     .clickable{choose(id)}
-     .semantics {
-      contentDescription = when(id) {
-       "SELECT" -> "Выбор объектов"
-       "LINE" -> "Отрезок"
-       "PLINE" -> "Полилиния"
-       "WALL" -> "Стена"
-       "RECT" -> "Прямоугольник"
-       "CIRCLE" -> "Окружность"
-       "ARC" -> "Дуга"
-       "MOVE" -> "Перенести"
-       "COPY" -> "Копировать"
-       "TRIM" -> "Обрезать"
-       "OFFSET" -> "Смещение"
-       "DOOR" -> "Дверь"
-       "WINDOW" -> "Окно"
-       "DIM" -> "Размер"
-       "NODE" -> "Узел"
-       "ROTATE" -> "Поворот"
-       else -> id
-      }
-      role = androidx.compose.ui.semantics.Role.Button
-      selected = isActive
-     }
+   val label=when(id){"SELECT"->"Курсор";"RECT"->"Рамка";"CENTER"->"Центр";"ZOOM"->"Масштаб";"VIEW3D"->"3D";"LAYERS"->"Слои";"SETTINGS"->"Настройки";else->"Сетка"}
+   Box(Modifier.fillMaxWidth().height(42.dp).clickable{choose(id)}
+     .semantics{contentDescription=label;role=androidx.compose.ui.semantics.Role.Button;selected=isActive}
      .background(if(isActive)c.accent.copy(alpha=.12f)else Color.Transparent)
-     .border(if(isActive)1.dp else .5.dp,if(isActive)c.accent else c.grid),
-    contentAlignment=Alignment.Center
-   ){
+     .border(if(isActive)1.dp else .5.dp,if(isActive)c.accent else c.grid),contentAlignment=Alignment.Center){
     CadVectorIcon(cadGlyph(id),if(isActive)c.accent else c.ink,iconSizeDp=22f)
    }
   }
@@ -251,6 +227,10 @@ private fun cadGlyph(id:String)=when(id){
  "DELETE"->CadGlyph.DELETE
  "PAN"->CadGlyph.PAN
  "ZOOM"->CadGlyph.ZOOM
+ "VIEW3D"->CadGlyph.VIEW3D
+ "LAYERS"->CadGlyph.LAYERS
+ "SETTINGS"->CadGlyph.SETTINGS
+ "GRID"->CadGlyph.GRID
  else->CadGlyph.NODE
 }
 @Composable private fun Glyph(id:String,color:Color,m:Modifier){Canvas(m){val st=Stroke(1.1f);when(id){ "LINE","PLINE"->drawLine(color,Offset(1f,size.height-1),Offset(size.width-1,1f),1.2f);"WALL"->{drawRect(color,Offset(1f,2f),Size(size.width-2,size.height-4),style=st);drawLine(color,Offset(2f,size.height/2),Offset(size.width-2,size.height/2),.8f)};"RECT"->drawRect(color,Offset(2f,2f),Size(size.width-4,size.height-4),style=st);"MOVE"->{drawLine(color,Offset(size.width/2,0f),Offset(size.width/2,size.height),1f);drawLine(color,Offset(0f,size.height/2),Offset(size.width,size.height/2),1f)};"COPY"->{drawRect(color,Offset(2f,2f),Size(size.width-6,size.height-6),style=st);drawRect(color,Offset(5f,5f),Size(size.width-6,size.height-6),style=st)};"TRIM"->{drawLine(color,Offset(1f,size.height-1),Offset(size.width-1,1f),1f);drawLine(color,Offset(1f,1f),Offset(size.width-1,size.height-1),1f)};"OFFSET"->drawCircle(color,size.minDimension/3,style=st);"DOOR"->drawArc(color,0f,90f,false,Offset(1f,1f),Size(size.width-2,size.height-2),style=st);"WINDOW"->{drawRect(color,Offset(2f,2f),Size(size.width-4,size.height-4),style=st);drawLine(color,Offset(2f,size.height/2),Offset(size.width-2,size.height/2),1f)};"DIM"->drawLine(color,Offset(1f,size.height/2),Offset(size.width-1,size.height/2),1f);else->drawCircle(color,size.minDimension/3,style=st)}}}
