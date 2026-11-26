@@ -6,7 +6,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.layout.WindowInsets\nimport androidx.compose.foundation.layout.safeDrawing\nimport androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -110,5 +113,27 @@ private fun matrixSvg(g:TypedGeometry?):String{
  return sb.append("</svg>").toString()
 }
 private fun matrixDxf(g:TypedGeometry?):String{
- val sb=StringBuilder("0\\nSECTION\\n2\\nENTITIES\\n");g?.walls.orEmpty().forEach{w->sb.append("0\\nLWPOLYLINE\\n8\\nWALLS\\n90\\n"+w.corners.size+"\\n70\\n1\\n");w.corners.forEach{pt->sb.append("10\\n"+(pt.x*1000)+"\\n20\\n"+(pt.y*1000)+"\\n")}};sb.append("0\\nENDSEC\\n0\\nEOF\\n");return sb.toString().replace("\\n","\n")
+ val sb=StringBuilder("0\
+SECTION\
+2\
+ENTITIES\
+");g?.walls.orEmpty().forEach{w->sb.append("0\
+LWPOLYLINE\
+8\
+WALLS\
+90\
+"+w.corners.size+"\
+70\
+1\
+");w.corners.forEach{pt->sb.append("10\
+"+(pt.x*1000)+"\
+20\
+"+(pt.y*1000)+"\
+")}};sb.append("0\
+ENDSEC\
+0\
+EOF\
+");return sb.toString().replace("\
+","
+")
 }
