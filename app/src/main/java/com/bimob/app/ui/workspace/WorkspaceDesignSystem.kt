@@ -15,7 +15,7 @@ import kotlin.math.min
 
 /**
  * Workspace visual primitives. Keep this file independent from editor/model state.
- * Visible glyph target is 6 mm; hit targets are owned by the caller and are deliberately larger.
+ * Glyph sizing follows the approved visual reference; hit targets are deliberately larger.
  */
 internal object CadWorkspaceTokens {
     val canvas = Color(0xFF0B1525)
