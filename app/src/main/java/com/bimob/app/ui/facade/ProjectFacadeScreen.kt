@@ -48,7 +48,8 @@ fun ProjectFacadeScreen(
   }
   Column(Modifier.fillMaxSize().padding(2.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){
    // roof/parapet band, continuous across all four bays
-   Row(Modifier.weight(.105f).fillMaxWidth().border(1.dp,p.accentAmber),verticalAlignment=Alignment.CenterVertically){\n    Column(Modifier.width(48.dp).fillMaxHeight().padding(end=2.dp),verticalArrangement=Arrangement.SpaceBetween){LevelMark("+15.200",p);LevelMark("+13.800",p)}
+   Row(Modifier.weight(.105f).fillMaxWidth().border(1.dp,p.accentAmber),verticalAlignment=Alignment.CenterVertically){
+    Column(Modifier.width(48.dp).fillMaxHeight().padding(end=2.dp),verticalArrangement=Arrangement.SpaceBetween){LevelMark("+15.200",p);LevelMark("+13.800",p)}
     Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal=5.dp),verticalArrangement=Arrangement.Center){
      Text("NAGAPLAS OS // C++20 CORE: READY  |  FPS: 60  |  MEM: —",fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1,overflow=TextOverflow.Ellipsis)
      Text("ФАСАД ПРОЕКТНОГО ЦЕНТРА · NAGAPLAS.G3.7-UI-001 ВО",fontSize=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)
@@ -112,8 +113,8 @@ fun ProjectFacadeScreen(
 private enum class DrawingKind{Frame,Truss,Facade,Sync,Nodes,List,Convert,Library,Template,Portal,Settings}
 @Composable private fun FacadeSlot(
  modifier:Modifier,title:String,subtitle:String,button:String,kind:DrawingKind,
- p:com.bimob.app.ui.blueprint.BlueprintPalette,primary:Boolean=false,onClick:()->Unit,
- secondary:String?=null,secondaryClick:(()->Unit)?=null
+ p:com.bimob.app.ui.blueprint.BlueprintPalette,primary:Boolean=false,
+ secondary:String?=null,secondaryClick:(()->Unit)?=null,onClick:()->Unit
 ){
  Column(modifier.fillMaxHeight().padding(1.dp).background(if(primary)p.accentAmber.copy(alpha=.08f)else p.bgSurface).border(if(primary)1.5.dp else 1.dp,if(primary)p.accentAmber else p.linePrimary).clickable(onClick=onClick).padding(horizontal=3.dp,vertical=2.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceEvenly){
   VectorMini(kind,p,Modifier.fillMaxWidth().weight(1f))
