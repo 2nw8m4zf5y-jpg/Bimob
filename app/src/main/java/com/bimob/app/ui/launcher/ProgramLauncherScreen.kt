@@ -65,7 +65,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
   val cardH=h*.225f
   val rowGap=h*.035f
   val stampW=(w*.52f).coerceAtMost(dpPx(240.dp))
-  val stampH=4dpPx(2.dp)
+  val stampH=dpPx(42.dp)
   val stampX=w-stampW-dpPx(5.dp)
   val stampY=h-stampH-dpPx(5.dp)
   Canvas(Modifier.fillMaxSize()) {
@@ -91,7 +91,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
    val bottom=h-dpPx(8.dp)
    drawLine(p.linePrimary,Offset(towerX-half,top),Offset(towerX-half,bottom),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(towerX+half,top),Offset(towerX+half,bottom),thin,StrokeCap.Butt)
-   val step=3dpPx(4.dp)
+   val step=dpPx(34.dp)
    var ty=top
    while(ty+step<=bottom){
     val next=ty+step
@@ -103,10 +103,10 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
     drawPath(endBay,p.linePrimary,bevel)
    }
    // Jib lattice.
-   val jl=dpPx(5.dp);val jr=w*.92f;val jt=jibY-1dpPx(2.dp);val jb=jibY
+   val jl=dpPx(5.dp);val jr=w*.92f;val jt=jibY-dpPx(12.dp);val jb=jibY
    drawLine(p.linePrimary,Offset(jl,jt),Offset(jr,jt),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(jl,jb),Offset(jr,jb),main,StrokeCap.Butt)
-   val js=4dpPx(2.dp);var jx=jl
+   val js=dpPx(42.dp);var jx=jl
    while(jx+js<=jr){
     val nx=jx+js
     val bay=Path().apply{moveTo(jx,jt);lineTo(nx,jb);moveTo(jx,jb);lineTo(nx,jt);moveTo(nx,jt);lineTo(nx,jb)}
