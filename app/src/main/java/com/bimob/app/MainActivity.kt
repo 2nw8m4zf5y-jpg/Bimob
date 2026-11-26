@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.ViewModelProvider
 import com.bimob.app.editor.NativeEditorViewModel
 import com.bimob.app.ui.workspace.AutoCadWorkspaceScreen
@@ -69,7 +70,27 @@ class MainActivity:ComponentActivity(){
      "launcher"->ProgramLauncherScreen(onCad={dialog=true})
      "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
     }
-     if(dialog)AlertDialog(onDismissRequest={dialog=false},title={Text("Новый проект")},text={OutlinedTextField(projectName,{projectName=it},label={Text("Название проекта")})},confirmButton={TextButton(onClick={dialog=false;importJson=null;projectId="project-"+System.currentTimeMillis();route="workspace"}){Text("Создать")}},dismissButton={TextButton(onClick={dialog=false}){Text("Отмена")}})
+     if(dialog){
+      val keyboard=LocalSoftwareKeyboardController.current
+      AlertDialog(
+       onDismissRequest={keyboard?.hide();dialog=false},
+       shape=RoundedCornerShape(8.dp),
+       containerColor=BlueprintTheme.BgSurface,
+       title={Text("НОВЫЙ ПРОЕКТ",fontSize=16.sp,color=BlueprintTheme.TextPrimary)},
+       text={
+        OutlinedTextField(
+         value=projectName,
+         onValueChange={projectName=it},
+         singleLine=true,
+         label={Text("Название проекта")},
+         trailingIcon={IconButton(onClick={keyboard?.hide()}){Text("⌄",fontSize=22.sp,color=BlueprintTheme.AccentCyan)}},
+         colors=OutlinedTextFieldDefaults.colors(focusedBorderColor=BlueprintTheme.AccentCyan,unfocusedBorderColor=BlueprintTheme.LinePrimary,focusedLabelColor=BlueprintTheme.AccentCyan,cursorColor=BlueprintTheme.AccentCyan)
+        )
+       },
+       confirmButton={TextButton(onClick={keyboard?.hide();dialog=false;importJson=null;projectId="project-"+System.currentTimeMillis();route="workspace"}){Text("СОЗДАТЬ",color=BlueprintTheme.AccentCyan)}},
+       dismissButton={TextButton(onClick={keyboard?.hide();dialog=false}){Text("ОТМЕНА",color=BlueprintTheme.TextMuted)}}
+      )
+     }
    }
   }
  }
