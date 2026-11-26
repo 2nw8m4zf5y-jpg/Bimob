@@ -14,7 +14,7 @@ sealed interface CadCommand {
 data class CadBridgeResult(val success: Boolean, val message: String, val elapsedNanos: Long)
 
 fun interface AiBridgeProvider {
-    fun execute(input: String, editor: NativeEditorViewModel, origin: Vec2 = Vec2(0.0, 0.0), thicknessMeters: Double = 0.2, anchor: String = "ОСЬ"): CadBridgeResult
+    fun execute(input: String, editor: NativeEditorViewModel, origin: Vec2, thicknessMeters: Double, anchor: String): CadBridgeResult
 }
 
 /** Deterministic offline parser. CAD distances without suffix are millimetres. */
