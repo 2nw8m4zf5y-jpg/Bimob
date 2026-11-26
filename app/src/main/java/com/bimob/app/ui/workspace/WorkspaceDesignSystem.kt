@@ -36,7 +36,7 @@ internal object CadWorkspaceTokens {
 
 internal enum class CadGlyph {
     SELECT, LINE, POLYLINE, WALL, RECT, CIRCLE, ARC, MOVE, COPY, TRIM, OFFSET,
-    DOOR, WINDOW, DIMENSION, NODE, ROTATE, MIRROR, EXTEND, DELETE, PAN, ZOOM
+    DOOR, WINDOW, DIMENSION, NODE, ROTATE, MIRROR, EXTEND, DELETE, PAN, ZOOM, VIEW3D, LAYERS, SETTINGS, GRID
 }
 
 /** Shared vector glyph artwork on a 24-unit grid, sized by role in dp. */
@@ -89,6 +89,10 @@ internal fun CadVectorIcon(
                 CadGlyph.DELETE -> { line(p(5f, 5f), p(19f, 19f)); line(p(5f, 19f), p(19f, 5f)); rect(4f, 4f, 16f, 16f) }
                 CadGlyph.PAN -> { circle(12f, 12f, 4f); line(p(12f, 2f), p(12f, 8f)); line(p(12f, 16f), p(12f, 22f)); line(p(2f, 12f), p(8f, 12f)); line(p(16f, 12f), p(22f, 12f)) }
                 CadGlyph.ZOOM -> { circle(10f, 10f, 6f); line(p(15f, 15f), p(21f, 21f)); line(p(7f, 10f), p(13f, 10f)); line(p(10f, 7f), p(10f, 13f)) }
+                CadGlyph.VIEW3D -> { path(listOf(12f to 3f, 21f to 8f, 12f to 13f, 3f to 8f),true);path(listOf(3f to 8f,3f to 17f,12f to 22f,21f to 17f,21f to 8f));line(p(12f,13f),p(12f,22f)) }
+                CadGlyph.LAYERS -> { path(listOf(3f to 8f,12f to 3f,21f to 8f,12f to 13f),true);path(listOf(3f to 12f,12f to 17f,21f to 12f));path(listOf(3f to 16f,12f to 21f,21f to 16f)) }
+                CadGlyph.SETTINGS -> { circle(12f,12f,6f);circle(12f,12f,2f);for(i in 0..7){val a=i*PI/4;line(p((12f+8f*cos(a)).toFloat(),(12f+8f*sin(a)).toFloat()),p((12f+11f*cos(a)).toFloat(),(12f+11f*sin(a)).toFloat()))} }
+                CadGlyph.GRID -> { for(i in 4..20 step 4){line(p(i.toFloat(),3f),p(i.toFloat(),21f));line(p(3f,i.toFloat()),p(21f,i.toFloat()))} }
             }
         }
     }
