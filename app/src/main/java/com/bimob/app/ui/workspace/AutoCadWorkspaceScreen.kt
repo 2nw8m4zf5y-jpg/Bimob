@@ -141,7 +141,12 @@ Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.gri
    Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f));Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(0.615f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
    ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ЛОКАЛЬНЫЙ · ГРАФ: 0.2 мс",c.muted,6.sp,Modifier.weight(0.28f),max=1)
   }
-  Row(Modifier.fillMaxWidth().weight(0.054f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+  Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
+   Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f),bold=true)
+   Row(Modifier.weight(0.615f),verticalAlignment=Alignment.CenterVertically){Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(1f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,7.sp);inner()});ButtonMini("↵",c,{cmd="";},20.dp)}
+   Txt("ПАРСЕР: ЛОКАЛЬНЫЙ · ГРАФ: 0.2 мс",c.muted,6.sp,Modifier.weight(0.28f),max=1)
+  }
+  Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
    Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(0.22f))\n   Spacer(Modifier.weight(0.26f))
    listOf("МОДЕЛЬ" to true,"СЕТКА [F7]" to grid,"ОРТО [F8]" to ortho,"OSNAP [F3]" to snap,"ОТСЛЕЖ" to track,"ВЕС ЛИНИЙ" to weights,"СВОЙСТВА" to props).forEach{(name,on)->Box(Modifier.weight(0.52f/7f),contentAlignment=Alignment.Center){Toggle(name,on,c){when(name){"СЕТКА [F7]"->grid=!grid;"ОРТО [F8]"->ortho=!ortho;"OSNAP [F3]"->snap=!snap;"ОТСЛЕЖ"->track=!track;"ВЕС ЛИНИЙ"->weights=!weights;"СВОЙСТВА"->props=!props}}}}
   }
@@ -243,7 +248,7 @@ private fun cadGlyph(id:String)=when(id){
 }
 @Composable private fun ButtonMini(text:String,c:WC,click:()->Unit,w:androidx.compose.ui.unit.Dp,active:Boolean=false){Box(Modifier.width(w).fillMaxHeight().clickable{click()}.background(if(active)c.accent.copy(alpha=.12f)else Color.Transparent).border(.5.dp,c.grid).padding(horizontal=2.dp),contentAlignment=Alignment.Center){Txt(text,if(active)c.accent else c.ink,6.sp,max=1)}}
 @Composable private fun Toggle(t:String,on:Boolean,c:WC,click:()->Unit={}){Box(Modifier.clickable{click()}.background(if(on)c.accent.copy(alpha=.12f)else Color.Transparent).padding(horizontal=3.dp)){Txt(t,if(on)c.accent else c.muted,6.sp,max=1)}}
-@Composable private fun Txt(t:String,color:Color,size:androidx.compose.ui.unit.TextUnit,m:Modifier=Modifier,bold:Boolean=false,max:Int=Int.MAX_VALUE,center:Boolean=false){androidx.compose.material3.Text(t,m,color=color,fontFamily=FontFamily.Monospace,fontSize=size,fontWeight=if(bold)FontWeight.Bold else FontWeight.Normal,maxLines=max,overflow=TextOverflow.Ellipsis,textAlign=if(center)androidx.compose.ui.text.style.TextAlign.Center else androidx.compose.ui.text.style.TextAlign.Start)}
+@Composable private fun Txt(t:String,color:Color,size:androidx.compose.ui.unit.TextUnit,m:Modifier=Modifier,bold:Boolean=false,max:Int=Int.MAX_VALUE,center:Boolean=false){BoxWithConstraints(m){val scale=(maxHeight.value/24f).coerceIn(0.62f,1f);androidx.compose.material3.Text(t,color=color,fontFamily=FontFamily.Monospace,fontSize=size*scale,fontWeight=if(bold)FontWeight.Bold else FontWeight.Normal,maxLines=max,overflow=TextOverflow.Ellipsis,textAlign=if(center)androidx.compose.ui.text.style.TextAlign.Center else androidx.compose.ui.text.style.TextAlign.Start)}}
 private fun key(p:Vec2)="${(p.x*1000).roundToInt()}:${(p.y*1000).roundToInt()}"
 private fun endpointDegree(g:TypedGeometry?):Map<String,Int>{val d=mutableMapOf<String,Int>();g?.walls?.forEach{w->listOf(w.axisStart,w.axisEnd).forEach{d[key(it)]=(d[key(it)]?:0)+1}};return d}
 private fun dist(p:Vec2,a:Vec2,b:Vec2):Double{val x=b.x-a.x;val y=b.y-a.y;val l=x*x+y*y;if(l<1e-12)return hypot(p.x-a.x,p.y-a.y);val t=(((p.x-a.x)*x+(p.y-a.y)*y)/l).coerceIn(0.0,1.0);return hypot(p.x-a.x-t*x,p.y-a.y-t*y)}
