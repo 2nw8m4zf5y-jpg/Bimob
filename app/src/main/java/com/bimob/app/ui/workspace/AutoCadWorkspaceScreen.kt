@@ -102,7 +102,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
     VectorCanvas(
      modifier = Modifier.fillMaxSize(), c = c, g = g, selected = state.selection?.id,
      zoom = camera.zoom, px = camera.panX, py = camera.panY, grid = grid, weight = weights,
-     cursor = cursor, onCursor = { cursor = it }, onSelect = { editor.selectElement(it) }
+     cursor = cursor, snapEnabled = snap, onCursor = { cursor = it }, onSelect = { editor.selectElement(it) }
     )
     Column(Modifier.align(Alignment.TopStart).padding(4.dp)) {
      Txt("А    Б    В",c.dim,8.sp); Txt("3\n2\n1",c.dim,7.sp)
@@ -147,7 +147,7 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
  }
 }
 
-@Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,onCursor:(Vec2)->Unit,onSelect:(EditorSelection?)->Unit){
+@Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onSelect:(EditorSelection?)->Unit){
  Canvas(modifier
   .pointerInput(g,zoom,px,py){
    awaitPointerEventScope {
@@ -155,11 +155,11 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
      val event=awaitPointerEvent()
      val position=event.changes.firstOrNull()?.position ?: continue
      val raw=Vec2(((position.x-size.width/2-px)/zoom).toDouble(),((size.height/2-position.y-py)/zoom).toDouble())
-     onCursor(snapWorkspaceEndpoint(raw,g,zoom,22f))
+     onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw)
     }
    }
   }
-  .pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val raw=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());onCursor(snapWorkspaceEndpoint(raw,g,zoom,22f));val w=g?.walls?.minByOrNull{dist(raw,it.axisStart,it.axisEnd)};onSelect(if(w!=null&&dist(raw,w.axisStart,w.axisEnd)<.18)EditorSelection(EditorElementKind.WALL,w.id)else null)}}){
+  .pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val raw=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());onCursor(if(snapEnabled)snapWorkspaceEndpoint(raw,g,zoom,22f)else raw);val w=g?.walls?.minByOrNull{dist(raw,it.axisStart,it.axisEnd)};onSelect(if(w!=null&&dist(raw,w.axisStart,w.axisEnd)<.18)EditorSelection(EditorElementKind.WALL,w.id)else null)}}){
   val center=Offset(size.width/2+px,size.height/2+py);fun s(v:Vec2)=Offset(center.x+(v.x*zoom).toFloat(),center.y-(v.y*zoom).toFloat())
   if(grid){val step=zoom*.1f;val major=zoom; if(step>3){var x=((center.x%step)+step)%step;while(x<size.width){drawLine(c.grid,Offset(x,0f),Offset(x,size.height),.45f);x+=step};var y=((center.y%step)+step)%step;while(y<size.height){drawLine(c.grid,Offset(0f,y),Offset(size.width,y),.45f);y+=step}};if(major>8){var x=((center.x%major)+major)%major;while(x<size.width){drawLine(c.major,Offset(x,0f),Offset(x,size.height),.65f);x+=major};var y=((center.y%major)+major)%major;while(y<size.height){drawLine(c.major,Offset(0f,y),Offset(size.width,y),.65f);y+=major}}}
   g?.joins?.forEach{j->val path=Path().apply{j.corners.forEachIndexed{i,v->val q=s(v);if(i==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()};drawPath(path,c.fill);drawPath(path,c.dim,style=Stroke(.7f))}
