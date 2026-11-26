@@ -39,8 +39,8 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
  val pref=context.getSharedPreferences("nagaplas_ui",0);var theme by remember{mutableIntStateOf(pref.getInt("themeIndex",0).coerceIn(0,7))};val p=palettes[theme]
  var homeMenu by remember{mutableStateOf(false)};var askNew by remember{mutableStateOf(false)};var infoExpanded by remember{mutableStateOf(true)};var infoSettings by remember{mutableStateOf(false)};var drawWall by remember{mutableStateOf(false)};var cursor by remember{mutableStateOf(Vec2(0.0,0.0))};var firstPoint by remember{mutableStateOf<Vec2?>(null)}
  BoxWithConstraints(Modifier.fillMaxSize().background(p.bg)){
-  val cell=minOf(maxWidth/32,maxHeight/18);val gap=2.dp
-  fun cellBlock(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(col*(cell+gap),row*(cell+gap)).size(cell*w+gap*(w-1),cell*h+gap*(h-1))
+  val cell=minOf(maxWidth/32,maxHeight/18);val gap=2.dp;val matrixW=cell*32+gap*31;val matrixH=cell*18+gap*17;val originX=(maxWidth-matrixW)/2;val originY=(maxHeight-matrixH)/2
+  fun cellBlock(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(originX+col*(cell+gap),originY+row*(cell+gap)).size(cell*w+gap*(w-1),cell*h+gap*(h-1))
   Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}){
    if(gp.enabled){val step=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(2f);val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
     var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),gp.minorWidth);x+=step}
