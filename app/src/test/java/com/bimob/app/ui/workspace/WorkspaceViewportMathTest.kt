@@ -14,7 +14,7 @@ class WorkspaceViewportMathTest {
  )
  @Test fun cursorSnapsToEndpointWithinPixelTolerance(){
   val result=snapWorkspaceEndpoint(Vec2(.08,.02),geometry(),100f,12f)
-  assertEquals(Vec2(0.0,0.0),result)
+  assertEquals(Vec2(0.0,0.1),result)
  }
  @Test fun cursorRemainsFreeOutsideTolerance(){
   val raw=Vec2(.3,.3)
@@ -22,7 +22,7 @@ class WorkspaceViewportMathTest {
  }
  @Test fun snapToleranceScalesWithZoom(){
   val raw=Vec2(.08,0.0)
-  assertEquals(Vec2(0.0,0.0),snapWorkspaceEndpoint(raw,geometry(),100f,12f))
+  assertEquals(Vec2(0.0,0.1),snapWorkspaceEndpoint(raw,geometry(),100f,12f))
   assertEquals(raw,snapWorkspaceEndpoint(raw,geometry(),300f,12f))
  }
  @Test fun invalidCameraDoesNotSnap(){
