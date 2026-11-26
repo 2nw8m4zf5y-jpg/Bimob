@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
+import androidx.compose.ui.input.pointer.awaitPointerEvent
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -116,7 +118,10 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
      Txt("°",c.dim,7.sp)
     }
     Txt("UCS X / Y",c.accent,7.sp,Modifier.align(Alignment.BottomStart).padding(5.dp))
-    Txt("OSNAP: УЗЕЛ N3",c.snap,8.sp,Modifier.align(Alignment.BottomEnd).padding(5.dp).background(c.panel).border(1.dp,c.snap).padding(3.dp))
+    val cursorEndpoint = g?.walls?.any { wall ->
+     hypot(cursor.x-wall.axisStart.x,cursor.y-wall.axisStart.y)<1e-6 || hypot(cursor.x-wall.axisEnd.x,cursor.y-wall.axisEnd.y)<1e-6
+    } == true
+    Txt(if(snap && cursorEndpoint) "OSNAP: УЗЕЛ" else if(snap) "OSNAP: ПОИСК" else "OSNAP: ВЫКЛ",if(snap&&cursorEndpoint)c.snap else c.muted,8.sp,Modifier.align(Alignment.BottomEnd).padding(5.dp).background(c.panel).border(1.dp,if(snap&&cursorEndpoint)c.snap else c.grid).padding(3.dp))
     if(debug && selectedWall != null) {
      Column(Modifier.align(Alignment.Center).background(c.panel).border(1.dp,c.select).padding(4.dp)) {
       Txt("N1 d=${degree[key(selectedWall.axisStart)]?:1}",c.select,7.sp)
@@ -143,7 +148,18 @@ Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid
 }
 
 @Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,onCursor:(Vec2)->Unit,onSelect:(EditorSelection?)->Unit){
- Canvas(modifier.pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val world=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());onCursor(world);val w=g?.walls?.minByOrNull{dist(world,it.axisStart,it.axisEnd)};onSelect(if(w!=null&&dist(world,w.axisStart,w.axisEnd)<.18)EditorSelection(EditorElementKind.WALL,w.id)else null)}}){
+ Canvas(modifier
+  .pointerInput(g,zoom,px,py){
+   awaitPointerEventScope {
+    while(true){
+     val event=awaitPointerEvent()
+     val position=event.changes.firstOrNull()?.position ?: continue
+     val raw=Vec2(((position.x-size.width/2-px)/zoom).toDouble(),((size.height/2-position.y-py)/zoom).toDouble())
+     onCursor(snapWorkspaceEndpoint(raw,g,zoom,22f))
+    }
+   }
+  }
+  .pointerInput(g,selected,zoom,px,py){detectTapGestures{t->val raw=Vec2(((t.x-size.width/2-px)/zoom).toDouble(),((size.height/2-t.y-py)/zoom).toDouble());onCursor(snapWorkspaceEndpoint(raw,g,zoom,22f));val w=g?.walls?.minByOrNull{dist(raw,it.axisStart,it.axisEnd)};onSelect(if(w!=null&&dist(raw,w.axisStart,w.axisEnd)<.18)EditorSelection(EditorElementKind.WALL,w.id)else null)}}){
   val center=Offset(size.width/2+px,size.height/2+py);fun s(v:Vec2)=Offset(center.x+(v.x*zoom).toFloat(),center.y-(v.y*zoom).toFloat())
   if(grid){val step=zoom*.1f;val major=zoom; if(step>3){var x=((center.x%step)+step)%step;while(x<size.width){drawLine(c.grid,Offset(x,0f),Offset(x,size.height),.45f);x+=step};var y=((center.y%step)+step)%step;while(y<size.height){drawLine(c.grid,Offset(0f,y),Offset(size.width,y),.45f);y+=step}};if(major>8){var x=((center.x%major)+major)%major;while(x<size.width){drawLine(c.major,Offset(x,0f),Offset(x,size.height),.65f);x+=major};var y=((center.y%major)+major)%major;while(y<size.height){drawLine(c.major,Offset(0f,y),Offset(size.width,y),.65f);y+=major}}}
   g?.joins?.forEach{j->val path=Path().apply{j.corners.forEachIndexed{i,v->val q=s(v);if(i==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()};drawPath(path,c.fill);drawPath(path,c.dim,style=Stroke(.7f))}
