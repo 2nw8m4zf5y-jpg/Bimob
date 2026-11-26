@@ -13,7 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color\nimport androidx.compose.ui.graphics.PathEffect\nimport androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -43,10 +43,10 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   fun cellBlock(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(originX+col*(cell+gap),originY+row*(cell+gap)).size(cell*w+gap*(w-1),cell*h+gap*(h-1))
   Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}){
    if(gp.enabled){val step=(gp.minorMm/1000f*camera.zoom).coerceAtLeast(2f);val major=step*gp.majorEvery;val cx=size.width/2+camera.panX;val cy=size.height/2+camera.panY
-    var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),gp.minorWidth);x+=step}
-    var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),gp.minorWidth);y+=step}
-    x=((cx%major)+major)%major;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),gp.majorWidth);x+=major}
-    y=((cy%major)+major)%major;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),gp.majorWidth);y+=major}
+    var x=((cx%step)+step)%step;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),style=Stroke(gp.minorWidth,lineEffect));x+=step}
+    var y=((cy%step)+step)%step;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.minor)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),style=Stroke(gp.minorWidth,lineEffect));y+=step}
+    x=((cx%major)+major)%major;while(x<size.width){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),style=Stroke(gp.majorWidth,lineEffect));x+=major}
+    y=((cy%major)+major)%major;while(y<size.height){drawLine(Color(android.graphics.Color.parseColor(gp.major)),androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),style=Stroke(gp.majorWidth,lineEffect));y+=major}
     drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(cx,0f),androidx.compose.ui.geometry.Offset(cx,size.height),1f);drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(0f,cy),androidx.compose.ui.geometry.Offset(size.width,cy),1f)
    }
   }
