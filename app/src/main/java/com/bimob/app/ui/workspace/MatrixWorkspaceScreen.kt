@@ -71,7 +71,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
      val gridStep=gp.minorMm/1000.0
      val world=if(gp.snap)Vec2(kotlin.math.round(raw.x/gridStep)*gridStep,kotlin.math.round(raw.y/gridStep)*gridStep)else raw
      cursor=world
-     if(drawWall&&!wallLayerLocked){val start=firstPoint;if(start==null)firstPoint=world else{editor.createWall(start.x,start.y,world.x,world.y,.2,"ОСЬ");firstPoint=null;drawWall=false}}else if(!wallLayerLocked)editor.selectAt(world.x,world.y)
+     if(drawWall&&!wallLayerLocked){val start=firstPoint;if(start==null)firstPoint=world else{editor.createWall(start.x,start.y,world.x,world.y,.2,"ОСЬ");firstPoint=null;drawWall=false}}else if(wallLayerVisible&&!wallLayerLocked)editor.selectAt(world.x,world.y)
     }}
   ){
    val center=androidx.compose.ui.geometry.Offset(size.width/2+camera.panX,size.height/2+camera.panY)
@@ -88,7 +88,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   }
   MatrixCellButton(cellBlock(0,0,2,2),"⌂","ДОМОЙ",p){homeMenu=!homeMenu}
   MatrixCellButton(cellBlock(31,0,1,1),"◉","ТЕМА",p){theme=(theme+1)%8;pref.edit().putInt("themeIndex",theme).apply();val palette=palettes[theme];NagaGridSettings.update(context,gp.copy(background=palette.bg.hex(),minor=palette.minor.hex(),major=palette.major.hex()))}
-  MatrixCellButton(cellBlock(26,1,2,2),"⌫","УДАЛИТЬ",p,state.selection!=null){editor.deleteSelection()}
+  MatrixCellButton(cellBlock(26,1,2,2),"⌫","УДАЛИТЬ",p,state.selection!=null&&!wallLayerLocked){editor.deleteSelection()}
   MatrixCellButton(cellBlock(28,1,2,2),"↶","ОТМЕНИТЬ",p,state.canUndo){editor.undo()}
   MatrixCellButton(cellBlock(30,1,2,2),"↷","ВПЕРЁД",p,state.canRedo){editor.redo()}
   Row(cellBlock(27,3,5,1)){
@@ -99,7 +99,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   if(infoExpanded)Column(Modifier.offset(originX+27f*(cell+gap),originY+4f*(cell+gap)).width(cell*5f+gap*4f).heightIn(max=maxHeight-4f*(cell+gap)).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(4.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(4.dp)){
    sectionOrder.forEach{section->if(section in enabledSections){when(section){
     "props"->InfoBox("СВОЙСТВА",p){val wall=geo?.walls?.firstOrNull{it.id==state.selection?.id};if("id" in propertyFields)Text(if(state.selection?.id==null)"Объект не выбран" else "ID: "+state.selection?.id.orEmpty(),color=p.ink,fontSize=8.sp);if(wall!=null){if("length" in propertyFields)Text("Длина: "+(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);if("thickness" in propertyFields)Text("Толщина: "+(hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Высота: "+(wall.height*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);if("xy" in propertyFields)Text("X/Y: "+(wall.axisStart.x*1000).toInt()+" / "+(wall.axisStart.y*1000).toInt(),color=p.ink,fontSize=8.sp);if("angle" in propertyFields)Text("Угол: "+Math.toDegrees(atan2(wall.axisEnd.y-wall.axisStart.y,wall.axisEnd.x-wall.axisStart.x)).toInt()+"°",color=p.ink,fontSize=8.sp);if("nodes" in propertyFields)Text("N1/N2: "+(wall.axisStart.x*1000).toInt()+","+(wall.axisStart.y*1000).toInt()+" · "+(wall.axisEnd.x*1000).toInt()+","+(wall.axisEnd.y*1000).toInt(),color=p.ink,fontSize=8.sp)}}
-    "layers"->InfoBox("СЛОИ",p){Row(verticalAlignment=Alignment.CenterVertically){Checkbox(wallLayerVisible,{wallLayerVisible=it;infoPrefs.edit().putBoolean("wallVisible",it).apply()});Text("A-WALL-MAIN · видимость",color=p.ink,fontSize=8.sp)};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(wallLayerLocked,{wallLayerLocked=it;infoPrefs.edit().putBoolean("wallLocked",it).apply()});Text("Блокировка слоя",color=p.ink,fontSize=8.sp)}}
+    "layers"->InfoBox("СЛОИ",p){Row(verticalAlignment=Alignment.CenterVertically){Checkbox(wallLayerVisible,{wallLayerVisible=it;infoPrefs.edit().putBoolean("wallVisible",it).apply()});Text("A-WALL-MAIN · видимость",color=p.ink,fontSize=8.sp)};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(wallLayerLocked,{wallLayerLocked=it;if(it)editor.selectElement(null);infoPrefs.edit().putBoolean("wallLocked",it).apply()});Text("Блокировка слоя",color=p.ink,fontSize=8.sp)}}
     "coords"->InfoBox("КООРДИНАТЫ / СЕТКА",p){Text("X "+(cursor.x*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Y "+(cursor.y*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Шаг "+gp.minorMm+" · SNAP "+(if(gp.snap)"ВКЛ" else "ВЫКЛ"),color=p.accent,fontSize=8.sp)}
    }}}
   }
