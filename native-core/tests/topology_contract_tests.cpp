@@ -1,5 +1,7 @@
 #include "bimob/topology.hpp"
 #include <cassert>
+#include <algorithm>
+#include <stdexcept>
 #include <cmath>
 #include <thread>
 #include <vector>
