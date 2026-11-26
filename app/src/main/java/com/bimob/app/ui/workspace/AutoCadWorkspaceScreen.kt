@@ -6,7 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.layout.WindowInsets\nimport androidx.compose.foundation.layout.safeDrawing\nimport androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.*
@@ -69,17 +69,24 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  var props by remember{mutableStateOf(true)};var grid by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var track by remember{mutableStateOf(false)};var weights by remember{mutableStateOf(false)};var debug by remember{mutableStateOf(false)}
  var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))}
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
- Column(Modifier.fillMaxSize().background(c.canvas)){
-  Row(Modifier.fillMaxWidth().height(44.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
-   BrandMark(c);Txt("NAGAPLAS",c.ink,9.sp,bold=true);ButtonMini("← ФАСАД",c,onBack,54.dp)
-   Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){listOf("ГЛАВНАЯ","АННОТАЦИИ","СЛОИ","ВИД","УПРАВЛЕНИЕ").forEach{ButtonMini(it,c,{tab=it},if(tab==it)68.dp else 60.dp,tab==it)}}
+ Column(Modifier.fillMaxSize().background(c.canvas).windowInsetsPadding(WindowInsets.safeDrawing)){
+  Row(Modifier.fillMaxWidth().weight(0.042f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
+   BrandMark(c);Txt("NAGAPLAS",c.ink,9.sp,bold=true)
    Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,8.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
    Txt(AppVersion.VERSION_LABEL,c.accent,8.sp,Modifier.border(.5.dp,c.grid).padding(horizontal=3.dp))
+  }
+  Row(Modifier.fillMaxWidth().weight(0.068f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
+   ButtonMini("← ФАСАД",c,onBack,54.dp)
+   Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){listOf("ГЛАВНАЯ","АННОТАЦИИ","СЛОИ","ВИД","УПРАВЛЕНИЕ").forEach{ButtonMini(it,c,{tab=it},if(tab==it)68.dp else 60.dp,tab==it)}}
    ButtonMini("▣ СОХРАНИТЬ",c,onSave,64.dp);ButtonMini("⇧ ЭКСПОРТ",c,onExport,54.dp);ButtonMini("ТЕМА: ${p.label}",c,{BlueprintTheme.next()},58.dp)
   }
-  Row(Modifier.fillMaxWidth().height(88.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
-   Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.Center){
-    Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){(ribbonTools[tab]?:ribbonTools["ГЛАВНАЯ"]!!).forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==6)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}
+  Row(Modifier.fillMaxWidth().weight(0.142f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
+   val groups=listOf("ЧЕРЧЕНИЕ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT"),"РЕДАКТИРОВАНИЕ" to listOf("ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET"),"BIM / АННОТАЦИИ" to listOf("ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"))
+   groups.forEach{group->Column(Modifier.weight(0.215f).fillMaxHeight().border(.5.dp,c.grid),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Row(Modifier.fillMaxWidth().weight(1f).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(1.dp)){group.second.forEach{(label,id)->Tool(id,label,tool==id,c){tool=id}}};Txt(group.first,c.muted,6.sp,max=1)}}
+   Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,6.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},108.dp);Txt("ПРИВЯЗКА СТЕНЫ",c.muted,6.sp);Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMini(it,c,{anchor=it},26.dp,anchor==it)}}}
+   Column(Modifier.weight(0.12f).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){ButtonMini("↶ ОТМЕНА",c,{editor.undo()},42.dp);ButtonMini("↷ ПОВТОР",c,{editor.redo()},42.dp)}
+  }
+  Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){(ribbonTools[tab]?:ribbonTools["ГЛАВНАЯ"]!!).forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==6)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}
     Row(Modifier.fillMaxWidth().height(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Txt(when(tab){"ГЛАВНАЯ"->"ЧЕРЧЕНИЕ  ·  РЕДАКТИРОВАНИЕ  ·  BIM / АННОТАЦИИ";"ПОСТРОЕНИЕ"->"ГЕОМЕТРИЯ  ·  ПРИМИТИВЫ";"РЕДАКТИРОВАНИЕ"->"ТРАНСФОРМАЦИИ  ·  МОДИФИКАЦИЯ";"АРХИТЕКТУРА"->"СТЕНЫ  ·  ПРОЁМЫ  ·  УЗЛЫ";"BIM"->"МОДЕЛЬ  ·  КОНСТРУКЦИЯ";"АННОТАЦИИ"->"РАЗМЕРЫ  ·  МАРКИ";"СЛОИ"->"ВИДИМОСТЬ  ·  СТРУКТУРА";"ВИД"->"НАВИГАЦИЯ  ·  ОТОБРАЖЕНИЕ";"УПРАВЛЕНИЕ"->"ПРОЕКТ  ·  СИСТЕМА  ·  НАСТРОЙКИ";else->"СИСТЕМНЫЕ ИНСТРУМЕНТЫ"},c.muted,6.sp)}
    }
    Column(Modifier.width(112.dp),verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,7.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},108.dp)}
@@ -91,13 +98,13 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    verticalAlignment = Alignment.CenterVertically
   ) {
    ToolDock(
-    modifier = Modifier.width(34.dp).fillMaxHeight(),
+    modifier = Modifier.weight(0.036f).fillMaxHeight(),
     c = c,
     active = activeRail,
     choose = { selectedTool -> activeRail=selectedTool; when(selectedTool){ "CENTER"->editor.setCamera(72f,0f,0f); "ZOOM"->editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY); "GRID"->grid=!grid; "LAYERS"->props=!props; "SETTINGS"->debug=!debug; "VIEW3D"->android.widget.Toast.makeText(context,"3D-вид ещё не реализован",android.widget.Toast.LENGTH_SHORT).show(); else->tool=selectedTool } }
    )
    Box(
-    modifier = Modifier.weight(1f).fillMaxHeight().background(c.canvas),
+    modifier = Modifier.weight(if(props) 0.808f else 0.964f).fillMaxHeight().background(c.canvas),
     contentAlignment = Alignment.Center
    ) {
     VectorCanvas(
@@ -132,18 +139,18 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    }
    if(props) {
     Properties(
-     Modifier.width(148.dp).fillMaxHeight(), c, g, state.selection, degree, editor,
+     Modifier.weight(0.156f).fillMaxHeight(), c, g, state.selection, degree, editor,
      layer, layers, { layer = it }, { debug = !debug }
     )
    }
   }
-Row(Modifier.fillMaxWidth().height(30.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
-   Txt("[AI МОСТ-H]",c.snap,7.sp);Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(1f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
-   ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ОФЛАЙН · C++20",c.muted,6.sp)
+Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
+   Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f));Txt(" $tool >",c.dim,7.sp);BasicTextField(cmd,{cmd=it},Modifier.weight(0.615f).padding(horizontal=4.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,decorationBox={inner->if(cmd.isEmpty())Txt("Следующая точка или [Длина/Угол/Замкнуть/Отменить]",c.muted,8.sp);inner()})
+   ButtonMini("↵",c,{cmd="";},20.dp);Txt("ПАРСЕР: ЛОКАЛЬНЫЙ · ГРАФ: 0.2 мс",c.muted,6.sp,Modifier.weight(0.28f),max=1)
   }
-  Row(Modifier.fillMaxWidth().height(28.dp).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-   Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(1f))
-   Toggle("МОДЕЛЬ",true,c);Toggle("СЕТКА [F7]",grid,c){grid=!grid};Toggle("ОРТО [F8]",ortho,c){ortho=!ortho};Toggle("OSNAP [F3]",snap,c){snap=!snap};Toggle("ОТСЛЕЖ",track,c){track=!track};Toggle("ВЕС ЛИНИЙ",weights,c){weights=!weights};Toggle("СВОЙСТВА",props,c){props=!props}
+  Row(Modifier.fillMaxWidth().weight(0.054f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+   Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(0.22f))\n   Spacer(Modifier.weight(0.26f))
+   listOf("МОДЕЛЬ" to true,"СЕТКА [F7]" to grid,"ОРТО [F8]" to ortho,"OSNAP [F3]" to snap,"ОТСЛЕЖ" to track,"ВЕС ЛИНИЙ" to weights,"СВОЙСТВА" to props).forEach{(name,on)->Box(Modifier.weight(0.52f/7f),contentAlignment=Alignment.Center){Toggle(name,on,c){when(name){"СЕТКА [F7]"->grid=!grid;"ОРТО [F8]"->ortho=!ortho;"OSNAP [F3]"->snap=!snap;"ОТСЛЕЖ"->track=!track;"ВЕС ЛИНИЙ"->weights=!weights;"СВОЙСТВА"->props=!props}}}}
   }
  }
 }
