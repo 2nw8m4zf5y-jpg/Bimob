@@ -9,7 +9,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.draw.drawBehind\nimport androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -64,7 +65,7 @@ fun launcherModuleSpecs()=listOf(
 @Composable internal fun ThemeMatrix(current:BlueprintPalette,onSelect:(BlueprintPalette)->Unit,p:BlueprintPalette){
  Row(Modifier.border(1.dp,p.linePrimary).padding(horizontal=5.dp,vertical=3.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){BlueprintTheme.palettes.forEach{theme->val label=when(theme.id){"blue"->"BLUE";"dark"->"DARK";else->"CAD"};Text(label,color=if(current.id==theme.id)p.accentAmber else p.textMuted,fontSize=8.sp,fontFamily=FontFamily.Monospace,fontWeight=if(current.id==theme.id)FontWeight.Bold else FontWeight.Normal,modifier=Modifier.clickable{onSelect(theme)})}}
 }
-@Composable internal fun ModuleTile(spec:LauncherModuleSpec,p:BlueprintPalette,modifier:Modifier=Modifier,onClick:()->Unit){
+@Composable internal fun ModuleTile(spec:LauncherModuleSpec,p:BlueprintPalette,modifier:Modifier=Modifier,onClick:()->Unit,enabled:Boolean=spec.isActive){
  val active=spec.statusBadge=="ACTIVE";val stageH=spec.statusBadge=="STAGE H";val stageI=spec.statusBadge=="STAGE I"
  val edge=when{active->Color(0xFF4DE8F4);stageH->Color(0xFFF2B949);stageI->Color(0xFF2C5E8A);else->Color(0xFF2C5E8A)}
  Column(modifier.background(p.bgPrimary).then(if(active)Modifier.border(2.dp,edge) else Modifier.drawBehind { val dash=7.dp.toPx();val space=5.dp.toPx();val sw=1.dp.toPx();var x=0f;while(x<size.width){drawLine(edge,Offset(x,0f),Offset((x+dash).coerceAtMost(size.width),0f),sw,StrokeCap.Butt);drawLine(edge,Offset(x,size.height),Offset((x+dash).coerceAtMost(size.width),size.height),sw,StrokeCap.Butt);x+=dash+space};var y=0f;while(y<size.height){drawLine(edge,Offset(0f,y),Offset(0f,(y+dash).coerceAtMost(size.height)),sw,StrokeCap.Butt);drawLine(edge,Offset(size.width,y),Offset(size.width,(y+dash).coerceAtMost(size.height)),sw,StrokeCap.Butt);y+=dash+space} }).clickable(enabled=enabled,onClick=onClick)){
