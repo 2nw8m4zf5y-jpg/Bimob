@@ -86,15 +86,8 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,6.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},108.dp);Txt("ПРИВЯЗКА СТЕНЫ",c.muted,6.sp);Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMini(it,c,{anchor=it},26.dp,anchor==it)}}}
    Column(Modifier.weight(0.12f).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){ButtonMini("↶ ОТМЕНА",c,{editor.undo()},42.dp);ButtonMini("↷ ПОВТОР",c,{editor.redo()},42.dp)}
   }
-  Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){(ribbonTools[tab]?:ribbonTools["ГЛАВНАЯ"]!!).forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==6)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}
-    Row(Modifier.fillMaxWidth().height(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Txt(when(tab){"ГЛАВНАЯ"->"ЧЕРЧЕНИЕ  ·  РЕДАКТИРОВАНИЕ  ·  BIM / АННОТАЦИИ";"ПОСТРОЕНИЕ"->"ГЕОМЕТРИЯ  ·  ПРИМИТИВЫ";"РЕДАКТИРОВАНИЕ"->"ТРАНСФОРМАЦИИ  ·  МОДИФИКАЦИЯ";"АРХИТЕКТУРА"->"СТЕНЫ  ·  ПРОЁМЫ  ·  УЗЛЫ";"BIM"->"МОДЕЛЬ  ·  КОНСТРУКЦИЯ";"АННОТАЦИИ"->"РАЗМЕРЫ  ·  МАРКИ";"СЛОИ"->"ВИДИМОСТЬ  ·  СТРУКТУРА";"ВИД"->"НАВИГАЦИЯ  ·  ОТОБРАЖЕНИЕ";"УПРАВЛЕНИЕ"->"ПРОЕКТ  ·  СИСТЕМА  ·  НАСТРОЙКИ";else->"СИСТЕМНЫЕ ИНСТРУМЕНТЫ"},c.muted,6.sp)}
-   }
-   Column(Modifier.width(112.dp),verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,7.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},108.dp)}
-   Column(Modifier.width(82.dp),verticalArrangement=Arrangement.Center){Txt("ПРИВЯЗКА СТЕНЫ",c.muted,7.sp);Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMini(it,c,{anchor=it},26.dp,anchor==it)}}}
-   ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)
-  }
   Row(
-   modifier = Modifier.weight(1f).fillMaxWidth(),
+   modifier = Modifier.weight(0.636f).fillMaxWidth(),
    verticalAlignment = Alignment.CenterVertically
   ) {
    ToolDock(
