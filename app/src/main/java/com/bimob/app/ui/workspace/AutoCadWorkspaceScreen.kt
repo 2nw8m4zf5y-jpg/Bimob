@@ -108,7 +108,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
     VectorCanvas(
      modifier = Modifier.fillMaxSize(), c = c, g = g, selected = state.selection?.id,
      zoom = camera.zoom, px = camera.panX, py = camera.panY, grid = grid, weight = weights,
-     cursor = cursor, snapEnabled = snap, onCursor = { cursor = it }, onWorldTap = { point -> if(tool=="WALL"){val start=pendingWallStart;if(start==null){pendingWallStart=point;bridgeStatus="УЗЕЛ 1 ЗАДАН";}else{val end=if(ortho){if(abs(point.x-start.x)>=abs(point.y-start.y))Vec2(point.x,start.y)else Vec2(start.x,point.y)}else point;val ok=editor.createWall(start.x,start.y,end.x,end.y,wallThickness,anchor);pendingWallStart=null;bridgeStatus=if(ok)"СТЕНА СОЗДАНА" else editor.state.value.error?: "ОШИБКА ЯДРА"}}else{editor.selectAt(point.x,point.y);bridgeStatus="ВЫБОР ОБЪЕКТА"}}
+     cursor = cursor, snapEnabled = snap, onCursor = { cursor = it }, onWorldTap = { point -> if(tool=="WALL"){val start=pendingWallStart;if(start==null){pendingWallStart=point;bridgeStatus="УЗЕЛ 1 ЗАДАН";}else{val constrained=if(ortho){if(abs(point.x-start.x)>=abs(point.y-start.y))Vec2(point.x,start.y)else Vec2(start.x,point.y)}else point;val end=if(snap)snapWorkspaceEndpoint(constrained,g,camera.zoom,22f)else constrained;val ok=editor.createWall(start.x,start.y,end.x,end.y,wallThickness,anchor);pendingWallStart=null;bridgeStatus=if(ok)"СТЕНА СОЗДАНА" else editor.state.value.error?: "ОШИБКА ЯДРА"}}else{editor.selectAt(point.x,point.y);bridgeStatus="ВЫБОР ОБЪЕКТА"}}
     )
     Column(Modifier.align(Alignment.TopStart).padding(4.dp)) {
      Txt("А    Б    В",c.dim,8.sp); Txt("3\n2\n1",c.dim,7.sp)
