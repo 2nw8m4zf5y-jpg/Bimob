@@ -1,1 +1,6 @@
-package com.bimob.app\n\n/** Single version-label source: Gradle BuildConfig. */\nobject AppVersion {\n    const val VERSION_LABEL: String = BuildConfig.VERSION_LABEL\n}\n
+package com.bimob.app
+
+/** Single version-label source: Gradle BuildConfig. */
+object AppVersion {
+    const val VERSION_LABEL: String = BuildConfig.VERSION_LABEL
+}
