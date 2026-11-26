@@ -56,17 +56,17 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   MatrixCellButton(cellBlock(26,1,2,2),"⌫","УДАЛИТЬ",p,state.selection!=null){editor.deleteSelection()}
   MatrixCellButton(cellBlock(28,1,2,2),"↶","ОТМЕНИТЬ",p,state.canUndo){editor.undo()}
   MatrixCellButton(cellBlock(30,1,2,2),"↷","ВПЕРЁД",p,state.canRedo){editor.redo()}
-  Row(cellBlock(27,3,5,1),horizontalArrangement=Arrangement.spacedBy(gap)){
+  Row(cellBlock(27,3,5,1)){
    MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),"⌃","",p){infoExpanded=!infoExpanded}
    MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),"⚙","",p){infoSettings=true}
    Box(Modifier.weight(3f).fillMaxHeight().background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)),contentAlignment=Alignment.Center){Text("ИНФОРМАЦИЯ",fontSize=8.sp,color=p.ink,maxLines=1)}
   }
-  if(infoExpanded)Column(Modifier.offset(27*(cell+gap),4*(cell+gap)).width(cell*5+gap*4).heightIn(max=maxHeight-4*(cell+gap)).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(4.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(4.dp)){
+  if(infoExpanded)Column(Modifier.offset(originX+27*(cell+gap),originY+4*(cell+gap)).width(cell*5+gap*4).heightIn(max=maxHeight-4*(cell+gap)).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(4.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(4.dp)){
    InfoBox("СВОЙСТВА",p){val wall=geo?.walls?.firstOrNull{it.id==state.selection?.id};Text(if(state.selection==null)"Объект не выбран" else "ID: "+state.selection.id,color=p.ink,fontSize=8.sp);if(wall!=null){Text("Длина: "+(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Толщина: "+(wall.thicknessMeters*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("X/Y: "+(wall.axisStart.x*1000).toInt()+" / "+(wall.axisStart.y*1000).toInt(),color=p.ink,fontSize=8.sp)}}
    InfoBox("СЛОИ",p){Text("A-WALL-MAIN · активный",color=p.accent,fontSize=8.sp);Text("A-WALL-PART · видимый",color=p.ink,fontSize=8.sp)}
    InfoBox("КООРДИНАТЫ / СЕТКА",p){Text("X "+(cursor.x*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Y "+(cursor.y*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Шаг "+gp.minorMm+" · SNAP "+if(gp.snap)"ВКЛ" else "ВЫКЛ",color=p.accent,fontSize=8.sp)}
   }
-  if(homeMenu)Column(Modifier.offset(0.dp,2*(cell+gap)+gap).width(cell*3+gap*2).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+  if(homeMenu)Column(Modifier.offset(originX,originY+2*(cell+gap)+gap).width(cell*3+gap*2).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
    MenuItem("＋","НОВЫЙ",p){homeMenu=false;askNew=true};MenuItem("▣","СОХРАНИТЬ",p){homeMenu=false;onSave()};MenuItem("⇧","ЭКСПОРТ",p){homeMenu=false;onExport()};MenuItem("⇩","ИМПОРТ",p){homeMenu=false;onImport()};MenuItem("↩","ВЫХОД",p){homeMenu=false;editor.closeAndReset();onBack()}
   }
   Row(Modifier.align(Alignment.BottomStart).padding(3.dp),horizontalArrangement=Arrangement.spacedBy(3.dp)){MenuItem("＋","ZOOM",p){editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY)};MenuItem("－","ZOOM",p){editor.setCamera(camera.zoom/1.2f,camera.panX,camera.panY)};MenuItem("✚","СТЕНА",p){drawWall=true};MenuItem("↖","ВЫБОР",p){drawWall=false}}
