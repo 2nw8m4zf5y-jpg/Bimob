@@ -2,6 +2,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <algorithm>
+#include <utility>
 namespace bimob {
 TopologySnapshot::TopologySnapshot(std::vector<Node> n,std::vector<WallSegment>s,std::size_t u,std::size_t r):nodes(std::move(n)),segments(std::move(s)),undoDepth(u),redoDepth(r){}
 CommandDispatcher::CommandDispatcher(double radius):nodeSnapRadius_(radius){if(!std::isfinite(radius)||radius<0)throw std::invalid_argument("node snap radius must be finite and non-negative");}
