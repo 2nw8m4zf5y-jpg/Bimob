@@ -61,7 +61,29 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
     drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(cx,0f),androidx.compose.ui.geometry.Offset(cx,size.height),1f);drawLine(p.accent.copy(alpha=.45f),androidx.compose.ui.geometry.Offset(0f,cy),androidx.compose.ui.geometry.Offset(size.width,cy),1f)
    }
   }
-  Canvas(Modifier.fillMaxSize().pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}.pointerInput(camera){detectTapGestures{tap->val raw=Vec2((tap.x-size.width/2-camera.panX)/camera.zoom.toDouble(),(size.height/2-tap.y-camera.panY)/camera.zoom.toDouble());val step=gp.minorMm/1000.0;val pt=if(gp.snap)Vec2(kotlin.math.round(raw.x/step)*step,kotlin.math.round(raw.y/step)*step)else raw;cursor=pt;if(drawWall){val start=firstPoint;if(start==null)firstPoint=pt else{editor.createWall(start.x,start.y,pt.x,pt.y,.2,"ОСЬ");firstPoint=null;drawWall=false}}else editor.selectAt(pt.x,pt.y)}}){val center=androidx.compose.ui.geometry.Offset(size.width/2+camera.panX,size.height/2+camera.panY);fun point(v:Vec2)=androidx.compose.ui.geometry.Offset(center.x+(v.x*camera.zoom).toFloat(),center.y-(v.y*camera.zoom).toFloat());geo?.walls?.forEach{wall->val path=Path().apply{wall.corners.forEachIndexed{i,corner->val q=point(corner);if(i==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()};drawPath(path,if(wall.id==state.selection?.id)p.accent.copy(alpha=.18f)else p.accent.copy(alpha=.05f));drawPath(path,if(wall.id==state.selection?.id)p.accent else p.ink,style=Stroke(width=1.2f));val a=point(wall.axisStart);val b=point(wall.axisEnd);drawLine(p.ink.copy(alpha=.4f),a,b,1f);if(wall.id==state.selection?.id){drawCircle(p.accent,4f,a);drawCircle(p.accent,4f,b)}}}
+  Canvas(
+   Modifier.fillMaxSize()
+    .pointerInput(camera){detectDragGestures{change,drag->change.consume();editor.setCamera(camera.zoom,camera.panX+drag.x,camera.panY+drag.y)}}
+    .pointerInput(camera){detectTapGestures{tap->
+     val raw=Vec2((tap.x-size.width/2-camera.panX)/camera.zoom.toDouble(),(size.height/2-tap.y-camera.panY)/camera.zoom.toDouble())
+     val gridStep=gp.minorMm/1000.0
+     val world=if(gp.snap)Vec2(kotlin.math.round(raw.x/gridStep)*gridStep,kotlin.math.round(raw.y/gridStep)*gridStep)else raw
+     cursor=world
+     if(drawWall){val start=firstPoint;if(start==null)firstPoint=world else{editor.createWall(start.x,start.y,world.x,world.y,.2,"ОСЬ");firstPoint=null;drawWall=false}}else editor.selectAt(world.x,world.y)
+    }}
+  ){
+   val center=androidx.compose.ui.geometry.Offset(size.width/2+camera.panX,size.height/2+camera.panY)
+   fun screenPoint(v:Vec2)=androidx.compose.ui.geometry.Offset(center.x+(v.x*camera.zoom).toFloat(),center.y-(v.y*camera.zoom).toFloat())
+   geo?.walls?.forEach{wall->
+    val polygon=Path().apply{wall.corners.forEachIndexed{index,corner->val q=screenPoint(corner);if(index==0)moveTo(q.x,q.y)else lineTo(q.x,q.y)};close()}
+    val selected=wall.id==state.selection?.id
+    drawPath(polygon,if(selected)p.accent.copy(alpha=.18f)else p.accent.copy(alpha=.05f))
+    drawPath(polygon,if(selected)p.accent else p.ink,style=Stroke(width=1.2f))
+    val a=screenPoint(wall.axisStart);val b=screenPoint(wall.axisEnd)
+    drawLine(p.ink.copy(alpha=.4f),a,b,1f)
+    if(selected){drawCircle(p.accent,4f,a);drawCircle(p.accent,4f,b)}
+   }
+  }
   MatrixCellButton(cellBlock(0,0,2,2),"⌂","ДОМОЙ",p){homeMenu=!homeMenu}
   MatrixCellButton(cellBlock(31,0,1,1),"◉","ТЕМА",p){theme=(theme+1)%8;pref.edit().putInt("themeIndex",theme).apply();val palette=palettes[theme];NagaGridSettings.update(context,gp.copy(background=palette.bg.hex(),minor=palette.minor.hex(),major=palette.major.hex()))}
   MatrixCellButton(cellBlock(26,1,2,2),"⌫","УДАЛИТЬ",p,state.selection!=null){editor.deleteSelection()}
@@ -79,7 +101,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
     "coords"->InfoBox("КООРДИНАТЫ / СЕТКА",p){Text("X "+(cursor.x*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Y "+(cursor.y*1000).toInt()+" мм",color=p.ink,fontSize=8.sp);Text("Шаг "+gp.minorMm+" · SNAP "+(if(gp.snap)"ВКЛ" else "ВЫКЛ"),color=p.accent,fontSize=8.sp)}
    }}}
   }
-  if(homeMenu)Column(Modifier.offset(originX,originY+2*(cell+gap)+gap).width(cell*3+gap*2).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+  if(homeMenu)Column(Modifier.offset(originX,originY+2f*(cell+gap)+gap).width(cell*3f+gap*2f).background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)).padding(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
    MenuItem("＋","НОВЫЙ",p){homeMenu=false;askNew=true};MenuItem("▣","СОХРАНИТЬ",p){homeMenu=false;onSave()};MenuItem("⇧","ЭКСПОРТ",p){homeMenu=false;exportDialog=true};MenuItem("⇩","ИМПОРТ",p){homeMenu=false;onImport()};MenuItem("↩","ВЫХОД",p){homeMenu=false;editor.closeAndReset();onBack()}
   }
   Row(Modifier.align(Alignment.BottomStart).padding(3.dp),horizontalArrangement=Arrangement.spacedBy(3.dp)){MenuItem("＋","ZOOM",p){editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY)};MenuItem("－","ZOOM",p){editor.setCamera(camera.zoom/1.2f,camera.panX,camera.panY)};MenuItem("✚","СТЕНА",p){drawWall=true};MenuItem("↖","ВЫБОР",p){drawWall=false}}
