@@ -32,8 +32,6 @@ import androidx.lifecycle.ViewModelProvider
 import com.bimob.app.editor.NativeEditorViewModel
 import com.bimob.app.ui.workspace.AutoCadWorkspaceScreen
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
-import com.bimob.app.ui.facade.ProjectFacadeScreen
-import com.bimob.app.ui.facade.FacadeProject
 import com.bimob.app.ui.blueprint.BlueprintTheme
 import com.bimob.app.ui.blueprint.BlueprintThemeProvider
 import java.io.File
@@ -49,7 +47,6 @@ class MainActivity:ComponentActivity(){
  private var pendingName="Импортированный проект"
  private var routeState="launcher"
  private var selectedProject=""
- private var showNewDialog=false
  private var newProjectName="Мой проект"
  override fun onCreate(savedInstanceState:Bundle?){
   CrashReporter.install(applicationContext)
@@ -69,13 +66,8 @@ class MainActivity:ComponentActivity(){
    BlueprintThemeProvider {
     MaterialTheme(colorScheme=if(BlueprintTheme.active.value.id=="paper")lightColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted)else darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
-     "launcher"->ProgramLauncherScreen(onCad={route="facade"})
-     "facade"->{
-      BackHandler{route="launcher"}
-      val activeName=prefs.getString("active_name","");val recent=prefs.all.keys.filter{prefs.getString(it,null)=="saved"}.sortedByDescending{it==activeName}.take(3).map{FacadeProject(it,it,"ЛОКАЛЬНЫЙ ПРОЕКТ",0,it==activeName)}
-      ProjectFacadeScreen(recent,onBack={route="launcher"},onNew={dialog=true},onOpen={name->loadSavedProject(name){json->importJson=json;projectId=name;projectName=name;route="workspace"}},onImport={opener.launch(arrayOf("application/json","text/plain"))},onTool={tool->android.widget.Toast.makeText(this@MainActivity,"$tool · модуль в разработке",android.widget.Toast.LENGTH_SHORT).show()},onOpenLast={val last=prefs.getString("active_name","");if(!last.isNullOrBlank()&&prefs.getString(last,null)=="saved"){loadSavedProject(last){json->importJson=json;projectId=last;projectName=last;route="workspace"}}else dialog=true})
-     }
-     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="facade"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
+     "launcher"->ProgramLauncherScreen(onCad={dialog=true})
+     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
     }
      if(dialog)AlertDialog(onDismissRequest={dialog=false},title={Text("Новый проект")},text={OutlinedTextField(projectName,{projectName=it},label={Text("Название проекта")})},confirmButton={TextButton(onClick={dialog=false;importJson=null;projectId="project-"+System.currentTimeMillis();route="workspace"}){Text("Создать")}},dismissButton={TextButton(onClick={dialog=false}){Text("Отмена")}})
    }
