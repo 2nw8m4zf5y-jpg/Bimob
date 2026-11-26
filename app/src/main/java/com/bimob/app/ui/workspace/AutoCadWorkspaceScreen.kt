@@ -48,7 +48,7 @@ private fun wc(p:BlueprintPalette)=when(p.id){
  else->WC(Color(0xFF12161C),Color(0xFF191E25),Color(0xFF00B4D8),Color(0xFF222A34),Color(0xFF303B49),Color(0xFF69BCE0),Color(0xFFFFB300),Color(0xFF00E676),Color(0xFFE7EDF4),Color(0xFF9BA7B5),Color(0x3300B4D8))
 }
 private val ribbonTools = mapOf(
- "ГЛАВНАЯ" to listOf("ВЫБОР" to "SELECT","ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT","ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET"),
+ "ГЛАВНАЯ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT","ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET","ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"),
  "ПОСТРОЕНИЕ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT","ОКРУЖНОСТЬ" to "CIRCLE","ДУГА" to "ARC","УЗЕЛ" to "NODE"),
  "РЕДАКТИРОВАНИЕ" to listOf("ВЫБОР" to "SELECT","ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ПОВОРОТ" to "ROTATE","ЗЕРКАЛО" to "MIRROR","ОБРЕЗАТЬ" to "TRIM","УДЛИНИТЬ" to "EXTEND","СМЕЩЕНИЕ" to "OFFSET","УДАЛИТЬ" to "DELETE"),
  "АРХИТЕКТУРА" to listOf("СТЕНА" to "WALL","ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","УЗЕЛ" to "NODE","КОНТУР" to "RECT"),
@@ -56,7 +56,8 @@ private val ribbonTools = mapOf(
  "АННОТАЦИИ" to listOf("РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"),
  "СЛОИ" to listOf("ВЫБОР" to "SELECT","СТЕНА" to "WALL","ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW"),
  "ВИД" to listOf("ПАНОРАМА" to "PAN","МАСШТАБ" to "ZOOM"),
- "ИНСТРУМЕНТЫ" to listOf("ВЫБОР" to "SELECT","УЗЕЛ" to "NODE","ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ПОВОРОТ" to "ROTATE","ЗЕРКАЛО" to "MIRROR","УДАЛИТЬ" to "DELETE")
+ "ИНСТРУМЕНТЫ" to listOf("ВЫБОР" to "SELECT","УЗЕЛ" to "NODE","ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ПОВОРОТ" to "ROTATE","ЗЕРКАЛО" to "MIRROR","УДАЛИТЬ" to "DELETE"),
+ "УПРАВЛЕНИЕ" to listOf("ВЫБОР" to "SELECT","ПАНОРАМА" to "PAN","МАСШТАБ" to "ZOOM","СЛОИ" to "NODE","НАСТРОЙКИ" to "NODE")
 )
 private val workspaceTabs = listOf("ГЛАВНАЯ","ПОСТРОЕНИЕ","РЕДАКТИРОВАНИЕ","АРХИТЕКТУРА","BIM","АННОТАЦИИ","СЛОИ","ВИД","ИНСТРУМЕНТЫ")
 private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS")
@@ -69,7 +70,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
  Column(Modifier.fillMaxSize().background(c.canvas)){
   Row(Modifier.fillMaxWidth().height(44.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
-   BrandMark(c);ButtonMini("← ФАСАД",c,onBack,54.dp)
+   BrandMark(c);Txt("NAGAPLAS",c.ink,9.sp,bold=true);ButtonMini("← ФАСАД",c,onBack,54.dp)
    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){listOf("ГЛАВНАЯ","АННОТАЦИИ","СЛОИ","ВИД","УПРАВЛЕНИЕ").forEach{ButtonMini(it,c,{tab=it},if(tab==it)68.dp else 60.dp,tab==it)}}
    Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,8.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
    Txt(AppVersion.VERSION_LABEL,c.accent,8.sp,Modifier.border(.5.dp,c.grid).padding(horizontal=3.dp))
@@ -78,7 +79,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
   Row(Modifier.fillMaxWidth().height(88.dp).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
    Column(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.Center){
     Row(Modifier.weight(1f).fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(3.dp),verticalAlignment=Alignment.CenterVertically){(ribbonTools[tab]?:ribbonTools["ГЛАВНАЯ"]!!).forEachIndexed{index,pair->val (label,id)=pair;Tool(id,label,tool==id,c){tool=id};if(index==2||index==6)Box(Modifier.width(1.dp).height(30.dp).background(c.grid))}}
-    Row(Modifier.fillMaxWidth().height(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Txt(when(tab){"ГЛАВНАЯ"->"ПОСТРОЕНИЕ  ·  РЕДАКТИРОВАНИЕ";"ПОСТРОЕНИЕ"->"ГЕОМЕТРИЯ  ·  ПРИМИТИВЫ";"РЕДАКТИРОВАНИЕ"->"ТРАНСФОРМАЦИИ  ·  МОДИФИКАЦИЯ";"АРХИТЕКТУРА"->"СТЕНЫ  ·  ПРОЁМЫ  ·  УЗЛЫ";"BIM"->"МОДЕЛЬ  ·  КОНСТРУКЦИЯ";"АННОТАЦИИ"->"РАЗМЕРЫ  ·  МАРКИ";"СЛОИ"->"ВИДИМОСТЬ  ·  СТРУКТУРА";"ВИД"->"НАВИГАЦИЯ  ·  ОТОБРАЖЕНИЕ";else->"СИСТЕМНЫЕ ИНСТРУМЕНТЫ"},c.muted,6.sp)}
+    Row(Modifier.fillMaxWidth().height(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){Txt(when(tab){"ГЛАВНАЯ"->"ЧЕРЧЕНИЕ  ·  РЕДАКТИРОВАНИЕ  ·  BIM / АННОТАЦИИ";"ПОСТРОЕНИЕ"->"ГЕОМЕТРИЯ  ·  ПРИМИТИВЫ";"РЕДАКТИРОВАНИЕ"->"ТРАНСФОРМАЦИИ  ·  МОДИФИКАЦИЯ";"АРХИТЕКТУРА"->"СТЕНЫ  ·  ПРОЁМЫ  ·  УЗЛЫ";"BIM"->"МОДЕЛЬ  ·  КОНСТРУКЦИЯ";"АННОТАЦИИ"->"РАЗМЕРЫ  ·  МАРКИ";"СЛОИ"->"ВИДИМОСТЬ  ·  СТРУКТУРА";"ВИД"->"НАВИГАЦИЯ  ·  ОТОБРАЖЕНИЕ";"УПРАВЛЕНИЕ"->"ПРОЕКТ  ·  СИСТЕМА  ·  НАСТРОЙКИ";else->"СИСТЕМНЫЕ ИНСТРУМЕНТЫ"},c.muted,6.sp)}
    }
    Column(Modifier.width(112.dp),verticalArrangement=Arrangement.Center){Txt("АКТИВНЫЙ СЛОЙ",c.muted,7.sp);ButtonMini("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},108.dp)}
    Column(Modifier.width(82.dp),verticalArrangement=Arrangement.Center){Txt("ПРИВЯЗКА СТЕНЫ",c.muted,7.sp);Row(horizontalArrangement=Arrangement.spacedBy(1.dp)){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMini(it,c,{anchor=it},26.dp,anchor==it)}}}
