@@ -30,7 +30,7 @@ import com.bimob.app.ui.blueprint.LocalBlueprintPalette
 
 data class LauncherModuleSpec(val code:String,val statusBadge:String,val title:String,val subtitle:String,val actionLabel:String,val isActive:Boolean,val iconType:Int)
 fun launcherModuleSpecs()=listOf(
- LauncherModuleSpec("01","ACTIVE","NAGAPLAS CAD","2D / 3D · ЧЕРЧЕНИЕ","ОТКРЫТЬ →",true,0),
+ LauncherModuleSpec("01","ACTIVE","НОВЫЙ ПРОЕКТ","CAD · BIM · 3D","СОЗДАТЬ →",true,8),
  LauncherModuleSpec("02","STAGE I","NAGAPLAS BIM","ИНФОРМАЦИОННАЯ МОДЕЛЬ","В РАЗРАБОТКЕ",false,1),
  LauncherModuleSpec("03","PLANNED","УЗЛЫ И КМ","СОПРЯЖЕНИЯ · ФАСОНКИ","ЗАПЛАНИРОВАНО",false,2),
  LauncherModuleSpec("04","PLANNED","2D ЛИСТЫ ГОСТ","ПЛАНЫ · РАЗРЕЗЫ","ЗАПЛАНИРОВАНО",false,3),
@@ -90,6 +90,7 @@ fun launcherModuleSpecs()=listOf(
   4->{l(Offset(w*.2f,h*.8f),Offset(w*.5f,h*.2f),amber);l(Offset(w*.5f,h*.2f),Offset(w*.8f,h*.8f));l(Offset(w*.2f,h*.8f),Offset(w*.8f,h*.8f));l(Offset(w*.2f,h*.5f),Offset(w*.8f,h*.5f))}
   5->{for(i in 0..3){val y=h*(.2f+i*.18f);l(Offset(w*.25f,y),Offset(w*.75f,y));drawCircle(amber,2.dp.toPx(),Offset(w*.18f,y))}}
   6->{r(w*.15f,h*.2f,w*.25f,h*.6f);r(w*.6f,h*.2f,w*.25f,h*.6f,amber);l(Offset(w*.42f,h*.5f),Offset(w*.58f,h*.5f),amber)}
+  8->{r(w*.27f,h*.12f,w*.46f,h*.64f);l(Offset(w*.57f,h*.12f),Offset(w*.73f,h*.28f),amber);l(Offset(w*.57f,h*.12f),Offset(w*.57f,h*.28f));l(Offset(w*.57f,h*.28f),Offset(w*.73f,h*.28f));l(Offset(w*.34f,h*.4f),Offset(w*.58f,h*.4f));l(Offset(w*.34f,h*.52f),Offset(w*.58f,h*.52f));l(Offset(w*.58f,h*.68f),Offset(w*.82f,h*.68f),amber);l(Offset(w*.70f,h*.56f),Offset(w*.70f,h*.80f),amber)}
   else->{drawCircle(color,h*.32f,Offset(w*.5f,h*.5f),style=s);drawCircle(amber,h*.12f,Offset(w*.5f,h*.5f),style=s);for(i in 0..7){val a=i*Math.PI/4;l(Offset(w*.5f+kotlin.math.cos(a).toFloat()*h*.3f,h*.5f+kotlin.math.sin(a).toFloat()*h*.3f),Offset(w*.5f+kotlin.math.cos(a).toFloat()*h*.43f,h*.5f+kotlin.math.sin(a).toFloat()*h*.43f),amber)}}
  }
 }
