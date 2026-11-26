@@ -126,7 +126,13 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
     drawLine(p.accentAmber,Offset(cx,cardTop+cardH),Offset(cx,cardTop+cardH+rowGap),thin,StrokeCap.Butt)
     
    }
-   // Module outlines: exact 4-column equal-width matrix.\n  repeat(2){r->repeat(4){col->\n   val x0=cardL+col*(colW+gap);val y0=cardTop+r*(cardH+rowGap)\n   val active=r==0&&col==0\n   drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),Stroke(if(active)2.dp.toPx() else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))\n  }}\n  // Compact 2x2 GOST/CAD stamp.
+   // Module outlines: exact 4-column equal-width matrix.
+  repeat(2){r->repeat(4){col->
+   val x0=cardL+col*(colW+gap);val y0=cardTop+r*(cardH+rowGap)
+   val active=r==0&&col==0
+   drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),Stroke(if(active)2.dp.toPx() else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
+  }}
+  // Compact 2x2 GOST/CAD stamp.
    drawRect(p.linePrimary,Offset(stampX,stampY),Size(stampW,stampH),bevel)
    drawLine(p.linePrimary,Offset(stampX+stampW*.5f,stampY),Offset(stampX+stampW*.5f,stampY+stampH),thin,StrokeCap.Butt)
    drawLine(p.linePrimary,Offset(stampX,stampY+stampH*.5f),Offset(stampX+stampW,stampY+stampH*.5f),thin,StrokeCap.Butt)
