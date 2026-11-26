@@ -70,7 +70,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
  val context=LocalContext.current;val p=BlueprintTheme.active.value;val c=wc(p);val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val g=state.typedGeometry
  var tab by remember{mutableStateOf("ГЛАВНАЯ")};var tool by remember{mutableStateOf("WALL")};var activeRail by remember{mutableStateOf("SELECT")};var layer by remember{mutableStateOf(layers[0])};var anchor by remember{mutableStateOf("ОСЬ")}
  var props by remember{mutableStateOf(true)};var grid by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var track by remember{mutableStateOf(false)};var weights by remember{mutableStateOf(false)};var debug by remember{mutableStateOf(false)}
- var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))}
+ var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))};var wallThickness by remember{mutableStateOf(0.2)};var pendingWallStart by remember{mutableStateOf<Vec2?>(null)};var bridgeStatus by remember{mutableStateOf("ОФЛАЙН · ГОТОВ")};var bridgeElapsedMs by remember{mutableStateOf(0.0)};val commandBridge=remember{AiCommandBridge()}\n val submitCadCommand={val input=cmd.trim();if(input.isNotEmpty()){val result=commandBridge.execute(input,editor,cursor,wallThickness,anchor);bridgeStatus=result.message;bridgeElapsedMs=result.elapsedNanos/1_000_000.0;cmd=""}}
  val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
  Column(Modifier.fillMaxSize().background(c.canvas).windowInsetsPadding(WindowInsets.safeDrawing)){
   Row(Modifier.fillMaxWidth().weight(0.042f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
@@ -106,7 +106,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
     VectorCanvas(
      modifier = Modifier.fillMaxSize(), c = c, g = g, selected = state.selection?.id,
      zoom = camera.zoom, px = camera.panX, py = camera.panY, grid = grid, weight = weights,
-     cursor = cursor, snapEnabled = snap, onCursor = { cursor = it }, onSelect = { editor.selectElement(it) }
+     cursor = cursor, snapEnabled = snap, onCursor = { cursor = it }, onWorldTap = { point -> if(tool=="WALL"){val start=pendingWallStart;if(start==null){pendingWallStart=point;bridgeStatus="УЗЕЛ 1 ЗАДАН";}else{val end=if(ortho){if(abs(point.x-start.x)>=abs(point.y-start.y))Vec2(point.x,start.y)else Vec2(start.x,point.y)}else point;val ok=editor.createWall(start.x,start.y,end.x,end.y,wallThickness,anchor);pendingWallStart=null;bridgeStatus=if(ok)"СТЕНА СОЗДАНА" else editor.state.value.error?: "ОШИБКА ЯДРА"}}else{editor.selectAt(point.x,point.y);bridgeStatus="ВЫБОР ОБЪЕКТА"}}
     )
     Column(Modifier.align(Alignment.TopStart).padding(4.dp)) {
      Txt("А    Б    В",c.dim,8.sp); Txt("3\n2\n1",c.dim,7.sp)
@@ -136,7 +136,7 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    if(props) {
     Properties(
      Modifier.weight(0.156f).fillMaxHeight(), c, g, state.selection, degree, editor,
-     layer, layers, { layer = it }, { debug = !debug }
+     layer, layers, { layer = it }, { debug = !debug }, { wallThickness=it }
     )
    }
   }
