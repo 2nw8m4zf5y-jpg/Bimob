@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <vector>
+#include <cstddef>
 namespace bimob {
 struct Node final { std::uint64_t id{}; double x{}; double y{}; std::size_t degree{}; };
 struct WallSegment final { std::uint64_t id{}; std::uint64_t startNodeId{}; std::uint64_t endNodeId{}; double thickness{}; };
