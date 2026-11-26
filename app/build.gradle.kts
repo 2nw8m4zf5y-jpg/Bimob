@@ -13,7 +13,7 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1-alpha"
+        versionName = "0.00727"\n        buildConfigField("String", "VERSION_LABEL", "\\\"v0.00727\\\"")
         externalNativeBuild {
             cmake { arguments += "-DBIMOB_NATIVE_BUILD_TESTS=OFF" }
         }
@@ -35,7 +35,7 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     externalNativeBuild {
         cmake {
