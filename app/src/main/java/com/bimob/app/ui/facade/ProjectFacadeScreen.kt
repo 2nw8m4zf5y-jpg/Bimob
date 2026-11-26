@@ -10,7 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Offset\nimport androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
@@ -45,7 +45,7 @@ private val projectMenuSpecs=listOf(
    val step=gridStep.toPx();var x=0f;while(x<size.width){drawLine(p.gridMinor,Offset(x,0f),Offset(x,size.height),.55.dp.toPx(),StrokeCap.Butt);x+=step}
    var y=0f;while(y<size.height){drawLine(p.gridMinor,Offset(0f,y),Offset(size.width,y),.55.dp.toPx(),StrokeCap.Butt);y+=step}
    drawRect(Color(0xFF2C5E8A),style=Stroke(1.dp.toPx(),cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
-   drawRect(Color(0xFF4DE8F4).copy(alpha=.5f),inset=4.dp.toPx(),style=Stroke(1.dp.toPx(),cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
+   drawRect(Color(0xFF4DE8F4).copy(alpha=.5f),topLeft=Offset(4.dp.toPx(),4.dp.toPx()),size=Size(size.width-8.dp.toPx(),size.height-8.dp.toPx()),style=Stroke(1.dp.toPx(),cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
   }
   Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)){
    HeaderBar("NAGAPLAS CAD · МЕНЮ ПРОЕКТОВ","CORE: C++20 · ${AppVersion.VERSION_LABEL} · WORKSPACE ROUTE",BlueprintTheme.active.value,BlueprintTheme::select,p,Modifier.height(44.dp),onBack)
