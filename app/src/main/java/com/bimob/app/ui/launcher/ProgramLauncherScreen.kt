@@ -134,7 +134,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
   repeat(2){r->repeat(4){col->
    val x0=cardL+col*(colW+gap);val y0=cardTop+r*(cardH+rowGap)
    val active=r==0&&col==0
-   drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),Stroke(if(active)dpPx(2.dp) else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
+   drawRect(if(active)p.accentCyan else p.linePrimary,Offset(x0,y0),Size(colW,cardH),style=Stroke(if(active)dpPx(2.dp) else thin,cap=StrokeCap.Butt,join=StrokeJoin.Bevel))
   }}
   // Compact 2x2 GOST/CAD stamp.
    drawRect(p.linePrimary,Offset(stampX,stampY),Size(stampW,stampH),style=bevel)
