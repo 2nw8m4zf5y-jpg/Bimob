@@ -92,7 +92,7 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   MatrixCellButton(cellBlock(28,1,2,2),"↶","ОТМЕНИТЬ",p,state.canUndo){editor.undo()}
   MatrixCellButton(cellBlock(30,1,2,2),"↷","ВПЕРЁД",p,state.canRedo){editor.redo()}
   Row(cellBlock(27,3,5,1)){
-   MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),"⌃","",p){infoExpanded=!infoExpanded}
+   MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),if(infoExpanded)"▲" else "▼","",p){infoExpanded=!infoExpanded}
    MatrixCellButton(Modifier.weight(1f).fillMaxHeight(),"⚙","",p){infoSettings=true}
    Box(Modifier.weight(3f).fillMaxHeight().background(p.panel,RoundedCornerShape(6.dp)).border(1.dp,p.border,RoundedCornerShape(6.dp)),contentAlignment=Alignment.Center){Text("ИНФОРМАЦИЯ",fontSize=8.sp,color=p.ink,maxLines=1)}
   }
