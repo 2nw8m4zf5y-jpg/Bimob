@@ -69,7 +69,8 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
    ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)
   }
   Row(Modifier.weight(1f).fillMaxWidth()){
-   ToolDock(Modifier.width(46.dp).fillMaxHeight(),c,tool){tool=it}\n   Box(Modifier.weight(1f).fillMaxHeight().background(c.canvas)){
+   ToolDock(Modifier.width(46.dp).fillMaxHeight(),c,tool){tool=it}
+   Box(Modifier.weight(1f).fillMaxHeight().background(c.canvas)){
     VectorCanvas(Modifier.fillMaxSize(),c,g,state.selection?.id,camera.zoom,camera.panX,camera.panY,grid,weights,cursor,{cursor=it},{editor.selectElement(it)})
     Column(Modifier.align(Alignment.TopStart).padding(4.dp)){Txt("А    Б    В",c.dim,8.sp);Txt("3\n2\n1",c.dim,7.sp)}
     Row(Modifier.align(Alignment.TopCenter).padding(top=3.dp).background(c.panel).border(1.dp,c.dim).padding(3.dp),verticalAlignment=Alignment.CenterVertically){
