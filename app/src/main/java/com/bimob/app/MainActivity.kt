@@ -31,7 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.ViewModelProvider
 import com.bimob.app.editor.NativeEditorViewModel
-import com.bimob.app.ui.workspace.AutoCadWorkspaceScreen
+import com.bimob.app.ui.workspace.MatrixCadWorkspaceScreen
+import com.bimob.app.ui.workspace.GridSettingsScreen
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
 import com.bimob.app.ui.blueprint.BlueprintTheme
 import com.bimob.app.ui.blueprint.BlueprintThemeProvider
@@ -67,7 +68,8 @@ class MainActivity:ComponentActivity(){
    BlueprintThemeProvider {
     MaterialTheme(colorScheme=if(BlueprintTheme.active.value.id=="paper")lightColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted)else darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
-     "launcher"->ProgramLauncherScreen(onCad={dialog=true})
+     "launcher"->ProgramLauncherScreen(onCad={dialog=true},onSettings={route="settings"})
+     "settings"->GridSettingsScreen(onBack={route="launcher"})
      "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))})
     }
      if(dialog){
@@ -120,7 +122,7 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
   if(importJson!=null&&!importHandled){importHandled=true;projectInitialized=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
   else if(importJson==null&&projectId.isNotBlank()&&!projectInitialized){projectInitialized=true;editor.resetProject(projectId,projectName)}
  }
- AutoCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
+ MatrixCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
   onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},
-  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}})
+  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
 }
