@@ -10,9 +10,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
@@ -37,32 +34,21 @@ internal object CadWorkspaceTokens {
     val muted = Color(0xFF91A8C0)
 }
 
-/** Reported display DPI is imperfect; physical icon size can later be calibrated by the user. */
-@Composable
-internal fun cadPhysicalDp(mm: Float): Dp {
-    val density = LocalDensity.current.density
-    val xdpi = LocalContext.current.resources.displayMetrics.xdpi
-    return (mm * xdpi / (25.4f * density)).dp
-}
-
 internal enum class CadGlyph {
     SELECT, LINE, POLYLINE, WALL, RECT, CIRCLE, ARC, MOVE, COPY, TRIM, OFFSET,
     DOOR, WINDOW, DIMENSION, NODE, ROTATE, MIRROR, EXTEND, DELETE, PAN, ZOOM
 }
 
-/**
- * A consistent 24-unit vector glyph grid. The visible artwork is fitted inside 6 mm,
- * independent of the surrounding hit-target dimensions. Uses no raster assets or text glyphs.
- */
+/** Shared vector glyph artwork on a 24-unit grid, sized by role in dp. */
 @Composable
 internal fun CadVectorIcon(
     glyph: CadGlyph,
     color: Color,
     modifier: Modifier = Modifier,
-    physicalSizeMm: Float = 6f,
+    iconSizeDp: Float = 24f,
     strokeWidth: Float = 1.35f
 ) {
-    val iconSize = cadPhysicalDp(physicalSizeMm)
+    val iconSize = iconSizeDp.dp
     Box(modifier = modifier.size(iconSize)) {
         Canvas(Modifier.size(iconSize)) {
             val scale = min(size.width, size.height) / 24f
