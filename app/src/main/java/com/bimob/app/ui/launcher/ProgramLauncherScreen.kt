@@ -3,6 +3,7 @@ package com.bimob.app.ui.launcher
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
@@ -59,7 +60,7 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
   val cardTop=h*.355f
   val cardH=h*.225f
   val rowGap=h*.035f
-  val stampW=(w*.42f).coerceAtMost(220.dp.toPx())
+  val stampW=(w*.52f).coerceAtMost(240.dp.toPx())
   val stampH=42.dp.toPx()
   val stampX=w-stampW-5.dp.toPx()
   val stampY=h-stampH-5.dp.toPx()
@@ -144,25 +145,27 @@ fun ProgramLauncherScreen(onCad:()->Unit) {
      repeat(4){col->
       val m=launcherModules[row*4+col]
       Column(Modifier.weight(1f).fillMaxHeight().background(p.bgSurface,RectangleShape)
+       .border(if(m.active)2.dp else 1.dp,if(m.active)p.accentCyan else p.linePrimary,RectangleShape)
        .clickable{if(m.active)onCad()else Toast.makeText(context,"МОДУЛЬ В РАЗРАБОТКЕ",Toast.LENGTH_SHORT).show()}
        .padding(horizontal=2.dp,vertical=3.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        Text("0${row*4+col+1}",fontSize=8.sp,color=p.accentAmber,fontFamily=FontFamily.Monospace,maxLines=1)
-       Text(m.title,fontSize=9.sp,lineHeight=10.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
-       Text(m.detail,fontSize=6.sp,lineHeight=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
-       Text(if(m.active)"[ ОТКРЫТЬ ]" else "[ В РАЗРАБОТКЕ ]",fontSize=6.sp,lineHeight=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
+       Text(m.title,fontSize=(colW.toDp().value*.12f).coerceIn(6.5f,9f).sp,lineHeight=10.sp,color=if(m.active)p.accentCyan else p.textPrimary,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
+       Text(m.detail,fontSize=(colW.toDp().value*.09f).coerceIn(5.5f,7f).sp,lineHeight=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis)
+       Text(if(m.active)"[ ОТКРЫТЬ ]" else "[ В РАЗРАБОТКЕ ]",fontSize=(colW.toDp().value*.075f).coerceIn(5f,6.5f).sp,lineHeight=7.sp,color=if(m.active)p.accentCyan else p.accentAmber,fontFamily=FontFamily.Monospace,textAlign=TextAlign.Center,maxLines=1)
       }
      }
     }
     if(row==0)Spacer(Modifier.height(rowGap.toDp()))
    }
    Spacer(Modifier.weight(1f))
+   Spacer(Modifier.height(5.dp))
    // Stamp content is kept inside its CAD border, with explicit theme controls.
    Row(Modifier.width(stampW.toDp()).height((stampH*.5f).toDp())){
     Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("NAGAPLAS",fontSize=8.sp,color=p.textPrimary,fontFamily=FontFamily.Monospace,maxLines=1)}
     Box(Modifier.weight(1f).fillMaxHeight(),contentAlignment=Alignment.Center){Text("STAGE H · CAD/BIM",fontSize=6.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)}
    }
    Row(Modifier.width(stampW.toDp()).height((stampH*.5f).toDp())){
-    Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("ВЕРСИЯ: ${AppVersion.VERSION_LABEL}",fontSize=7.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1)}
+    Box(Modifier.weight(1f).fillMaxHeight().padding(start=4.dp),contentAlignment=Alignment.CenterStart){Text("ВЕРСИЯ: ${AppVersion.VERSION_LABEL}",fontSize=6.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1)}
     Row(Modifier.weight(1f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){
      BlueprintTheme.palettes.forEach{theme->Text(theme.label,fontSize=6.sp,color=if(BlueprintTheme.active.value==theme)p.accentAmber else p.textMuted,fontFamily=FontFamily.Monospace,modifier=Modifier.clickable{BlueprintTheme.select(theme)}.padding(horizontal=2.dp))}
     }
