@@ -48,7 +48,7 @@ fun ProjectFacadeScreen(
   }
   Column(Modifier.fillMaxSize().padding(2.dp),verticalArrangement=Arrangement.spacedBy(1.dp)){
    // roof/parapet band, continuous across all four bays
-   Row(Modifier.weight(.105f).fillMaxWidth().border(1.dp,p.accentAmber),verticalAlignment=Alignment.CenterVertically){
+   Row(Modifier.weight(.105f).fillMaxWidth().border(1.dp,p.accentAmber),verticalAlignment=Alignment.CenterVertically){\n    Column(Modifier.width(48.dp).fillMaxHeight().padding(end=2.dp),verticalArrangement=Arrangement.SpaceBetween){LevelMark("+15.200",p);LevelMark("+13.800",p)}
     Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal=5.dp),verticalArrangement=Arrangement.Center){
      Text("NAGAPLAS OS // C++20 CORE: READY  |  FPS: 60  |  MEM: —",fontSize=9.sp,color=p.accentCyan,fontFamily=FontFamily.Monospace,maxLines=1,overflow=TextOverflow.Ellipsis)
      Text("ФАСАД ПРОЕКТНОГО ЦЕНТРА · NAGAPLAS.G3.7-UI-001 ВО",fontSize=7.sp,color=p.textMuted,fontFamily=FontFamily.Monospace,maxLines=1)
@@ -154,5 +154,5 @@ private enum class DrawingKind{Frame,Truss,Facade,Sync,Nodes,List,Convert,Librar
  }
 }
 @Composable private fun AxisBubble(label:String,color:androidx.compose.ui.graphics.Color,modifier:Modifier){
- Box(modifier,bottomAligned=false,contentAlignment=Alignment.Center){Box(Modifier.size(15.dp).border(1.dp,color,CircleShape),contentAlignment=Alignment.Center){Text(label,fontSize=7.sp,color=color,fontFamily=FontFamily.Monospace)}}
+ Box(modifier,contentAlignment=Alignment.Center){Box(Modifier.size(15.dp).border(1.dp,color,CircleShape),contentAlignment=Alignment.Center){Text(label,fontSize=7.sp,color=color,fontFamily=FontFamily.Monospace)}}
 }
