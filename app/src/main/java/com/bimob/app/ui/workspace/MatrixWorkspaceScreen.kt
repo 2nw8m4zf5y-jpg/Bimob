@@ -113,27 +113,8 @@ private fun matrixSvg(g:TypedGeometry?):String{
  return sb.append("</svg>").toString()
 }
 private fun matrixDxf(g:TypedGeometry?):String{
- val sb=StringBuilder("0\
-SECTION\
-2\
-ENTITIES\
-");g?.walls.orEmpty().forEach{w->sb.append("0\
-LWPOLYLINE\
-8\
-WALLS\
-90\
-"+w.corners.size+"\
-70\
-1\
-");w.corners.forEach{pt->sb.append("10\
-"+(pt.x*1000)+"\
-20\
-"+(pt.y*1000)+"\
-")}};sb.append("0\
-ENDSEC\
-0\
-EOF\
-");return sb.toString().replace("\
-","
-")
+ val sb=StringBuilder("0\\nSECTION\\n2\\nENTITIES\\n")
+ g?.walls.orEmpty().forEach{w->sb.append("0\\nLWPOLYLINE\\n8\\nWALLS\\n90\\n"+w.corners.size+"\\n70\\n1\\n");w.corners.forEach{pt->sb.append("10\\n"+(pt.x*1000)+"\\n20\\n"+(pt.y*1000)+"\\n")}}
+ sb.append("0\\nENDSEC\\n0\\nEOF\\n")
+ return sb.toString().replace("\\\\n","\\n")
 }
