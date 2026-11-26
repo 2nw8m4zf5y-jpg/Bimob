@@ -30,7 +30,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModelProvider
 import com.bimob.app.editor.NativeEditorViewModel
-import com.bimob.app.editor.NativeEditorViewport
+import com.bimob.app.ui.workspace.AutoCadWorkspaceScreen
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
 import com.bimob.app.ui.facade.ProjectFacadeScreen
 import com.bimob.app.ui.facade.FacadeProject
@@ -97,7 +97,6 @@ class MainActivity:ComponentActivity(){
 
 @Composable
 private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit){
- // Native ViewModel is deliberately first obtained here, not in Activity or either blueprint screen.
  val owner=LocalContext.current as ComponentActivity
  val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
  BackHandler{editor.closeAndReset();onBack()}
@@ -108,7 +107,7 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
   if(importJson!=null&&!importHandled){importHandled=true;projectInitialized=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
   else if(importJson==null&&projectId.isNotBlank()&&!projectInitialized){projectInitialized=true;editor.resetProject(projectId,projectName)}
  }
- Column(Modifier.fillMaxSize().background(BlueprintTheme.BgPrimary)){
-  NativeEditorViewport(editor,Modifier.weight(1f).fillMaxWidth(),projectTitle=projectName,onProjects={editor.closeAndReset();onBack()},onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport)
- }
+ AutoCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
+  onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},
+  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}})
 }
