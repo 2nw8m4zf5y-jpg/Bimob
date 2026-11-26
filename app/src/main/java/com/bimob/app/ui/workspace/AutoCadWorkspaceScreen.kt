@@ -88,8 +88,28 @@ private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS
   }
   Row(Modifier.fillMaxWidth().weight(0.142f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
    val groups=listOf("ЧЕРЧЕНИЕ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT"),"РЕДАКТИРОВАНИЕ" to listOf("ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET"),"BIM / АННОТАЦИИ" to listOf("ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"))
-   groups.forEach{group->Column(Modifier.weight(0.215f).fillMaxHeight().border(.5.dp,c.grid).padding(horizontal=1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Row(Modifier.fillMaxWidth().weight(0.86f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(0.dp)){group.second.forEach{(label,id)->Tool(id,label,tool==id,c,Modifier.weight(1f).fillMaxHeight()){tool=id}}};Box(Modifier.fillMaxWidth().weight(0.14f),contentAlignment=Alignment.Center){Txt(group.first,c.muted,5.sp,max=1,center=true)}}}
-   Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid).padding(1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Txt("СЛОЙ",c.muted,5.sp);ButtonMiniFit("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},Modifier.fillMaxWidth(0.92f).height(15.dp));ButtonMiniFit("B: ${(wallThickness*1000).roundToInt()} мм",c,{val values=listOf(.1,.12,.2,.3,.4);wallThickness=values[(values.indexOf(wallThickness).coerceAtLeast(0)+1)%values.size]},Modifier.fillMaxWidth(0.92f).height(15.dp));Txt("ПРИВЯЗКА",c.muted,5.sp);Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically){listOf("ОСЬ","НАРУЖ","ВНУТР").forEach{ButtonMiniFit(it,c,{anchor=it},Modifier.weight(1f).fillMaxHeight(),anchor==it)}}}Row(Modifier.weight(0.12f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)}
+   groups.forEach { group ->
+     Column(Modifier.weight(0.215f).fillMaxHeight().border(.5.dp,c.grid).padding(horizontal=1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+      Row(Modifier.fillMaxWidth().weight(0.86f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(0.dp)) {
+       group.second.forEach { (label,id) ->
+        Tool(id,label,tool==id,c,Modifier.weight(1f).fillMaxHeight()) { tool=id }
+       }
+      }
+      Box(Modifier.fillMaxWidth().weight(0.14f),contentAlignment=Alignment.Center) {
+       Txt(group.first,c.muted,5.sp,max=1,center=true)
+      }
+     }
+    }
+    Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid).padding(1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+     Txt("СЛОЙ",c.muted,5.sp)
+     ButtonMiniFit("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},Modifier.fillMaxWidth(0.92f).height(15.dp))
+     ButtonMiniFit("B: ${(wallThickness*1000).roundToInt()} мм",c,{val values=listOf(.1,.12,.2,.3,.4);wallThickness=values[(values.indexOf(wallThickness).coerceAtLeast(0)+1)%values.size]},Modifier.fillMaxWidth(0.92f).height(15.dp))
+     Txt("ПРИВЯЗКА",c.muted,5.sp)
+     Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically) {
+      listOf("ОСЬ","НАРУЖ","ВНУТР").forEach { ButtonMiniFit(it,c,{anchor=it},Modifier.weight(1f).fillMaxHeight(),anchor==it) }
+     }
+    }
+    Row(Modifier.weight(0.12f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)}
   }
   Row(
    modifier = Modifier.weight(0.636f).fillMaxWidth(),
