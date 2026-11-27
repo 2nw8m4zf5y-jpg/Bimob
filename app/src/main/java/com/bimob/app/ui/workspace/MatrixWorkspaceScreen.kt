@@ -117,7 +117,8 @@ fun MatrixCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onB
   }
   MatrixCellButton(cellBlock(0,17,1,1),"＋","ZOOM",p){editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY)}
   MatrixCellButton(cellBlock(1,17,1,1),"－","ZOOM",p){editor.setCamera(camera.zoom/1.2f,camera.panX,camera.panY)}
-  MatrixCellButton(cellBlock(2,17,1,1),"✚","СТЕНА",p){drawWall=true}\n  MatrixCellButton(cellBlock(3,17,1,1),"↖","ВЫБОР",p){drawWall=false}
+  MatrixCellButton(cellBlock(2,17,1,1),"✚","СТЕНА",p){drawWall=true}
+  MatrixCellButton(cellBlock(3,17,1,1),"↖","ВЫБОР",p){drawWall=false}
   if(exportDialog)AlertDialog(onDismissRequest={exportDialog=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("ЭКСПОРТ",color=p.ink)},text={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){MenuItem("▣","JSON · ПРОЕКТ",p){exportDialog=false;onExport()};MenuItem("◇","SVG · ВЕКТОР",p){exportDialog=false;onExportVector("SVG",matrixSvg(geo))};MenuItem("▱","DXF · CAD",p){exportDialog=false;onExportVector("DXF",matrixDxf(geo))}}},confirmButton={TextButton(onClick={exportDialog=false}){Text("ОТМЕНА",color=p.ink)}})
   if(askNew)AlertDialog(onDismissRequest={askNew=false},shape=RoundedCornerShape(6.dp),containerColor=p.panel,title={Text("НОВАЯ СЦЕНА",color=p.ink)},text={Text("Сбросить текущий проект?",color=p.ink)},confirmButton={TextButton(onClick={askNew=false;editor.resetProject("matrix-"+System.currentTimeMillis(),projectName);firstPoint=null;drawWall=false}){Text("СБРОС",color=p.accent)}},dismissButton={TextButton(onClick={askNew=false}){Text("ОТМЕНА",color=p.ink)}})
   if(infoSettings) AlertDialog(
