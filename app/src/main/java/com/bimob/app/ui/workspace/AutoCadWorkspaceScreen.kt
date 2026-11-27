@@ -66,113 +66,32 @@ private val workspaceTabs = listOf("ГЛАВНАЯ","ПОСТРОЕНИЕ","РЕ
 private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS")
 
 @Composable fun AutoCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onBack:()->Unit,onSave:()->Unit,onExport:()->Unit){
- val context=LocalContext.current;val p=BlueprintTheme.active.value;val c=wc(p);val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val g=state.typedGeometry
- var tab by remember{mutableStateOf("ГЛАВНАЯ")};var tool by remember{mutableStateOf("WALL")};var activeRail by remember{mutableStateOf("SELECT")};var layer by remember{mutableStateOf(layers[0])};var anchor by remember{mutableStateOf("ОСЬ")}
- var props by remember{mutableStateOf(true)};var grid by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var track by remember{mutableStateOf(false)};var weights by remember{mutableStateOf(false)};var debug by remember{mutableStateOf(false)}
- var cmd by remember{mutableStateOf("")};var length by remember{mutableStateOf("4000")};var angle by remember{mutableStateOf("0")};var cursor by remember{mutableStateOf(Vec2(7.6,6.0))};var wallThickness by remember{mutableStateOf(0.2)};var pendingWallStart by remember{mutableStateOf<Vec2?>(null)};var bridgeStatus by remember{mutableStateOf("ОФЛАЙН · ГОТОВ")};var bridgeElapsedMs by remember{mutableStateOf(0.0)};val commandBridge=remember{AiCommandBridge()}
- val submitCadCommand={val input=cmd.trim();if(input.isNotEmpty()){val result=commandBridge.execute(input,editor,cursor,wallThickness,anchor);bridgeStatus=result.message;bridgeElapsedMs=result.elapsedNanos/1_000_000.0;cmd=""}}
- val selectedWall=g?.walls?.firstOrNull{it.id==state.selection?.id&&state.selection?.kind==EditorElementKind.WALL};val degree=endpointDegree(g)
- Column(Modifier.fillMaxSize().background(c.canvas)){
-  Row(Modifier.fillMaxWidth().weight(0.042f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
-   BrandMark(c);Txt("NAGAPLAS",c.ink,9.sp,bold=true)
-   Txt(projectName.let{if(it.endsWith(".nagaplas"))it else "$it.nagaplas"},c.ink,8.sp,Modifier.weight(1f).padding(horizontal=3.dp),center=true)
-   Txt(AppVersion.VERSION_LABEL,c.accent,8.sp,Modifier.border(.5.dp,c.grid).padding(horizontal=3.dp))
+ val palette=BlueprintTheme.active.value;val c=wc(palette);val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val g=state.typedGeometry
+ var category by remember{mutableStateOf("АРХИТЕКТУРА")};var activeTool by remember{mutableStateOf("SELECT")};var cursor by remember{mutableStateOf(Vec2(0.0,0.0))}
+ var menu by remember{mutableStateOf(false)};var infoMenu by remember{mutableStateOf(false)};var infoOpen by remember{mutableStateOf(true)}
+ var gridOn by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var wallStart by remember{mutableStateOf<Vec2?>(null)};var thickness by remember{mutableStateOf(.2)};var anchor by remember{mutableStateOf("ОСЬ")}
+ BoxWithConstraints(Modifier.fillMaxSize().background(c.canvas)){
+  val cw=maxWidth/104;val ch=maxHeight/48
+  fun at(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(cw*col,ch*row).size(cw*w,ch*h)
+  fun id(n:Int,w:Int,h:Int)=at((n-1)%104,(n-1)/104,w,h)
+  Box(id(1,7,1).background(c.panel).border(.5.dp,c.grid),Alignment.Center){BrandMark(c)}
+  Box(id(45,16,1).background(c.panel).border(.5.dp,c.grid),Alignment.Center){Txt(if(projectName.endsWith(".nagaplas"))projectName else projectName+".nagaplas",c.ink,6.sp,max=1,center=true)}
+  listOf(77 to "DELETE",84 to "REDO",91 to "UNDO",98 to "THEME").forEach{(n,a)->Box(id(n,7,3).background(c.panel).border(.5.dp,c.grid).clickable{when(a){"DELETE"->editor.deleteSelection();"REDO"->editor.redo();"UNDO"->editor.undo();else->BlueprintTheme.next()}},Alignment.Center){CadVectorIcon(when(a){"DELETE"->CadGlyph.DELETE;"REDO"->CadGlyph.ROTATE;"UNDO"->CadGlyph.MOVE;else->CadGlyph.SETTINGS},c.accent,iconSizeDp=13f)}}
+  Box(id(105,6,2).background(c.panel).border(.5.dp,c.grid).clickable{menu=!menu},Alignment.Center){Txt("ГЛАВНЫЙ",c.ink,5.sp,center=true)}
+  listOf("АРХИТЕКТУРА" to 111,"ИНСТРУМЕНТЫ" to 116,"МАТЕРИАЛЫ" to 121).forEach{(name,n)->Box(id(n,5,2).background(if(category==name)c.accent.copy(alpha=.14f)else c.panel).border(.5.dp,if(category==name)c.accent else c.grid).clickable{category=name},Alignment.Center){Txt(name,c.ink,4.5.sp,center=true,max=1)}}
+  val tools=when(category){"АРХИТЕКТУРА"->listOf("WALL","DOOR","WINDOW","RECT","LINE");"ИНСТРУМЕНТЫ"->listOf("SELECT","MOVE","COPY","DELETE","ZOOM");else->listOf("TABLE","BED","SOFA","TOILET","SINK")}
+  Row(at(0,3,15,3).background(c.panel).border(.5.dp,c.grid)){tools.forEach{t->Box(Modifier.weight(1f).fillMaxHeight().border(.5.dp,c.grid).clickable{activeTool=t},Alignment.Center){CadVectorIcon(cadGlyph(t),if(activeTool==t)c.accent else c.ink,iconSizeDp=12f)}}}
+  Box(at(0,6,86,41).background(c.canvas).border(.5.dp,c.grid)){
+   VectorCanvas(Modifier.fillMaxSize(),c,g,state.selection?.id,camera.zoom,camera.panX,camera.panY,gridOn,false,cursor,wallStart,snap,{cursor=it},{p->if(activeTool=="WALL"){val a=wallStart;if(a==null)wallStart=p else{val q=if(ortho){if(abs(p.x-a.x)>=abs(p.y-a.y))Vec2(p.x,a.y)else Vec2(a.x,p.y)}else p;editor.createWall(a.x,a.y,q.x,q.y,thickness,anchor);wallStart=null}}else editor.selectAt(p.x,p.y)})
+   Txt("GRID 104×48",c.muted,5.sp,Modifier.align(Alignment.TopStart).padding(2.dp));Txt("X "+cursor.x+"  Y "+cursor.y,c.accent,5.sp,Modifier.align(Alignment.BottomStart).padding(2.dp))
   }
-  Row(Modifier.fillMaxWidth().weight(0.068f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
-   ButtonMini("← ФАСАД",c,onBack,54.dp)
-   Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(2.dp),verticalAlignment=Alignment.CenterVertically){listOf("ГЛАВНАЯ","АННОТАЦИИ","СЛОИ","ВИД","УПРАВЛЕНИЕ").forEach{ButtonMini(it,c,{tab=it},if(tab==it)68.dp else 60.dp,tab==it)}}
-   ButtonMini("▣ СОХРАНИТЬ",c,onSave,64.dp);ButtonMini("⇧ ЭКСПОРТ",c,onExport,54.dp);ButtonMini("ТЕМА: ${p.label}",c,{BlueprintTheme.next()},58.dp)
-  }
-  Row(Modifier.fillMaxWidth().weight(0.142f).background(c.panel).border(1.dp,c.grid),verticalAlignment=Alignment.CenterVertically){
-   val groups=listOf("ЧЕРЧЕНИЕ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT"),"РЕДАКТИРОВАНИЕ" to listOf("ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET"),"BIM / АННОТАЦИИ" to listOf("ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"))
-   groups.forEach { group ->
-     Column(Modifier.weight(0.215f).fillMaxHeight().border(.5.dp,c.grid).padding(horizontal=1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
-      Row(Modifier.fillMaxWidth().weight(0.86f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(0.dp)) {
-       group.second.forEach { (label,id) ->
-        Tool(id,label,tool==id,c,Modifier.weight(1f).fillMaxHeight()) { tool=id }
-       }
-      }
-      Box(Modifier.fillMaxWidth().weight(0.14f),contentAlignment=Alignment.Center) {
-       Txt(group.first,c.muted,5.sp,max=1,center=true)
-      }
-     }
-    }
-    Column(Modifier.weight(0.235f).fillMaxHeight().border(.5.dp,c.grid).padding(1.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
-     Txt("СЛОЙ",c.muted,5.sp)
-     ButtonMiniFit("■ $layer ▼",c,{layer=layers[(layers.indexOf(layer)+1)%layers.size]},Modifier.fillMaxWidth(0.92f).height(15.dp))
-     ButtonMiniFit("B: ${(wallThickness*1000).roundToInt()} мм",c,{val values=listOf(.1,.12,.2,.3,.4);wallThickness=values[(values.indexOf(wallThickness).coerceAtLeast(0)+1)%values.size]},Modifier.fillMaxWidth(0.92f).height(15.dp))
-     Txt("ПРИВЯЗКА",c.muted,5.sp)
-     Row(Modifier.fillMaxWidth().weight(1f),horizontalArrangement=Arrangement.spacedBy(1.dp),verticalAlignment=Alignment.CenterVertically) {
-      listOf("ОСЬ","НАРУЖ","ВНУТР").forEach { ButtonMiniFit(it,c,{anchor=it},Modifier.weight(1f).fillMaxHeight(),anchor==it) }
-     }
-    }
-    Row(Modifier.weight(0.12f).fillMaxHeight(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){ButtonMini("↶",c,{editor.undo()},22.dp);ButtonMini("↷",c,{editor.redo()},22.dp)}
-  }
-  Row(
-   modifier = Modifier.weight(0.636f).fillMaxWidth(),
-   verticalAlignment = Alignment.CenterVertically
-  ) {
-   ToolDock(
-    modifier = Modifier.weight(0.036f).fillMaxHeight(),
-    c = c,
-    active = activeRail,
-    choose = { selectedTool -> activeRail=selectedTool; when(selectedTool){ "CENTER"->editor.setCamera(72f,0f,0f); "ZOOM"->editor.setCamera(camera.zoom*1.2f,camera.panX,camera.panY); "GRID"->grid=!grid; "LAYERS"->props=!props; "SETTINGS"->debug=!debug; "VIEW3D"->android.widget.Toast.makeText(context,"3D-вид ещё не реализован",android.widget.Toast.LENGTH_SHORT).show(); else->tool=selectedTool } }
-   )
-   Box(
-    modifier = Modifier.weight(if(props) 0.808f else 0.964f).fillMaxHeight().background(c.canvas),
-    contentAlignment = Alignment.Center
-   ) {
-    VectorCanvas(
-     modifier = Modifier.fillMaxSize(), c = c, g = g, selected = state.selection?.id,
-     zoom = camera.zoom, px = camera.panX, py = camera.panY, grid = grid, weight = weights,
-     cursor = cursor, pendingStart = pendingWallStart, snapEnabled = snap, onCursor = { cursor = it }, onWorldTap = { point -> if(tool=="WALL"){val start=pendingWallStart;if(start==null){pendingWallStart=point;bridgeStatus="УЗЕЛ 1 ЗАДАН";}else{val constrained=if(ortho){if(abs(point.x-start.x)>=abs(point.y-start.y))Vec2(point.x,start.y)else Vec2(start.x,point.y)}else point;val end=if(snap)snapWorkspaceEndpoint(constrained,g,camera.zoom,22f)else constrained;val ok=editor.createWall(start.x,start.y,end.x,end.y,wallThickness,anchor);pendingWallStart=null;bridgeStatus=if(ok)"СТЕНА СОЗДАНА" else editor.state.value.error?: "ОШИБКА ЯДРА"}}else{editor.selectAt(point.x,point.y);bridgeStatus="ВЫБОР ОБЪЕКТА"}}
-    )
-    Column(Modifier.align(Alignment.TopStart).padding(4.dp)) {
-     Txt("А    Б    В",c.dim,8.sp); Txt("3\n2\n1",c.dim,7.sp)
-    }
-    Row(
-     modifier = Modifier.align(Alignment.TopCenter).padding(top=3.dp).background(c.panel).border(1.dp,c.dim).padding(3.dp),
-     verticalAlignment = Alignment.CenterVertically
-    ) {
-     Txt("L:",c.dim,7.sp)
-     BasicTextField(length,{length=it},Modifier.width(35.dp),textStyle=TextStyle(color=c.ink,fontSize=8.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
-     Txt("мм ∠",c.dim,7.sp)
-     BasicTextField(angle,{angle=it},Modifier.width(24.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
-     Txt("°",c.dim,7.sp)
-    }
-    Txt("UCS X / Y",c.accent,7.sp,Modifier.align(Alignment.BottomStart).padding(5.dp))
-    val cursorEndpoint = g?.walls?.any { wall ->
-     hypot(cursor.x-wall.axisStart.x,cursor.y-wall.axisStart.y)<1e-6 || hypot(cursor.x-wall.axisEnd.x,cursor.y-wall.axisEnd.y)<1e-6
-    } == true
-    Txt(if(snap && cursorEndpoint) "OSNAP: УЗЕЛ" else if(snap) "OSNAP: ПОИСК" else "OSNAP: ВЫКЛ",if(snap&&cursorEndpoint)c.snap else c.muted,8.sp,Modifier.align(Alignment.BottomEnd).padding(5.dp).background(c.panel).border(1.dp,if(snap&&cursorEndpoint)c.snap else c.grid).padding(3.dp))
-    if(debug && selectedWall != null) {
-     Column(Modifier.align(Alignment.Center).background(c.panel).border(1.dp,c.select).padding(4.dp)) {
-      Txt("N1 d=${degree[key(selectedWall.axisStart)]?:1}",c.select,7.sp)
-      Txt("N2 d=${degree[key(selectedWall.axisEnd)]?:1}",c.select,7.sp)
-     }
-    }
-   }
-   if(props) {
-    Properties(
-     Modifier.weight(0.156f).fillMaxHeight(), c, g, state.selection, degree, editor,
-     layer, layers, { layer = it }, { debug = !debug }, { wallThickness=it }
-    )
-   }
-  }
-Row(Modifier.fillMaxWidth().weight(0.058f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){
-   Txt("[AI МОСТ-H]",c.snap,7.sp,Modifier.weight(0.105f),bold=true)
-   BasicTextField(cmd,{cmd=it},Modifier.weight(0.615f).padding(horizontal=3.dp),textStyle=TextStyle(color=c.ink,fontSize=7.sp,fontFamily=FontFamily.Monospace),singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Done),keyboardActions=KeyboardActions(onDone={submitCadCommand()}),decorationBox={inner->if(cmd.isEmpty())Txt("4000<0 · WALL 4000 0 · СТЕНА 4000 · КОМНАТА 4000x5000",c.muted,6.sp);inner()})
-   ButtonMini("↵",c,{submitCadCommand()},20.dp)
-   Txt("$bridgeStatus · ${"%.2f".format(bridgeElapsedMs)} ms",c.muted,6.sp,Modifier.weight(0.28f),max=1)
-  }
-  Row(Modifier.fillMaxWidth().weight(0.054f).background(c.panel).border(1.dp,c.grid).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-   Txt("X: ${cursor.x*1000}  Y: ${cursor.y*1000}  Z: 0.0",c.dim,6.sp,Modifier.weight(0.22f))
-   Spacer(Modifier.weight(0.26f))
-   listOf("МОДЕЛЬ" to true,"СЕТКА [F7]" to grid,"ОРТО [F8]" to ortho,"OSNAP [F3]" to snap,"ОТСЛЕЖ" to track,"ВЕС ЛИНИЙ" to weights,"СВОЙСТВА" to props).forEach{(name,on)->Box(Modifier.weight(0.52f/7f),contentAlignment=Alignment.Center){Toggle(name,on,c){when(name){"СЕТКА [F7]"->grid=!grid;"ОРТО [F8]"->ortho=!ortho;"OSNAP [F3]"->snap=!snap;"ОТСЛЕЖ"->track=!track;"ВЕС ЛИНИЙ"->weights=!weights;"СВОЙСТВА"->props=!props}}}}
-  }
+  Box(id(711,18,1).background(c.panel).border(.5.dp,c.grid)){Row(Modifier.fillMaxSize(),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(.17f).fillMaxHeight().clickable{infoOpen=!infoOpen},Alignment.Center){Txt(if(infoOpen)"▼" else "▲",c.accent,5.sp)};Box(Modifier.weight(.66f),Alignment.Center){Txt("ИНФОРМАЦИЯ",c.ink,5.sp,center=true)};Box(Modifier.weight(.17f).fillMaxHeight().clickable{infoMenu=!infoMenu},Alignment.Center){Txt("⋮",c.accent,6.sp)}}}
+  if(infoOpen)Box(at(86,7,18,40).background(c.panel).border(.5.dp,c.grid)){Column(Modifier.fillMaxSize().padding(2.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){Header("СВОЙСТВА ОБЪЕКТА",c);if(state.selection==null)RowProp("Выбор","Не выбран",c)else RowProp("ID",state.selection!!.id.take(12),c);Header("СЛОИ",c);layers.forEach{Txt(it,c.muted,5.sp,max=1)};Header("КООРДИНАТЫ",c);RowProp("X",cursor.x.toString(),c);RowProp("Y",cursor.y.toString(),c);Header("ЯДРО",c);RowProp("Стены",(g?.walls?.size?:0).toString(),c);RowProp("Узлы",(g?.walls?.flatMap{listOf(key(it.axisStart),key(it.axisEnd))}?.distinct()?.size?:0).toString(),c)}}
+  if(menu)Box(at(0,1,11,8).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column(Modifier.fillMaxSize()){listOf("Новый","Проекты","Сохранить","Экспорт","Импорт","Настройка","Выход").forEach{item->Box(Modifier.weight(1f).fillMaxWidth().background(c.canvas).clickable{menu=false;when(item){"Новый"->editor.closeAndReset();"Сохранить"->onSave();"Экспорт"->onExport();"Выход"->onBack();else->BlueprintTheme.next()}},Alignment.CenterStart){Txt(item,c.ink,5.sp,Modifier.padding(start=2.dp))}}}}
+  if(infoMenu)Box(at(86,6,18,8).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column{listOf("Свойства объекта","Слои","Координаты и сетка","Приоритет ▲/▼").forEach{Txt(it,c.ink,5.sp,Modifier.fillMaxWidth().clickable{infoMenu=false}.padding(2.dp))}}}
+  Row(at(0,47,104,1).background(c.panel).border(.5.dp,c.grid),verticalAlignment=Alignment.CenterVertically){Txt("MODEL",c.accent,4.5.sp);Spacer(Modifier.weight(1f));listOf("СЕТКА" to gridOn,"ОРТО" to ortho,"OSNAP" to snap).forEach{(label,on)->Txt(label+" "+(if(on)"ON" else "OFF"),if(on)c.accent else c.muted,4.5.sp,Modifier.clickable{when(label){"СЕТКА"->gridOn=!gridOn;"ОРТО"->ortho=!ortho;"OSNAP"->snap=!snap}}.padding(horizontal=2.dp))}}
  }
 }
-
 @Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,pendingStart:Vec2?,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onWorldTap:(Vec2)->Unit){
  val latestWorldTap by rememberUpdatedState(onWorldTap)
  Canvas(modifier
