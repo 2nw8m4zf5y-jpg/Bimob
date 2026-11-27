@@ -174,7 +174,8 @@ class CommandBus(
     private val engineLimits: EngineLimits = EngineLimits(),
     initialRevisionNumber: Long = 0L,
     initialDependencyGraph: DependencyGraph = DependencyGraph.empty(),
-    initialDerivedValues: Map<DependencyNodeKey, DerivedValue> = emptyMap()
+    initialDerivedValues: Map<DependencyNodeKey, DerivedValue> = emptyMap(),
+    private val validatorRegistry: ModelValidatorRegistry = ModelValidatorRegistry.empty()
 ) {
     private val configuredEvaluatorRegistry = evaluatorRegistry
     private val monitor = Any()
@@ -192,7 +193,7 @@ class CommandBus(
         require(historyLimit >= 0) { "historyLimit must be non-negative" }
         require(pendingEventLimit > 0) { "pendingEventLimit must be positive" }
         require(historyMemoryBudgetBytes >= 0L) { "historyMemoryBudgetBytes must be non-negative" }
-        require(ModelValidator.validate(current.project).none { it.severity == ValidationSeverity.ERROR }) {
+        require(validatorRegistry.validate(current.project).none { it.severity == ValidationSeverity.ERROR }) {
             "Initial project must satisfy model invariants."
         }
     }
@@ -261,7 +262,7 @@ class CommandBus(
             if (cancellation.isCancelled())
                 return CommandResult.Rejected(CommandFailureCode.CANCELLED, "Cancelled before validation.")
 
-            val issues = ModelValidator.validate(candidate)
+            val issues = validatorRegistry.validate(candidate)
             if (issues.any { it.severity == ValidationSeverity.ERROR }) {
                 return CommandResult.Rejected(
                     CommandFailureCode.VALIDATION_FAILED,
@@ -292,7 +293,7 @@ class CommandBus(
             enqueueEvent(ModelEvent.RevisionCommitted(committed, mutation.label))
         }
         drainEvents()
-        return CommandResult.Committed(committed, ModelValidator.validate(committed.project))
+        return CommandResult.Committed(committed, validatorRegistry.validate(committed.project))
     }
 
     fun undo(expectedRevision: Long? = null): CommandResult = restore(HistoryAction.UNDO, expectedRevision)
@@ -327,7 +328,7 @@ class CommandBus(
             enqueueEvent(ModelEvent.RevisionRestored(restored, action))
         }
         drainEvents()
-        return CommandResult.Committed(restored, ModelValidator.validate(restored.project))
+        return CommandResult.Committed(restored, validatorRegistry.validate(restored.project))
     }
 
     private fun historyEntry(state: ModelRevision): HistoryEntry {
