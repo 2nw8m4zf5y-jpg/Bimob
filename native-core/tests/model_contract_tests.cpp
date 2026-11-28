@@ -1,0 +1,185 @@
+#include "bimob/engine.hpp"
+#include "bimob/canonical_json.hpp"
+#include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+using namespace bimob;
+Project fixture(){return Project{ModelId{"p"},"Project",{Wall{ModelId{"w1"},WallAxis{Point2{Meters{0},Meters{0}},Point2{Meters{2},Meters{0}}},Meters{2.7},Meters{.2},ModelId{}}}, {}, {}, {}, {}};}
+Mutation addWall(){return [](const Project&p){auto c=p;c.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{0},Meters{1}},Point2{Meters{1},Meters{1}}},Meters{2.7},Meters{.2},ModelId{}});return Result<Project>::success(std::move(c));};}
+Mutation removeWall(){return [](const Project&p){auto c=p;c.walls.erase(std::remove_if(c.walls.begin(),c.walls.end(),[](const Wall&w){return w.id.value=="w2";}),c.walls.end());return Result<Project>::success(std::move(c));};}
+void g1Contracts(){assert(ModelId{"project-1"}.valid());assert(!ModelId{"bad\nname"}.valid());auto p=fixture();assert(validate(p).empty());assert(p.walls[0].axis.length().value==2.0);assert(kCoordinateEpsilon==1e-9&&kMinWallLength==1e-6);p.walls[0].axis.end=p.walls[0].axis.start;assert(validate(p).front().code==ValidationCode::ZeroLengthWall);}
+void commandHistoryAndRollback(){CommandBus bus(fixture());auto initial=bus.snapshot();auto added=bus.execute(addWall());assert(added.ok()&&added.value()->revision->number==1);assert(bus.snapshot()->project->walls.size()==2);assert(bus.snapshot()->wallEntities->front()==initial->wallEntities->front());assert(bus.execute(removeWall()).ok()&&bus.snapshot()->project->walls.size()==1);assert(bus.undo().ok()&&bus.snapshot()->project->walls.size()==2);assert(bus.undo().ok()&&bus.snapshot()->project->walls.size()==1);assert(bus.redo().ok()&&bus.snapshot()->project->walls.size()==2);auto before=bus.snapshot();auto invalid=bus.execute([](const Project&p){auto c=p;c.walls[0].thickness.value=-1;return Result<Project>::success(c);});assert(!invalid.ok()&&invalid.error()->code==ErrorCode::ValidationFailed);assert(bus.snapshot()==before);}
+void gestureCoalescing(){CommandBus bus(fixture());for(int i=0;i<20;i++){auto update=[i](const Project&p){auto c=p;c.walls[0].axis.start.x.value=i;c.walls[0].axis.end.x.value=i+2;return Result<Project>::success(c);};auto r=bus.execute(update,{},"drag-1");assert(r.ok());}assert(bus.undoDepth()==1&&bus.snapshot()->number==20);assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==0);assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==19);}
+void budgets(){EngineLimits l;auto g=admitEdges({},{{"a","b"}},l);assert(g.ok());l.graph_nodes=1;auto r=admitEdges({},{{"a","b"}},l);assert(!r.ok()&&r.error()->code==ErrorCode::EngineLimitExceeded&&r.error()->budget=="graph_nodes"&&r.error()->actual==2&&r.error()->limit==1&&r.error()->nodeId.empty());l=EngineLimits{};l.graph_edges=0;r=admitEdges({},{{"a","b"}},l);assert(!r.ok()&&r.error()->budget=="graph_edges"&&r.error()->actual==1&&r.error()->limit==0);l=EngineLimits{};l.dependency_depth=1;r=admitEdges({},{{"a","b"}},l);assert(!r.ok()&&r.error()->budget=="dependency_depth"&&r.error()->actual==2&&r.error()->limit==1&&r.error()->nodeId.empty());l=EngineLimits{};l.fan_out=1;g=admitEdges({},{{"s","a"},{"s","b"}},l);assert(g.ok());auto e=recompute(*g.value(),{"s"},fixture(),{},EvaluatorRegistry{},l);assert(!e.ok()&&e.error()->budget=="fan_out"&&e.error()->actual==2&&e.error()->limit==1&&e.error()->nodeId=="s");l=EngineLimits{};l.dirty_nodes=1;g=admitEdges({},{{"a","b"}},l);e=recompute(*g.value(),{"a"},fixture(),{},EvaluatorRegistry{},l);assert(!e.ok()&&e.error()->budget=="dirty_nodes"&&e.error()->actual==2&&e.error()->limit==1&&e.error()->nodeId=="b");l=EngineLimits{};l.evaluations=0;g=admitEdges({},{{"a","b"}},l);EvaluatorRegistry registry({{"a",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{1.0});}}});e=recompute(*g.value(),{"a"},fixture(),{},registry,l);assert(!e.ok()&&e.error()->budget=="evaluations"&&e.error()->actual==1&&e.error()->limit==0&&e.error()->nodeId=="a");}
+void graphCycleAndEvaluatorFailure(){auto g=admitEdges({},{{"a","b"},{"b","c"}},EngineLimits{});assert(g.ok());auto cyc=admitEdges(*g.value(),{{"c","a"}},EngineLimits{});assert(!cyc.ok()&&cyc.error()->code==ErrorCode::DependencyCycle);auto exact=admitEdges({},{{"A","B"},{"B","C"},{"C","A"}},EngineLimits{});assert(!exact.ok()&&exact.error()->message=="Dependency cycle detected: A -> B -> C -> A"&&exact.error()->nodeId=="A");EvaluatorRegistry bad({{"a",[](const Project&,const DerivedMap&){return Result<DerivedValue>::failure({ErrorCode::CommandFailed,"fixture failure",{}, {},0,0});}}});auto result=recompute(*g.value(),{"a"},fixture(),{},bad,EngineLimits{});assert(!result.ok()&&result.error()->code==ErrorCode::EvaluationFailed);}
+void goldenParity(){auto graph=admitEdges({},{{"A","B"},{"B","C"}},EngineLimits{});assert(graph.ok());EvaluatorRegistry base({{"A",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{2.0});}},{"B",[](const Project&,const DerivedMap&in){auto it=in.find("A");if(it==in.end())return Result<DerivedValue>::failure({ErrorCode::EvaluationFailed,"missing direct input",{}, {},0,0});return Result<DerivedValue>::success(DerivedValue{std::get<double>(it->second.data)+3.0});}},{"C",[](const Project&,const DerivedMap&in){return Result<DerivedValue>::success(DerivedValue{std::get<double>(in.at("B").data)*2.0});}}});auto r=recompute(*graph.value(),{"A"},fixture(),{},base,EngineLimits{});assert(r.ok()&&(r.value()->order==std::vector<NodeId>{"A","B","C"}));assert(std::get<double>(r.value()->values.at("A").data)==2&&std::get<double>(r.value()->values.at("B").data)==5&&std::get<double>(r.value()->values.at("C").data)==10);auto local=base.withOverride("B",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{9.0});});auto overrideResult=recompute(*graph.value(),{"A"},fixture(),{},local,EngineLimits{});assert(overrideResult.ok()&&std::get<double>(overrideResult.value()->values.at("C").data)==18);auto unchanged=recompute(*graph.value(),{"A"},fixture(),{},base,EngineLimits{});assert(unchanged.ok()&&std::get<double>(unchanged.value()->values.at("C").data)==10);}
+void atomicEngineRollback(){EngineLimits l;l.graph_nodes=1;CommandBus bus(fixture(),l);auto before=bus.snapshot();auto r=bus.transact(addWall(),{{"x","y"}},{"x"});assert(!r.ok()&&r.error()->code==ErrorCode::EngineLimitExceeded&&r.error()->budget=="graph_nodes");assert(bus.snapshot()==before&&bus.undoDepth()==0);}
+void stress10k(){constexpr int count=10000;EngineLimits l;l.dependency_depth=10001;std::vector<DependencyEdge>edges;edges.reserve(count+50);for(int i=0;i<count-1;++i)edges.push_back({"n"+std::to_string(i),"n"+std::to_string(i+1)});for(int i=0;i<50;++i)edges.push_back({"n0","f"+std::to_string(i)});auto g=admitEdges({},edges,l);assert(g.ok());std::size_t calls=0;std::map<NodeId,Evaluator>evals;for(const auto&node:g.value()->nodes)evals[node]=[&calls](const Project&,const DerivedMap&){++calls;return Result<DerivedValue>::success(DerivedValue{static_cast<double>(calls)});};auto start=std::chrono::steady_clock::now();auto r=recompute(*g.value(),{"n0"},fixture(),{},EvaluatorRegistry(evals),l);auto ms=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count();assert(r.ok()&&r.value()->evaluations==g.value()->nodes.size()&&calls==g.value()->nodes.size()&&r.value()->order.size()==g.value()->nodes.size());std::cout<<"STRESS nodes="<<g.value()->nodes.size()<<" edges="<<g.value()->edges.size()<<" evaluations="<<calls<<" elapsed_ms="<<ms<<"\\n";}
+void hostedDeleteCascadeUndo(){Project p=fixture();p.levels.push_back(Level{ModelId{"L1"},"Ground",Meters{0},Meters{3}});p.walls[0].levelId=ModelId{"L1"};p.openings.push_back(Opening{ModelId{"O1"},ModelId{"w1"},OpeningKind::Door,Meters{.1},Meters{.8},Meters{2},Meters{0}});p.catalogInstances.push_back(CatalogInstance{ModelId{"C1"},"fixture",Point2{Meters{1},Meters{1}},0,ModelId{"L1"},ModelId{"w1"},Meters{.5},Meters{.5},Meters{.5},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},"equipment","X"});CommandBus bus(p);auto deleted=bus.execute([](const Project&src){return deleteWallCascade(src,ModelId{"w1"});});assert(deleted.ok()&&bus.snapshot()->project->walls.empty()&&bus.snapshot()->project->openings.empty()&&bus.snapshot()->project->catalogInstances.empty());assert(bus.undo().ok());assert(bus.snapshot()->project->walls.size()==1&&bus.snapshot()->project->openings.size()==1&&bus.snapshot()->project->catalogInstances.size()==1);auto delLevel=bus.execute([](const Project&src){return deleteLevelCascade(src,ModelId{"L1"});});assert(delLevel.ok()&&bus.snapshot()->project->levels.empty()&&bus.snapshot()->project->walls.empty()&&bus.snapshot()->project->openings.empty()&&bus.snapshot()->project->catalogInstances.empty());assert(bus.undo().ok()&&bus.snapshot()->project->levels.size()==1&&bus.snapshot()->project->walls.size()==1);}
+void cowStress10k(){Project p=fixture();p.walls.clear();for(int i=0;i<10000;++i)p.walls.push_back(Wall{ModelId{"wall-"+std::to_string(i)},WallAxis{Point2{Meters{static_cast<double>(i)},Meters{0}},Point2{Meters{static_cast<double>(i)+1},Meters{0}}},Meters{2.7},Meters{.2},ModelId{}});Project edited=p;assert(p.walls.sharesStorageWith(edited.walls));edited.walls[5000].height=Meters{3.0};assert(!p.walls.sharesStorageWith(edited.walls)&&p.walls.size()==10000&&p.walls[5000].height.value==2.7&&edited.walls[5000].height.value==3.0);}
+void wallJoinMiterClampRegression(){for(double degrees:{15.0,25.0,45.0}){Project p=fixture();const double angle=degrees*std::acos(-1.0)/180.0;p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2+std::cos(angle)},Meters{std::sin(angle)}}},Meters{2.7},Meters{.2},ModelId{}});p.joins.push_back(WallJoin{ModelId{"acute"},ModelId{"w1"},false,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}});auto g=solveWallJoinGeometry(p,p.joins.back());assert(g.ok());for(const auto&v:g.value()->vertices){assert(std::isfinite(v.x.value)&&std::isfinite(v.y.value));assert(std::hypot(v.x.value-2.0,v.y.value)<=.35+1e-9);}}}
+void wallJoinCollinearAndNearParallelRegression(){
+ constexpr double maxThickness=.2,limit=maxThickness*1.25;
+ for(double degrees:{10.0,0.2,179.8,180.0}){
+  Project p=fixture();const double radians=degrees*std::acos(-1.0)/180.0;
+  p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2+std::cos(radians)},Meters{std::sin(radians)}}},Meters{2.7},Meters{maxThickness},ModelId{}});
+  WallJoin join{ModelId{"parallel-hotfix"},ModelId{"w1"},true,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}};
+  auto geometry=solveWallJoinGeometry(p,join);assert(geometry.ok());
+  for(const auto&vertex:geometry.value()->vertices){
+   assert(std::isfinite(vertex.x.value)&&std::isfinite(vertex.y.value));
+   assert(std::hypot(vertex.x.value-2.0,vertex.y.value)<=limit+1e-9);
+   for(const auto&wall:p.walls){double ax=wall.axis.start.x.value,ay=wall.axis.start.y.value,bx=wall.axis.end.x.value,by=wall.axis.end.y.value,dx=bx-ax,dy=by-ay,denom=dx*dx+dy*dy,t=((vertex.x.value-ax)*dx+(vertex.y.value-ay)*dy)/denom;t=std::clamp(t,0.0,1.0);double ex=ax+t*dx,ey=ay+t*dy;assert(std::hypot(vertex.x.value-ex,vertex.y.value-ey)<=limit+1e-9);}
+  }
+ }
+}
+void wallJoinRejectsHostedOpening(){Project p=fixture();p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},true,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}});p.openings.push_back(Opening{ModelId{"O2"},ModelId{"w2"},OpeningKind::Window,Meters{1.4},Meters{.5},Meters{1},Meters{.8}});auto rejected=solveWallJoin(p,ModelId{"w1"},false,Point2{Meters{2},Meters{1.5}});assert(!rejected.ok()&&rejected.error()->code==ErrorCode::ValidationFailed);assert((p.walls[1].axis.start==Point2{Meters{2},Meters{0}}));}
+void projectCowSharing(){Project original=fixture();Project candidate=original;assert(original.walls.sharesStorageWith(candidate.walls));candidate.walls[0].height=Meters{3.1};assert(!original.walls.sharesStorageWith(candidate.walls));assert(original.walls[0].height.value==2.7&&candidate.walls[0].height.value==3.1);Project more=original;more.openings.push_back(Opening{ModelId{"new"},ModelId{"w1"},OpeningKind::Door,Meters{0},Meters{.5},Meters{2},Meters{0}});assert(original.openings.empty()&&more.openings.size()==1&&!original.openings.sharesStorageWith(more.openings));}
+void historyLimitAndCancel(){CommandBus bus(fixture(),EngineLimits{},EvaluatorRegistry{},HistoryLimits{3});for(int i=0;i<8;++i){auto m=[i](const Project&p){auto c=p;c.name="Project"+std::to_string(i);return Result<Project>::success(std::move(c));};assert(bus.execute(m).ok());}assert(bus.undoDepth()==3);CancellationToken token;token.cancel();auto before=bus.snapshot();auto r=bus.execute(addWall(),{}, {},&token);assert(!r.ok()&&r.error()->code==ErrorCode::Cancelled&&bus.snapshot()==before);auto graph=admitEdges({},{{"a","b"},{"b","c"}},EngineLimits{});assert(graph.ok());EvaluatorRegistry reg({{"a",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{1.});}},{"b",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{2.});}},{"c",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{3.});}}});auto cancelled=recompute(*graph.value(),{"a"},fixture(),{},reg,EngineLimits{},&token);assert(!cancelled.ok()&&cancelled.error()->code==ErrorCode::Cancelled);}
+void wallJoinAnchored(){Project p=fixture();p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},true,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}});auto solved=solveWallJoin(p,ModelId{"w1"},false,Point2{Meters{3},Meters{0}});assert(solved.ok());assert((solved.value()->walls[0].axis.end==Point2{Meters{3},Meters{0}}));assert((solved.value()->walls[1].axis.start==Point2{Meters{3},Meters{0}}));assert((solved.value()->walls[1].axis.end==Point2{Meters{2},Meters{2}}));}
+void bimEntities(){Project p=fixture();p.levels.push_back(Level{ModelId{"L1"},"Ground",Meters{0},Meters{3}});p.walls[0].levelId=ModelId{"L1"};p.openings.push_back(Opening{ModelId{"O1"},ModelId{"w1"},OpeningKind::Door,Meters{.2},Meters{.8},Meters{2.1},Meters{0}});p.catalogInstances.push_back(CatalogInstance{ModelId{"C1"},"door-asset",Point2{Meters{1},Meters{2}},0,ModelId{"L1"},{},Meters{.9},Meters{.2},Meters{2.1},ScalingMode::Uniform,DimensionBounds{Meters{.5},Meters{1.2}},DimensionBounds{Meters{.1},Meters{.4}},DimensionBounds{Meters{1.8},Meters{2.4}},"door","D-01"});assert(validate(p).empty());p.openings[0].offsetAlongWall=Meters{1.5};auto openingIssues=validate(p);assert(std::any_of(openingIssues.begin(),openingIssues.end(),[](const auto&i){return i.code==ValidationCode::OpeningOutOfBounds;}));p.openings[0].offsetAlongWall=Meters{.2};p.catalogInstances[0].targetWidth=Meters{2};auto catalogIssues=validate(p);assert(std::any_of(catalogIssues.begin(),catalogIssues.end(),[](const auto&i){return i.code==ValidationCode::InvalidCatalogInstance;}));}
+
+
+void typedGestureCoalescingAcrossEntityKinds(){
+ Project p=fixture();
+ p.openings.push_back(Opening{ModelId{"G1"},ModelId{"w1"},OpeningKind::Window,Meters{.2},Meters{.5},Meters{1},Meters{.8}});
+ p.catalogInstances.push_back(CatalogInstance{ModelId{"G2"},"asset",Point2{Meters{0},Meters{0}},0,ModelId{},ModelId{},Meters{.5},Meters{.5},Meters{.5},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{1}},"furniture",""});
+ CommandBus bus(p);
+ const auto initial=bus.snapshot();
+
+ // Wall move: multiple updates coalesce; Undo/Redo restores exact states.
+ for(int i=1;i<=5;++i)assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag").ok());
+ assert(bus.undoDepth()==1);
+ assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==0);
+ assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].axis.start.x.value==5);
+
+ // Opening move: one history item for the gesture.
+ const auto openingBeforeMove=bus.snapshot()->project->openings[0];
+ assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.3},Meters{.8}),{}, "opening-drag").ok());
+ assert(bus.execute(commands::moveOpening(ModelId{"G1"},Meters{.4},Meters{.8}),{}, "opening-drag").ok());
+ assert(bus.undoDepth()==2);
+ assert(bus.undo().ok()&&bus.snapshot()->project->openings[0]==openingBeforeMove);
+ assert(bus.redo().ok()&&bus.snapshot()->project->openings[0].offsetAlongWall.value==.4);
+
+ // Catalog move: Undo/Redo must restore the position, not just stack depth.
+ const auto catalogBeforeMove=bus.snapshot()->project->catalogInstances[0];
+ assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{1},Meters{1}}),{}, "catalog-drag").ok());
+ assert(bus.execute(commands::moveCatalogInstance(ModelId{"G2"},Point2{Meters{2},Meters{2}}),{}, "catalog-drag").ok());
+ assert(bus.undoDepth()==3);
+ assert(bus.undo().ok()&&bus.snapshot()->project->catalogInstances[0]==catalogBeforeMove);
+ assert((bus.redo().ok()&&bus.snapshot()->project->catalogInstances[0].position==Point2{Meters{2},Meters{2}}));
+
+ // Wall resize coalesces; Undo restores original length and Redo the final length.
+ const double wallLengthBefore=bus.snapshot()->project->walls[0].axis.length().value;
+ for(double length:{1.6,1.7,1.8})assert(bus.execute(commands::resizeWall(ModelId{"w1"},Meters{length}),{}, "wall-resize-gesture").ok());
+ assert(bus.undoDepth()==4);
+ assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].axis.length().value==wallLengthBefore);
+ assert(bus.redo().ok()&&std::abs(bus.snapshot()->project->walls[0].axis.length().value-1.8)<1e-9);
+
+ // Opening resize coalesces independently and restores exact width.
+ const double openingWidthBefore=bus.snapshot()->project->openings[0].width.value;
+ for(double width:{.6,.65,.7})assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{width},Meters{1}),{}, "opening-resize-gesture").ok());
+ assert(bus.undoDepth()==5);
+ assert(bus.undo().ok()&&bus.snapshot()->project->openings[0].width.value==openingWidthBefore);
+ assert(bus.redo().ok()&&bus.snapshot()->project->openings[0].width.value==.7);
+
+ // Catalog resize coalesces independently and restores all target dimensions.
+ const auto catalogBeforeResize=bus.snapshot()->project->catalogInstances[0];
+ for(double width:{.6,.65,.7})assert(bus.execute(commands::resizeCatalogInstance(ModelId{"G2"},Meters{width},Meters{.5},Meters{.5}),{}, "catalog-resize-gesture").ok());
+ assert(bus.undoDepth()==6);
+ assert(bus.undo().ok()&&bus.snapshot()->project->catalogInstances[0]==catalogBeforeResize);
+ assert(bus.redo().ok()&&bus.snapshot()->project->catalogInstances[0].targetWidth.value==.7);
+
+ // Two separate gestures on the same entity must remain two Undo entries.
+ const auto beforeSeparate=bus.snapshot()->project->walls[0];
+ assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag-2").ok());
+ assert(bus.execute(commands::moveWall(ModelId{"w1"},Point2{Meters{1},Meters{0}}),{}, "wall-drag-3").ok());
+ assert(bus.undoDepth()==8);
+ assert(bus.undo().ok());
+ assert(bus.snapshot()->project->walls[0].axis.start.x.value==beforeSeparate.axis.start.x.value+1);
+ assert(bus.undo().ok());
+ assert(bus.snapshot()->project->walls[0].axis.start.x.value==beforeSeparate.axis.start.x.value);
+
+ // A rejected command between valid updates must not corrupt the gesture/history.
+ const auto openingBeforeInvalidGesture=bus.snapshot()->project->openings[0];
+ const auto undoBeforeInvalidGesture=bus.undoDepth();
+ assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{.75},Meters{1}),{}, "opening-invalid-gesture").ok());
+ const auto beforeInvalid=bus.snapshot();
+ const auto undoBeforeInvalid=bus.undoDepth();
+ const auto redoBeforeInvalid=bus.redoDepth();
+ auto rejected=bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{99},Meters{1}),{}, "opening-invalid-gesture");
+ assert(!rejected.ok());
+ assert(bus.snapshot()==beforeInvalid&&bus.undoDepth()==undoBeforeInvalid&&bus.redoDepth()==redoBeforeInvalid);
+ assert(bus.execute(commands::resizeOpening(ModelId{"G1"},Meters{.8},Meters{1}),{}, "opening-invalid-gesture").ok());
+ assert(bus.undoDepth()==undoBeforeInvalidGesture+1);
+ assert(bus.undo().ok()&&bus.snapshot()->project->openings[0]==openingBeforeInvalidGesture);
+ assert(bus.redo().ok()&&bus.snapshot()->project->openings[0].width.value==.8);
+ (void)initial;
+}
+void typedCommandsAndBatchAtomicity(){
+ Project p=fixture();
+ CommandBus bus(p);
+ auto level=Level{ModelId{"L2"},"Upper",Meters{3},Meters{2.8}};
+ auto wall=Wall{ModelId{"w3"},WallAxis{Point2{Meters{0},Meters{3}},Point2{Meters{4},Meters{3}}},Meters{2.8},Meters{.2},ModelId{"L2"}};
+ auto opening=Opening{ModelId{"O3"},ModelId{"w3"},OpeningKind::Window,Meters{1},Meters{1},Meters{1},Meters{.8}};
+ auto instance=CatalogInstance{ModelId{"C3"},"window-asset",Point2{Meters{1},Meters{3}},0,ModelId{"L2"},ModelId{"w3"},Meters{.5},Meters{.2},Meters{1},ScalingMode::FreeStretch,DimensionBounds{Meters{.1},Meters{1}},DimensionBounds{Meters{.1},Meters{.5}},DimensionBounds{Meters{.5},Meters{2}},"window","W-01"};
+ auto success=commands::batch({commands::createLevel(level),commands::createWall(wall),commands::createOpening(opening),commands::createCatalogInstance(instance)});
+ auto committed=bus.execute(success);
+ assert(committed.ok()&&committed.value()->revision->number==1&&bus.undoDepth()==1);
+ assert(bus.snapshot()->project->levels.size()==1&&bus.snapshot()->project->walls.size()==2&&bus.snapshot()->project->openings.size()==1&&bus.snapshot()->project->catalogInstances.size()==1);
+ auto failed=commands::batch({commands::moveLevel(ModelId{"L2"},Meters{4}),commands::resizeOpening(ModelId{"O3"},Meters{5},Meters{1})});
+ auto before=bus.snapshot();auto rejected=bus.execute(failed);
+ assert(!rejected.ok()&&rejected.error()->code==ErrorCode::ValidationFailed&&bus.snapshot()==before&&bus.undoDepth()==1);
+ assert(bus.execute(commands::moveCatalogInstance(ModelId{"C3"},Point2{Meters{2},Meters{3}}),{}, "catalog-drag").ok());
+ assert(bus.execute(commands::resizeCatalogInstance(ModelId{"C3"},Meters{.6},Meters{.3},Meters{1.2}),{}, "catalog-size").ok());
+ assert(bus.execute(commands::moveOpening(ModelId{"O3"},Meters{1.2},Meters{.9}),{}, "opening-drag").ok());
+ assert(bus.execute(commands::resizeOpening(ModelId{"O3"},Meters{.8},Meters{1.1}),{}, "opening-size").ok());
+ assert(bus.execute(commands::moveWall(ModelId{"w3"},Point2{Meters{1},Meters{0}}),{}, "wall-drag").ok());
+ assert(bus.execute(commands::resizeWall(ModelId{"w3"},Meters{3}),{}, "wall-resize").ok());
+ assert(bus.execute(commands::moveLevel(ModelId{"L2"},Meters{3.2})).ok());
+ assert(bus.execute(commands::resizeLevel(ModelId{"L2"},Meters{3.1})).ok());
+ assert(bus.execute(commands::deleteOpening(ModelId{"O3"})).ok());
+ assert(bus.execute(commands::deleteCatalogInstance(ModelId{"C3"})).ok());
+ assert(bus.execute(commands::deleteWall(ModelId{"w3"})).ok());
+ assert(bus.undo().ok()&&bus.snapshot()->project->walls.size()==2);
+ assert(bus.execute(commands::deleteLevel(ModelId{"L2"})).ok());
+ assert(bus.snapshot()->project->levels.empty());
+ assert(bus.undo().ok()&&bus.snapshot()->project->levels.size()==1);
+}
+void wallThicknessUndoRedoAndValidation(){Project p=fixture();CommandBus bus(p);const double original=bus.snapshot()->project->walls[0].thickness.value;auto changed=bus.execute(commands::setWallThickness(ModelId{"w1"},Meters{0.35}));assert(changed.ok()&&bus.snapshot()->project->walls[0].thickness.value==0.35);assert(bus.undo().ok()&&bus.snapshot()->project->walls[0].thickness.value==original);assert(bus.redo().ok()&&bus.snapshot()->project->walls[0].thickness.value==0.35);auto before=bus.snapshot();assert(!bus.execute(commands::setWallThickness(ModelId{"w1"},Meters{0.01})).ok());assert(bus.snapshot()==before);assert(!bus.execute(commands::setWallThickness(ModelId{"w1"},Meters{5.01})).ok());assert(bus.snapshot()==before);assert(!bus.execute(commands::setWallThickness(ModelId{"missing"},Meters{0.2})).ok());assert(bus.snapshot()==before);}
+void wallJoinCommandBusDependencyIntegration(){
+ Project p=fixture();
+ p.walls.push_back(Wall{ModelId{"w2"},WallAxis{Point2{Meters{2},Meters{0}},Point2{Meters{2},Meters{2}}},Meters{2.7},Meters{.2},ModelId{}});
+ p.joins.push_back(WallJoin{ModelId{"j1"},ModelId{"w1"},true,ModelId{"w2"},false,Point2{Meters{2},Meters{0}}});
+ p.openings.push_back(Opening{ModelId{"O2"},ModelId{"w2"},OpeningKind::Window,Meters{1.4},Meters{.5},Meters{1},Meters{.8}});
+ EvaluatorRegistry registry({
+  {"wall:w1:geometry",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{2.0});}},
+  {"wall:w2:geometry",[](const Project&,const DerivedMap&){return Result<DerivedValue>::success(DerivedValue{3.0});}},
+  {"join:j1:geometry",[](const Project&,const DerivedMap&in){return Result<DerivedValue>::success(DerivedValue{std::get<double>(in.at("wall:w1:geometry").data)+std::get<double>(in.at("wall:w2:geometry").data)});}}
+ });
+ CommandBus bus(p,EngineLimits{},registry);
+ auto moved=bus.execute(commands::moveWallEndpoint(ModelId{"w1"},false,Point2{Meters{3},Meters{0}}));
+ assert(moved.ok());
+ const auto&project=*bus.snapshot()->project;
+ assert((project.walls[0].axis.end==Point2{Meters{3},Meters{0}}));
+ assert((project.walls[1].axis.start==Point2{Meters{3},Meters{0}}));
+ assert((project.walls[1].axis.end==Point2{Meters{2},Meters{2}}));
+ assert(std::get<double>(bus.snapshot()->derived->at("join:j1:geometry").data)==5.0);
+ assert(bus.undoDepth()==1);
+ assert(bus.undo().ok()&&bus.undoDepth()==0&&bus.redoDepth()==1);
+ const auto&restored=*bus.snapshot()->project;
+ assert((restored.walls[0].axis.end==Point2{Meters{2},Meters{0}}));
+ assert((restored.walls[1].axis.start==Point2{Meters{2},Meters{0}}));
+ assert(bus.redo().ok()&&bus.undoDepth()==1&&bus.redoDepth()==0);
+ assert((bus.snapshot()->project->walls[0].axis.end==Point2{Meters{3},Meters{0}}));
+ assert((bus.snapshot()->project->walls[1].axis.start==Point2{Meters{3},Meters{0}}));
+ auto before=bus.snapshot();
+ auto rejected=bus.execute(commands::moveWallEndpoint(ModelId{"w1"},false,Point2{Meters{2},Meters{1.5}}));
+ assert(!rejected.ok()&&bus.snapshot()==before);
+}
+
+void canonicalJsonContracts(){Project p{ModelId{"p"},"P",{},{},{},{},{}};p.walls.push_back(Wall{ModelId{"z-wall"},WallAxis{Point2{Meters{-0.0},Meters{1.2345675}},Point2{Meters{2},Meters{0}}},Meters{2.7},Meters{.200000},ModelId{}});p.walls.push_back(Wall{ModelId{"a-wall"},WallAxis{Point2{Meters{0},Meters{0}},Point2{Meters{1},Meters{0}}},Meters{2.7},Meters{.1234567},ModelId{}});const auto json=canonicalProjectJson(p);assert(json.find("\"a-wall\"")<json.find("\"z-wall\""));assert(json.find("1.234568")!=std::string::npos);assert(json.find("0.123457")!=std::string::npos);assert(json.find("-0")==std::string::npos);assert(json.find("\n")==std::string::npos);bool threw=false;try{auto invalid=p;invalid.walls[0].height.value=std::numeric_limits<double>::infinity();(void)canonicalProjectJson(invalid);}catch(const std::invalid_argument&){threw=true;}assert(threw);}
+int main(){canonicalJsonContracts();typedGestureCoalescingAcrossEntityKinds();typedCommandsAndBatchAtomicity();wallThicknessUndoRedoAndValidation();wallJoinCommandBusDependencyIntegration();cowStress10k();wallJoinCollinearAndNearParallelRegression();wallJoinRejectsHostedOpening();wallJoinMiterClampRegression();hostedDeleteCascadeUndo();projectCowSharing();historyLimitAndCancel();wallJoinAnchored();bimEntities();g1Contracts();commandHistoryAndRollback();gestureCoalescing();budgets();graphCycleAndEvaluatorFailure();goldenParity();atomicEngineRollback();stress10k();std::cout<<"Native G1/G2 contracts PASS\\n";}

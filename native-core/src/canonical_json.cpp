@@ -1,0 +1,23 @@
+#include "bimob/canonical_json.hpp"
+#include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
+#include <stdexcept>
+namespace bimob {
+namespace {
+std::string quote(const std::string&s){std::ostringstream o;o<<'"';for(unsigned char c:s){switch(c){case '"':o<<"\\\"";break;case '\\':o<<"\\\\";break;case '\b':o<<"\\b";break;case '\f':o<<"\\f";break;case '\n':o<<"\\n";break;case '\r':o<<"\\r";break;case '\t':o<<"\\t";break;default:if(c<0x20)o<<"\\u"<<std::hex<<std::setw(4)<<std::setfill('0')<<static_cast<int>(c)<<std::dec;else o<<static_cast<char>(c);}}o<<'"';return o.str();}
+std::string number(double v){if(!std::isfinite(v))throw std::invalid_argument("Canonical JSON rejects non-finite numbers");if(v==0.0)return "0";long double rounded=std::round(static_cast<long double>(v)*1000000.0L)/1000000.0L;std::ostringstream o;o<<std::fixed<<std::setprecision(6)<<rounded;auto s=o.str();while(!s.empty()&&s.back()=='0')s.pop_back();if(!s.empty()&&s.back()=='.')s.pop_back();if(s=="-0")s="0";return s;}
+std::string n(double v){return number(v);}std::string b(bool v){return v?"true":"false";}
+std::string nullId(const ModelId&id){return id.valid()?quote(id.value):"null";}
+std::string point(const Point2&p){return "{\"xMeters\":"+n(p.x.value)+",\"yMeters\":"+n(p.y.value)+"}";}
+std::string bounds(const DimensionBounds&d){return "{\"max\":"+n(d.max.value)+",\"min\":"+n(d.min.value)+"}";}
+template<class T,class F>std::string sorted(const CowVector<T>&v,F f){std::vector<const T*>a;for(const auto&x:v)a.push_back(&x);std::sort(a.begin(),a.end(),[](auto*l,auto*r){return l->id.value<r->id.value;});std::string out="[";bool first=true;for(auto*x:a){if(!first)out+=",";first=false;out+=f(*x);}return out+"]";}
+std::string wall(const Wall&w){return "{\"axis\":{\"end\":"+point(w.axis.end)+",\"start\":"+point(w.axis.start)+"},\"baseElevationMeters\":0,\"heightMeters\":"+n(w.height.value)+",\"id\":"+quote(w.id.value)+",\"kind\":\"wall\",\"layers\":[],\"levelId\":"+nullId(w.levelId)+",\"locationLine\":\"CENTER\",\"parameters\":[],\"thicknessMeters\":"+n(w.thickness.value)+",\"topElevationMeters\":null,\"typeId\":null}";}
+std::string level(const Level&l){return "{\"elevationMeters\":"+n(l.elevation.value)+",\"heightMeters\":"+n(l.height.value)+",\"id\":"+quote(l.id.value)+",\"name\":"+quote(l.name)+"}";}
+std::string join(const WallJoin&j){return "{\"endA\":"+b(j.endA)+",\"endB\":"+b(j.endB)+",\"id\":"+quote(j.id.value)+",\"point\":"+point(j.joint)+",\"wallA\":"+quote(j.wallA.value)+",\"wallB\":"+quote(j.wallB.value)+"}";}
+std::string opening(const Opening&o){const char*k=o.kind==OpeningKind::Door?"DOOR":o.kind==OpeningKind::Window?"WINDOW":"GENERIC";return "{\"heightMeters\":"+n(o.height.value)+",\"hostWallId\":"+quote(o.hostWallId.value)+",\"id\":"+quote(o.id.value)+",\"kind\":\"opening\",\"levelId\":null,\"offsetAlongWallMeters\":"+n(o.offsetAlongWall.value)+",\"openingKind\":"+quote(k)+",\"parameters\":[],\"sillHeightMeters\":"+n(o.sillHeight.value)+",\"typeId\":null,\"widthMeters\":"+n(o.width.value)+"}";}
+std::string catalog(const CatalogInstance&i){const char*mode=i.scalingMode==ScalingMode::FreeStretch?"FREE_STRETCH":i.scalingMode==ScalingMode::Uniform?"UNIFORM":"PRESETS";return "{\"assetId\":"+quote(i.assetId)+",\"category\":"+quote(i.category)+",\"depthBounds\":"+bounds(i.depthBounds)+",\"heightBounds\":"+bounds(i.heightBounds)+",\"hostWallId\":"+nullId(i.hostWallId)+",\"id\":"+quote(i.id.value)+",\"kind\":\"catalogInstance\",\"levelId\":"+nullId(i.levelId)+",\"parameters\":[],\"position\":"+point(i.position)+",\"rotationRadians\":"+n(i.rotationRadians)+",\"scheduleTag\":"+quote(i.scheduleTag)+",\"scalingMode\":"+quote(mode)+",\"targetDepthMeters\":"+n(i.targetDepth.value)+",\"targetHeightMeters\":"+n(i.targetHeight.value)+",\"targetWidthMeters\":"+n(i.targetWidth.value)+",\"typeId\":null,\"widthBounds\":"+bounds(i.widthBounds)+"}";}
+}
+std::string canonicalProjectJson(const Project&p){std::vector<std::pair<std::string,std::string>>e;for(const auto&w:p.walls)e.emplace_back(w.id.value,wall(w));for(const auto&o:p.openings)e.emplace_back(o.id.value,opening(o));for(const auto&i:p.catalogInstances)e.emplace_back(i.id.value,catalog(i));std::sort(e.begin(),e.end(),[](const auto&a,const auto&b){return a.first<b.first;});std::string elements="[";for(size_t i=0;i<e.size();++i){if(i)elements+=",";elements+=e[i].second;}elements+="]";return "{\"buildings\":[],\"elements\":"+elements+",\"joins\":"+sorted(p.joins,join)+",\"levels\":"+sorted(p.levels,level)+",\"materials\":[],\"name\":"+quote(p.name)+",\"projectId\":"+quote(p.id.value)+",\"schemaVersion\":1,\"site\":{\"id\":"+quote(p.id.value+"-site")+",\"name\":\"Fixture Site\"},\"types\":[]}";}
+}

@@ -1,0 +1,50 @@
+{
+  "schema": "bimob.golden.v1",
+  "scenarioId": "cycle_rollback",
+  "description": "A cycle-admitting transaction fails and leaves model, graph, revision and history unchanged.",
+  "initialState": {
+    "project": {
+      "id": "project-cycle",
+      "name": "Cycle"
+    },
+    "levels": [],
+    "walls": [],
+    "joins": [],
+    "openings": [],
+    "catalogInstances": [],
+    "dependencies": [
+      [
+        "A",
+        "B"
+      ],
+      [
+        "B",
+        "C"
+      ]
+    ]
+  },
+  "commands": [
+    {
+      "op": "admitDependency",
+      "source": "C",
+      "dependent": "A"
+    },
+    {
+      "op": "assertRejected",
+      "expectedCode": "DEPENDENCY_CYCLE"
+    }
+  ],
+  "assertions": {
+    "cyclePath": [
+      "A",
+      "B",
+      "C",
+      "A"
+    ],
+    "revisionUnchanged": true,
+    "modelUnchanged": true,
+    "graphUnchanged": true,
+    "undoDepthUnchanged": true,
+    "redoDepthUnchanged": true
+  }
+}

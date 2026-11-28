@@ -1,0 +1,4 @@
+#pragma once
+#include <cmath>
+#include <stdexcept>
+namespace nagaplas::units {template<class T>class Q{double v_;public:explicit Q(double v):v_(v){if(!std::isfinite(v))throw std::invalid_argument("non-finite");}double value()const noexcept{return v_;}friend bool operator==(Q,Q)=default;};struct MM{};struct M2{};struct M3{};struct DG{};struct RD{};using Millimeters=Q<MM>;using SquareMeters=Q<M2>;using CubicMeters=Q<M3>;using Degrees=Q<DG>;using Radians=Q<RD>;double mm_to_m(Millimeters);Millimeters m_to_mm(double);SquareMeters area_mm2_to_m2(double);CubicMeters volume_mm3_to_m3(double);Radians deg_to_rad(Degrees);Degrees rad_to_deg(Radians);Degrees normalize_0_360(Degrees);Degrees normalize_minus180_180(Degrees);struct Point2d{Millimeters x,y;};struct Vector2d{Millimeters x,y;};struct Point3d{Millimeters x,y,z;};struct Vector3d{Millimeters x,y,z;};inline constexpr bool kZUp=true;}

@@ -1,0 +1,1146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nagaplas.dev/schemas/ai-copilot-contract-v1.1.json",
+  "title": "NAGAPLAS AI Copilot & C++20 Core Interop Protocol",
+  "description": "Инженерный контракт обмена данными между C++20 BIM/CAD ядром NAGAPLAS, Jetpack Compose UI и LLM/GPT (реализация F097–F103, F109).",
+  "version": "1.1.0",
+  "units_standard": {
+    "length": "millimeters (mm)",
+    "area": "square_meters (m2)",
+    "volume": "cubic_meters (m3)",
+    "angle": "degrees (deg, CCW from +X)",
+    "coordinate_system": "Right-handed Z-up (X: East/Right, Y: North/Up on plan, Z: Elevation)"
+  },
+  "precision_and_tolerances": {
+    "description": "Строгие геометрические и топологические допуски ядра C++20 для защиты графа от микро-сегментов и разрывов.",
+    "snap_tolerance_mm": 1.0,
+    "angle_tolerance_deg": 0.05,
+    "min_wall_length_mm": 50.0,
+    "min_opening_clearance_mm": 50.0,
+    "coordinate_rounding_step_mm": 0.1,
+    "auto_t_join_solver": "F103"
+  },
+  "safety_and_concurrency_policy": {
+    "description": "Защита от гонок данных, разрушающих галлюцинаций и повреждения закреплённой геометрии.",
+    "optimistic_concurrency": {
+      "required_revision_field": "expected_revision",
+      "on_mismatch": "REJECT_AND_REFRESH_CONTEXT"
+    },
+    "pinned_elements_protection": "STRICT_DENY_IN_CPP_CORE",
+    "max_affected_elements_without_elevated_confirm": 15,
+    "shadow_sandbox_execution": {
+      "enabled": true,
+      "mode": "CopyOnWrite_Graph_Branch",
+      "auto_run_norm_control": true,
+      "wal_transaction_on_commit": "F109"
+    }
+  },
+  "system_prompt_template": {
+    "role": "system",
+    "content": "Ты — встроенный ИИ-архитектор и BIM-инженер мобильного САПР NAGAPLAS (ядро C++20, протокол v1.1). Все линейные размеры передаются и задаются строго в миллиметрах (мм), углы — в градусах. Никогда не выдумывай ID элементов: используй только реальные ID из актуального scene_context (F097) либо временные идентификаторы формата '$temp_id' (например, '$w1') внутри одного батча вызовов. В каждый write-инструмент обязательно передавай актуальный expected_revision из scene_context. Любые изменения модели выполняй исключительно через зарегистрированные write-инструменты (F098) — они выполняются в теневой ветке графа C++20, проходят автопроверку СП/ГОСТ (F088), отрисовываются в режиме Ghost Preview (F100) и фиксируются в бинарном журнале WAL (F109) с Undo/Redo (F065) только после подтверждения инженера. Не пытайся изменять или удалять элементы с is_pinned=true. Учитывай нормы СП и ГОСТ РФ (F088, F102): ширина эвакуационных коридоров >= 1200 мм (в квартирах >= 850–1000 мм), жилых комнат >= 2250 мм, дверных проёмов санузлов >= 600 мм, входных >= 800–900 мм."
+  },
+  "scene_context_schema": {
+    "description": "Компактный JSON-снимок сцены, формируемый C++20 ядром за <2 мс (F097) с поддержкой уровней детализации (LOD/Culling F077).",
+    "type": "object",
+    "required": [
+      "scene_revision",
+      "detail_level",
+      "project_meta",
+      "active_view",
+      "selection",
+      "visible_topology",
+      "diagnostics"
+    ],
+    "properties": {
+      "scene_revision": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Монотонно возрастающий номер ревизии графа C++20 (Optimistic Concurrency Control).",
+        "example": 148
+      },
+      "detail_level": {
+        "type": "string",
+        "enum": [
+          "Compact",
+          "Viewport",
+          "Full"
+        ],
+        "description": "Уровень детализации контекста: Compact (выделение + сводка), Viewport (видимая область с Frustum Culling), Full (весь этаж)."
+      },
+      "total_elements_summary": {
+        "type": "object",
+        "description": "Сводка по всем элементам активного этажа (включая находящиеся за пределами вьюпорта).",
+        "properties": {
+          "walls_count": {
+            "type": "integer",
+            "example": 64
+          },
+          "openings_count": {
+            "type": "integer",
+            "example": 28
+          },
+          "rooms_count": {
+            "type": "integer",
+            "example": 12
+          },
+          "serialization_time_us": {
+            "type": "integer",
+            "example": 840
+          }
+        }
+      },
+      "project_meta": {
+        "type": "object",
+        "required": [
+          "project_name",
+          "active_level",
+          "available_wall_types",
+          "available_family_types"
+        ],
+        "properties": {
+          "project_name": {
+            "type": "string",
+            "example": "ЖК_Горный_Секция_1.nagaplas"
+          },
+          "active_level": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "elevation_mm",
+              "floor_to_floor_mm"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "LVL_01"
+              },
+              "name": {
+                "type": "string",
+                "example": "Этаж 01"
+              },
+              "elevation_mm": {
+                "type": "number",
+                "example": 0.0
+              },
+              "floor_to_floor_mm": {
+                "type": "number",
+                "example": 3300.0
+              }
+            }
+          },
+          "available_wall_types": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type_id",
+                "name",
+                "thickness_mm"
+              ],
+              "properties": {
+                "type_id": {
+                  "type": "string",
+                  "example": "WT_EXT_380_GAS"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Наружная Газобетон D500 300мм + Утеплитель 80мм"
+                },
+                "thickness_mm": {
+                  "type": "number",
+                  "example": 380
+                },
+                "is_structural": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "u_value_w_m2k": {
+                  "type": "number",
+                  "example": 0.28
+                }
+              }
+            }
+          },
+          "available_family_types": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type_id",
+                "category",
+                "name",
+                "width_mm",
+                "height_mm"
+              ],
+              "properties": {
+                "type_id": {
+                  "type": "string",
+                  "example": "DR_INT_800x2100"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "Door",
+                    "Window",
+                    "Column",
+                    "MEP_Fixture",
+                    "Furniture"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Дверь межкомнатная ДГ 21-9 (800х2100)"
+                },
+                "width_mm": {
+                  "type": "number",
+                  "example": 800
+                },
+                "height_mm": {
+                  "type": "number",
+                  "example": 2100
+                }
+              }
+            }
+          }
+        }
+      },
+      "active_view": {
+        "type": "object",
+        "required": [
+          "view_id",
+          "view_type",
+          "visual_style"
+        ],
+        "properties": {
+          "view_id": {
+            "type": "string",
+            "example": "VIEW_PLAN_L1"
+          },
+          "view_type": {
+            "type": "string",
+            "enum": [
+              "FloorPlan",
+              "View3D",
+              "Section",
+              "Elevation",
+              "Sheet"
+            ]
+          },
+          "visual_style": {
+            "type": "string",
+            "enum": [
+              "Wireframe",
+              "HiddenLine",
+              "Shaded",
+              "Realistic"
+            ]
+          },
+          "viewport_bounds_mm": {
+            "type": "object",
+            "properties": {
+              "min_x": {
+                "type": "number"
+              },
+              "min_y": {
+                "type": "number"
+              },
+              "max_x": {
+                "type": "number"
+              },
+              "max_y": {
+                "type": "number"
+              }
+            }
+          },
+          "touch_cursor_mm": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Координаты последнего тапа/удержания пальца на холсте (F101).",
+            "properties": {
+              "x": {
+                "type": "number",
+                "example": 4500.0
+              },
+              "y": {
+                "type": "number",
+                "example": 3200.0
+              },
+              "snapped_element_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "example": "W_014"
+              },
+              "snap_type": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "example": "Midpoint"
+              }
+            }
+          }
+        }
+      },
+      "selection": {
+        "type": "object",
+        "required": [
+          "selected_ids"
+        ],
+        "properties": {
+          "selected_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "W_014",
+              "RM_03"
+            ]
+          },
+          "set_of_mark_mapping": {
+            "type": "object",
+            "description": "Соответствие визуальных бейджей на скриншоте (#1, #2) реальным ID графа C++20 (F100).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "#1": "W_014",
+              "#2": "W_015",
+              "#3": "D_004"
+            }
+          }
+        }
+      },
+      "visible_topology": {
+        "type": "object",
+        "properties": {
+          "grids": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label",
+                "p1_mm",
+                "p2_mm"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "GR_A"
+                },
+                "label": {
+                  "type": "string",
+                  "example": "А"
+                },
+                "p1_mm": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "p2_mm": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              }
+            }
+          },
+          "walls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "type_id",
+                "start_mm",
+                "end_mm",
+                "thickness_mm",
+                "height_mm",
+                "is_pinned"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "W_014"
+                },
+                "type_id": {
+                  "type": "string",
+                  "example": "WT_INT_120_BRICK"
+                },
+                "start_mm": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "example": [
+                    0,
+                    0
+                  ]
+                },
+                "end_mm": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "example": [
+                    6000,
+                    0
+                  ]
+                },
+                "thickness_mm": {
+                  "type": "number",
+                  "example": 120
+                },
+                "height_mm": {
+                  "type": "number",
+                  "example": 3000
+                },
+                "is_pinned": {
+                  "type": "boolean",
+                  "example": false
+                },
+                "degree_start": {
+                  "type": "integer",
+                  "example": 2
+                },
+                "degree_end": {
+                  "type": "integer",
+                  "example": 3
+                },
+                "hosted_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "D_004",
+                    "WN_002"
+                  ]
+                }
+              }
+            }
+          },
+          "openings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "category",
+                "host_wall_id",
+                "type_id",
+                "offset_from_start_mm",
+                "width_mm",
+                "height_mm"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "D_004"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "Door",
+                    "Window",
+                    "WallOpening"
+                  ]
+                },
+                "host_wall_id": {
+                  "type": "string",
+                  "example": "W_014"
+                },
+                "type_id": {
+                  "type": "string",
+                  "example": "DR_INT_800x2100"
+                },
+                "offset_from_start_mm": {
+                  "type": "number",
+                  "example": 1450
+                },
+                "width_mm": {
+                  "type": "number",
+                  "example": 800
+                },
+                "height_mm": {
+                  "type": "number",
+                  "example": 2100
+                },
+                "sill_height_mm": {
+                  "type": "number",
+                  "example": 0
+                }
+              }
+            }
+          },
+          "rooms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "number",
+                "name",
+                "area_m2"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "RM_03"
+                },
+                "number": {
+                  "type": "string",
+                  "example": "103"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "Коридор"
+                },
+                "zone_category": {
+                  "type": "string",
+                  "enum": [
+                    "Living",
+                    "Kitchen",
+                    "WetZone",
+                    "Corridor",
+                    "Utility",
+                    "Public",
+                    "Undefined"
+                  ],
+                  "example": "Corridor"
+                },
+                "area_m2": {
+                  "type": "number",
+                  "example": 8.45
+                },
+                "perimeter_mm": {
+                  "type": "number",
+                  "example": 13400
+                },
+                "bounding_wall_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "diagnostics": {
+        "type": "object",
+        "description": "Актуальные предупреждения нормоконтроля (F088) и коллизий (F057).",
+        "properties": {
+          "norm_violations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule_code": {
+                  "type": "string",
+                  "example": "СП 1.13130.2020 п.4.3.3"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "Error",
+                    "Warning"
+                  ]
+                },
+                "element_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "RM_03"
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Ширина эвакуационного коридора 1050 мм меньше требуемых 1200 мм"
+                }
+              }
+            }
+          },
+          "clashes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "clash_id": {
+                  "type": "string"
+                },
+                "element_a": {
+                  "type": "string"
+                },
+                "element_b": {
+                  "type": "string"
+                },
+                "intersection_volume_m3": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "openai_tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "create_walls",
+        "description": "Создает одну или цепочку параметрических стен (F022) с авто-стыковкой углов и Т-стыков (F103) в C++20 графе. Поддерживает $temp_id для ссылки из других команд батча.",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "segments",
+            "wall_type_id"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "wall_type_id": {
+              "type": "string",
+              "description": "ID типоразмера стены из project_meta.available_wall_types"
+            },
+            "level_id": {
+              "type": "string",
+              "description": "ID этажа (по умолчанию текущий активный этаж)"
+            },
+            "height_mm": {
+              "type": "number",
+              "minimum": 100,
+              "description": "Высота стены в мм"
+            },
+            "location_line": {
+              "type": "string",
+              "enum": [
+                "WallCenterline",
+                "CoreCenterline",
+                "FinishFaceExterior",
+                "FinishFaceInterior"
+              ],
+              "default": "WallCenterline"
+            },
+            "segments": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "start_mm",
+                  "end_mm"
+                ],
+                "properties": {
+                  "temp_id": {
+                    "type": "string",
+                    "pattern": "^\\$[a-zA-Z0-9_]+$",
+                    "description": "Временный ID (например, '$w1') для врезки проёмов в эту стену в том же батче."
+                  },
+                  "start_mm": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "end_mm": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "insert_hosted_opening",
+        "description": "Врезает дверь, окно или проем (F026, F027) в существующую или созданную в текущем батче ($temp_id) стену.",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "host_wall_id",
+            "family_type_id",
+            "offset_from_start_mm"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "host_wall_id": {
+              "type": "string",
+              "description": "Реальный ID стены (W_...) или $temp_id ('$w1')"
+            },
+            "family_type_id": {
+              "type": "string",
+              "description": "ID семейства двери/окна из каталога"
+            },
+            "offset_from_start_mm": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Расстояние от начальной точки стены до оси проема в мм"
+            },
+            "sill_height_mm": {
+              "type": "number",
+              "default": 0,
+              "description": "Высота подоконника/порога от уровня чистого пола в мм"
+            },
+            "flip_facing": {
+              "type": "boolean",
+              "default": false
+            },
+            "flip_hand": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "split_wall",
+        "description": "Разделяет существующую стену на два топологических сегмента в указанной точке (F019, F103) для смены пирога, высоты или удаления участка.",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "wall_id",
+            "split_point_mm"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "wall_id": {
+              "type": "string",
+              "description": "ID разделяемой стены (не закрепленной Pin)"
+            },
+            "split_point_mm": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "temp_id_part_1": {
+              "type": "string",
+              "pattern": "^\\$[a-zA-Z0-9_]+$"
+            },
+            "temp_id_part_2": {
+              "type": "string",
+              "pattern": "^\\$[a-zA-Z0-9_]+$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "transform_elements",
+        "description": "Выполняет перенос, поворот, зеркалирование или копирование элементов (F013, F014, F021). Строго игнорирует элементы с is_pinned=true (F073).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "element_ids",
+            "operation"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "element_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "operation": {
+              "type": "string",
+              "enum": [
+                "Move",
+                "Rotate",
+                "Mirror",
+                "Copy"
+              ]
+            },
+            "delta_mm": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "origin_mm": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "angle_deg": {
+              "type": "number"
+            },
+            "mirror_axis_p2_mm": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "modify_element_parameters",
+        "description": "Изменяет типоразмер или атрибутивные параметры элементов через Properties Inspector API (F043, F068). Поддерживает реальные ID и $temp_id.",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "element_ids",
+            "parameters"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "element_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "update_room_metadata",
+        "description": "Обновляет наименование, номер и функциональную зону помещения (F029) для корректной экспликации (ГОСТ 21.501) и проверки норм СП (F088).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "room_id"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "room_id": {
+              "type": "string",
+              "example": "RM_03"
+            },
+            "number": {
+              "type": "string",
+              "example": "104"
+            },
+            "name": {
+              "type": "string",
+              "example": "Санузел совмещенный"
+            },
+            "zone_category": {
+              "type": "string",
+              "enum": [
+                "Living",
+                "Kitchen",
+                "WetZone",
+                "Corridor",
+                "Utility",
+                "Public"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "delete_elements",
+        "description": "Безопасно удаляет элементы из графа C++20 с каскадной очисткой зависимостей и пересчётом узлов (кроме закрепленных Pin).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "element_ids"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "element_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "undo_last_ai_transaction",
+        "description": "Откатывает последнюю подтверждённую ИИ-транзакцию через C++20 CommandDispatcher / WAL (F065, F109).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "transaction_id": {
+              "type": "string",
+              "description": "Опциональный ID транзакции для точного отката"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "run_engineering_check",
+        "description": "Запускает в ядре C++20 проверку норм СП/ГОСТ (F088), поиск геометрических коллизий (F057) или теплотехнический расчет стены (F089).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "check_type"
+          ],
+          "properties": {
+            "check_type": {
+              "type": "string",
+              "enum": [
+                "NormControl_SP_GOST",
+                "ClashDetection",
+                "ThermalCalculation"
+              ]
+            },
+            "target_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "region_climate_code": {
+              "type": "string",
+              "default": "RU-MOW"
+            }
+          }
+        }      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_schedules_and_qto",
+        "description": "Получает из ядра динамическую ведомость объемов работ, площадей помещений, отделки по ГОСТ 21.501 или спецификацию проемов (F055, F083).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "schedule_type"
+          ],
+          "properties": {
+            "schedule_type": {
+              "type": "string",
+              "enum": [
+                "RoomExplication",
+                "FinishingSchedule_GOST",
+                "WallMaterialTakeoff",
+                "DoorsAndWindowsSchedule"
+              ]
+            },
+            "level_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_normative_rag",
+        "description": "Выполняет семантический и FTS5 поиск по локальной базе строительных норм СП, ГОСТ, СНиП и каталогу семейств NAGAPLAS (F102).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "domain": {
+              "type": "string",
+              "enum": [
+                "FireSafety",
+                "Architecture_SP",
+                "Structures_KZh_KM",
+                "Thermal_Physics",
+                "GOST_Docs",
+                "All"
+              ],
+              "default": "All"
+            },
+            "top_k": {
+              "type": "integer",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        }
+      }
+    }
+  ],
+  "ghost_preview_response_envelope": {
+    "description": "Формат ответа от AI-роутера (F099) в Jetpack Compose UI для отрисовки Ghost Render Pass (F100) из теневой Copy-on-Write ветки ядра C++20.",
+    "type": "object",
+    "required": [
+      "transaction_id",
+      "base_scene_revision",
+      "summary_ru",
+      "requires_user_confirmation",
+      "affected_elements_count",
+      "resolved_temp_ids",
+      "shadow_diagnostics",
+      "tool_calls"
+    ],
+    "properties": {
+      "transaction_id": {
+        "type": "string",
+        "example": "AI_TX_20261128_0042"
+      },
+      "base_scene_revision": {
+        "type": "integer",
+        "example": 148
+      },
+      "summary_ru": {
+        "type": "string",
+        "example": "Построена перегородка санузла 2400×1800 мм из газобетона 100 мм и врезана дверь 700×2100 мм."
+      },
+      "requires_user_confirmation": {
+        "type": "boolean",
+        "default": true
+      },
+      "elevated_risk_confirmation": {
+        "type": "boolean",
+        "description": "True, если затронуто > 15 элементов или обнаружены критические ошибки СП.",
+        "default": false
+      },
+      "affected_elements_count": {
+        "type": "integer",
+        "example": 3
+      },
+      "skipped_pinned_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Список ID элементов с is_pinned=true, которые ядро C++20 автоматически защитило от изменения."
+      },
+      "resolved_temp_ids": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "example": {
+          "$w1": "W_065",
+          "$w2": "W_066"
+        }
+      },
+      "shadow_diagnostics": {
+        "type": "object",
+        "description": "Результат автоматического прогона нормоконтроля (F088) и поиска коллизий (F057) по теневой ветке сцены до подтверждения.",
+        "properties": {
+          "norm_warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "new_clashes_count": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      },
+      "tool_calls": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

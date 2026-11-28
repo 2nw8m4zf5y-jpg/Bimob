@@ -1,0 +1,249 @@
+{
+  "schema": "bimob.golden.v1",
+  "scenarioId": "walljoin_topologies",
+  "description": "Wall join solver fixtures: L/T/X, acute/obtuse and disconnect after endpoint edit/delete.",
+  "initialState": {
+    "project": {
+      "id": "project-joins",
+      "name": "Join topologies"
+    },
+    "levels": [],
+    "walls": [
+      {
+        "id": "L-a",
+        "start": [
+          0,
+          0
+        ],
+        "end": [
+          2,
+          0
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "L-b",
+        "start": [
+          2,
+          0
+        ],
+        "end": [
+          2,
+          2
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "T-a",
+        "start": [
+          0,
+          4
+        ],
+        "end": [
+          4,
+          4
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "T-b",
+        "start": [
+          2,
+          4
+        ],
+        "end": [
+          2,
+          6
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "X-a",
+        "start": [
+          8,
+          0
+        ],
+        "end": [
+          12,
+          4
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "X-b",
+        "start": [
+          8,
+          4
+        ],
+        "end": [
+          12,
+          0
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "acute-a",
+        "start": [
+          0,
+          8
+        ],
+        "end": [
+          4,
+          8
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "acute-b",
+        "start": [
+          4,
+          8
+        ],
+        "end": [
+          5,
+          9
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "obtuse-a",
+        "start": [
+          8,
+          8
+        ],
+        "end": [
+          12,
+          8
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      },
+      {
+        "id": "obtuse-b",
+        "start": [
+          12,
+          8
+        ],
+        "end": [
+          10,
+          10
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": null
+      }
+    ],
+    "joins": [
+      {
+        "id": "join-L",
+        "wallA": "L-a",
+        "endA": true,
+        "wallB": "L-b",
+        "endB": false,
+        "point": [
+          2,
+          0
+        ]
+      },
+      {
+        "id": "join-T",
+        "wallA": "T-a",
+        "endA": false,
+        "wallB": "T-b",
+        "endB": false,
+        "point": [
+          2,
+          4
+        ]
+      },
+      {
+        "id": "join-X",
+        "wallA": "X-a",
+        "endA": false,
+        "wallB": "X-b",
+        "endB": false,
+        "point": [
+          10,
+          2
+        ]
+      },
+      {
+        "id": "join-acute",
+        "wallA": "acute-a",
+        "endA": true,
+        "wallB": "acute-b",
+        "endB": false,
+        "point": [
+          4,
+          8
+        ]
+      },
+      {
+        "id": "join-obtuse",
+        "wallA": "obtuse-a",
+        "endA": true,
+        "wallB": "obtuse-b",
+        "endB": false,
+        "point": [
+          12,
+          8
+        ]
+      }
+    ],
+    "openings": [],
+    "catalogInstances": [],
+    "dependencies": []
+  },
+  "commands": [
+    {
+      "op": "moveWallEndpoint",
+      "id": "L-a",
+      "movedStart": false,
+      "point": [
+        2.5,
+        0
+      ]
+    },
+    {
+      "op": "deleteJoin",
+      "id": "join-T"
+    },
+    {
+      "op": "moveWall",
+      "id": "X-a",
+      "delta": [
+        1,
+        0
+      ]
+    },
+    {
+      "op": "undo"
+    },
+    {
+      "op": "redo"
+    }
+  ],
+  "assertions": {
+    "allJoinNodesDeterministicallyOrdered": true,
+    "opposingEndpointsAnchored": true,
+    "deleteJoinDisconnectsEndpoints": true,
+    "invalidCandidatesRollback": true
+  }
+}

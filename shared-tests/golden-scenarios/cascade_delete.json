@@ -1,0 +1,94 @@
+{
+  "schema": "bimob.golden.v1",
+  "scenarioId": "cascade_delete",
+  "description": "Deleting a host wall cascades to its Opening and hosted CatalogInstance; Undo restores all.",
+  "initialState": {
+    "project": {
+      "id": "project-cascade",
+      "name": "Cascade"
+    },
+    "levels": [
+      {
+        "id": "level-1",
+        "name": "Ground",
+        "elevation": 0,
+        "height": 3
+      }
+    ],
+    "walls": [
+      {
+        "id": "host-wall",
+        "start": [
+          0,
+          0
+        ],
+        "end": [
+          5,
+          0
+        ],
+        "height": 2.7,
+        "thickness": 0.2,
+        "levelId": "level-1"
+      }
+    ],
+    "joins": [],
+    "openings": [
+      {
+        "id": "opening-1",
+        "hostWallId": "host-wall",
+        "kind": "door",
+        "offset": 1,
+        "width": 0.9,
+        "height": 2.1,
+        "sill": 0
+      }
+    ],
+    "catalogInstances": [
+      {
+        "id": "catalog-1",
+        "assetId": "fixture",
+        "position": [
+          2,
+          0
+        ],
+        "rotation": 0,
+        "levelId": "level-1",
+        "hostWallId": "host-wall",
+        "width": 0.5,
+        "depth": 0.5,
+        "height": 0.5,
+        "scalingMode": "freeStretch"
+      }
+    ],
+    "dependencies": []
+  },
+  "commands": [
+    {
+      "op": "deleteWall",
+      "id": "host-wall"
+    },
+    {
+      "op": "undo"
+    },
+    {
+      "op": "redo"
+    }
+  ],
+  "assertions": {
+    "afterDelete": {
+      "walls": 0,
+      "openings": 0,
+      "catalogInstances": 0
+    },
+    "afterUndo": {
+      "walls": 1,
+      "openings": 1,
+      "catalogInstances": 1
+    },
+    "afterRedo": {
+      "walls": 0,
+      "openings": 0,
+      "catalogInstances": 0
+    }
+  }
+}

@@ -1,8 +1,10 @@
-name: Build Bimob APK
+name: Build NAGAPLAS APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ feature/model-core-v1 ]
+  pull_request:
+    branches: [ feature/model-core-v1 ]
   workflow_dispatch:
 
 jobs:
@@ -10,20 +12,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
+      - name: Verify fixed debug signing identity
+        run: |
+          test -s ci/bimob-debug.keystore
+          keytool -list -keystore ci/bimob-debug.keystore -storepass android -alias bimob-debug
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Build debug APK
-        run: gradle assembleDebug
+      - name: Validate AI contract JSON and trim strings
+        run: python3 scripts/validate_ai_contract.py
+      - name: Validate shared parity fixture contract
+        run: python3 scripts/validate_golden_fixtures.py
+      - name: Configure native core
+        run: cmake -S native-core -B build/native-core -DCMAKE_BUILD_TYPE=Debug -DBIMOB_NATIVE_ENABLE_SANITIZERS=ON
+      - name: Build native core
+        run: cmake --build build/native-core --parallel
+      - name: Test native contracts
+        run: ctest --test-dir build/native-core --output-on-failure
+      - name: Validate native parity snapshot outputs
+        run: python3 scripts/validate_native_parity_outputs.py
+      - name: Build and test Kotlin core and Android app
+        run: gradle :core:test testDebugUnitTest assembleDebug
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nagaplas-test-reports
+          path: |
+            core/build/test-results/test/
+            core/build/reports/tests/test/
+          if-no-files-found: warn
+      - name: Validate Kotlin parity snapshot outputs
+        run: python3 scripts/validate_kotlin_parity_outputs.py
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Bimob-debug-apk
+          name: Nagaplas-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk

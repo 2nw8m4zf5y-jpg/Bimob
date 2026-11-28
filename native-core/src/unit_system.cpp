@@ -1,0 +1,3 @@
+#include "bimob/unit_system.hpp"
+#include <numbers>
+namespace nagaplas::units{double mm_to_m(Millimeters v){return v.value()/1000.;}Millimeters m_to_mm(double v){return Millimeters(v*1000.);}SquareMeters area_mm2_to_m2(double v){return SquareMeters(v/1e6);}CubicMeters volume_mm3_to_m3(double v){return CubicMeters(v/1e9);}Radians deg_to_rad(Degrees v){return Radians(v.value()*std::numbers::pi/180.);}Degrees rad_to_deg(Radians v){return Degrees(v.value()*180./std::numbers::pi);}Degrees normalize_0_360(Degrees v){double x=std::fmod(v.value(),360.);if(x<0)x+=360.;if(x>=360)x=0;return Degrees(x);}Degrees normalize_minus180_180(Degrees v){double x=normalize_0_360(v).value();if(x>=180)x-=360;return Degrees(x);}}
