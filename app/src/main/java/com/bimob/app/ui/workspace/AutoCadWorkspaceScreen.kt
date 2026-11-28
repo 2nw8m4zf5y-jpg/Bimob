@@ -46,9 +46,12 @@ import kotlin.math.*
 
 private data class WC(val canvas:Color,val panel:Color,val accent:Color,val grid:Color,val major:Color,val dim:Color,val select:Color,val snap:Color,val ink:Color,val muted:Color,val fill:Color)
 private fun wc(p:BlueprintPalette)=when(p.id){
- "blue"->WC(Color(0xFF071324),Color(0xFF0A1A30),Color(0xFF4DE8F4),Color(0xFF102847),Color(0xFF1A385C),Color(0xFF5EC4E8),Color(0xFFFFD166),Color(0xFF3EF08B),Color(0xFFE6F2FF),Color(0xFF86A4C2),Color(0x334DE8F4))
+ "blue"->WC(Color(0xFF0F233C),Color(0xFF142D4B),Color(0xFF00B4D8),Color(0xFF1D3554),Color(0xFF2B4567),Color(0xFF69BCE0),Color(0xFFFFB300),Color(0xFF00E676),Color(0xFFE6F2FF),Color(0xFF86A4C2),Color(0x3300B4D8))
  "paper"->WC(Color(0xFFF5F7FA),Color(0xFFE8EDF3),Color(0xFF0066CC),Color(0xFFE1E7EE),Color(0xFFCCD6E2),Color(0xFF327AA5),Color(0xFFD98B00),Color(0xFF008A55),Color(0xFF172033),Color(0xFF66758A),Color(0x220066CC))
- else->WC(Color(0xFF12161C),Color(0xFF191E25),Color(0xFF00B4D8),Color(0xFF222A34),Color(0xFF303B49),Color(0xFF69BCE0),Color(0xFFFFB300),Color(0xFF00E676),Color(0xFFE7EDF4),Color(0xFF9BA7B5),Color(0x3300B4D8))
+ "cream"->WC(Color(0xFFFAF9F6),Color(0xFFF0EEE8),Color(0xFF2D7FA3),Color(0xFFE7E3DC),Color(0xFFD2CCC2),Color(0xFF6D777F),Color(0xFFB7791F),Color(0xFF2F8B60),Color(0xFF25282B),Color(0xFF77736C),Color(0x222D7FA3))
+ "parchment"->WC(Color(0xFFF3EFE6),Color(0xFFE8E0D2),Color(0xFF2D7196),Color(0xFFE2D8C8),Color(0xFFCEC0AA),Color(0xFF78634D),Color(0xFFB66A24),Color(0xFF2F8B60),Color(0xFF2D2924),Color(0xFF776B5C),Color(0x222D7196))
+ "slate"->WC(Color(0xFF262A30),Color(0xFF30363E),Color(0xFF00B4D8),Color(0xFF353C45),Color(0xFF454E59),Color(0xFF8995A3),Color(0xFFFFB300),Color(0xFF00E676),Color(0xFFE7EDF4),Color(0xFF9BA7B5),Color(0x3300B4D8))
+ else->WC(Color(0xFF1E1F22),Color(0xFF25282D),Color(0xFF00B4D8),Color(0xFF30343A),Color(0xFF3A414A),Color(0xFF69BCE0),Color(0xFFFFB300),Color(0xFF00E676),Color(0xFFE7EDF4),Color(0xFF9BA7B5),Color(0x3300B4D8))
 }
 private val ribbonTools = mapOf(
  "ГЛАВНАЯ" to listOf("ОТРЕЗОК" to "LINE","ПОЛИЛИНИЯ" to "PLINE","СТЕНА" to "WALL","КОНТУР" to "RECT","ПЕРЕНЕСТИ" to "MOVE","КОПИЯ" to "COPY","ОБРЕЗАТЬ" to "TRIM","СМЕЩЕНИЕ" to "OFFSET","ДВЕРЬ" to "DOOR","ОКНО" to "WINDOW","РАЗМЕР" to "DIM","УЗЕЛ" to "NODE"),
