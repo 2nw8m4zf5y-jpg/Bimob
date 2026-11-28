@@ -4,6 +4,12 @@ import java.util.Collections
 
 data class ProviderKey(val point: ExtensionPoint, val extensionId: String, val contributionId: String)
 
+/** Stable admission-time identity paired with a caller-owned provider instance. */
+data class RegisteredProviderBinding<T : ExtensionProvider>(
+    val identity: ProviderIdentity,
+    val provider: T
+)
+
 enum class ProviderRegistryFailureCode {
     INVALID_PROVIDER_ID,
     WRONG_EXTENSION_POINT,
@@ -34,15 +40,23 @@ sealed interface ProviderRegistryResult<out T : ExtensionProvider> {
 class ExtensionProviderRegistry<T : ExtensionProvider> private constructor(
     val point: ExtensionPoint,
     private val manifestRegistry: ExtensionRegistry,
-    private val providersByKey: Map<ProviderKey, T>
+    private val providersByKey: Map<ProviderKey, RegisteredProviderBinding<T>>
 ) {
-    val providers: List<T>
-        get() = providersByKey.values.sortedWith(
-            compareBy<T> { it.identity.extensionId }.thenBy { it.identity.contributionId }
+    /** Bindings expose the identity captured at admission, not a mutable provider getter. */
+    val bindings: List<RegisteredProviderBinding<T>>
+        get() = Collections.unmodifiableList(
+            providersByKey.entries
+                .sortedWith(compareBy<Map.Entry<ProviderKey, RegisteredProviderBinding<T>>> { it.key.extensionId }
+                    .thenBy { it.key.contributionId })
+                .map { it.value }
         )
 
+    /** Backward-compatible provider view, ordered by immutable registration keys. */
+    val providers: List<T>
+        get() = bindings.map { it.provider }
+
     fun provider(extensionId: String, contributionId: String): T? =
-        providersByKey[ProviderKey(point, extensionId, contributionId)]
+        providersByKey[ProviderKey(point, extensionId, contributionId)]?.provider
 
     fun register(provider: T): ProviderRegistryResult<T> = registerAll(listOf(provider))
 
@@ -51,6 +65,7 @@ class ExtensionProviderRegistry<T : ExtensionProvider> private constructor(
         if (additions.isEmpty()) return ProviderRegistryResult.Accepted(this)
         val candidate = LinkedHashMap(providersByKey)
         for (provider in additions) {
+            // Capture identity exactly once; providers remain caller-owned and may expose mutable getters.
             val identity = provider.identity
             val key = ProviderKey(identity.point, identity.extensionId, identity.contributionId)
             if (!isStableProviderId(identity.extensionId) || !isStableProviderId(identity.contributionId)) {
@@ -70,7 +85,7 @@ class ExtensionProviderRegistry<T : ExtensionProvider> private constructor(
             if (declared.contractVersion != identity.contractVersion) {
                 return rejected(ProviderRegistryFailureCode.CONTRACT_VERSION_MISMATCH, "Provider contract ${identity.contractVersion} does not match manifest contract ${declared.contractVersion}.", key)
             }
-            candidate[key] = provider
+            candidate[key] = RegisteredProviderBinding(identity, provider)
         }
         val immutable = Collections.unmodifiableMap(LinkedHashMap(candidate.toSortedMap(
             compareBy<ProviderKey> { it.point.name }.thenBy { it.extensionId }.thenBy { it.contributionId }
