@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.ViewModelProvider
 import com.bimob.app.editor.NativeEditorViewModel
-import com.bimob.app.ui.workspace.MatrixCadWorkspaceScreen
+import com.bimob.app.ui.workspace.AutoCadWorkspaceScreen
 import com.bimob.app.ui.workspace.GridSettingsScreen
 import com.bimob.app.ui.launcher.ProgramLauncherScreen
 import com.bimob.app.ui.blueprint.BlueprintTheme
@@ -125,7 +125,7 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
   if(importJson!=null&&!importHandled){importHandled=true;projectInitialized=true;editor.openProjectSnapshotAsync(importJson){ok->if(!ok)android.widget.Toast.makeText(context,"Импорт не прошёл проверку",android.widget.Toast.LENGTH_SHORT).show()}}
   else if(importJson==null&&projectId.isNotBlank()&&!projectInitialized){projectInitialized=true;editor.resetProject(projectId,projectName)}
  }
- MatrixCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
+ AutoCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
   onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},
-  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport,onExportVector=onExportVector)
+  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}})
 }
