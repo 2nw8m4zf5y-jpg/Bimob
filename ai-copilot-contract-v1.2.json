@@ -997,4 +997,478 @@
             "parameters"
           ],
           "properties": {
+            "expected_revision": {              "type": "integer",
+              "minimum": 1
+            },
+            "element_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Необязательный ключ идемпотентности. Реализация v1.2 должна возвращать ранее полученный результат, не выполняя повторно дублирующий запрос."
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "update_room_metadata",
+        "description": "Обновляет наименование, номер и функциональную зону помещения (F029) для корректной экспликации (ГОСТ 21.501) и проверки норм СП (F088).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "room_id"
+          ],
+          "properties": {
             "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "room_id": {
+              "type": "string",
+              "example": "RM_03"
+            },
+            "number": {
+              "type": "string",
+              "example": "104"
+            },
+            "name": {
+              "type": "string",
+              "example": "Санузел совмещенный"
+            },
+            "zone_category": {
+              "type": "string",
+              "enum": [
+                "Living",
+                "Kitchen",
+                "WetZone",
+                "Corridor",
+                "Utility",
+                "Public"
+              ]
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Необязательный ключ идемпотентности. Реализация v1.2 должна возвращать ранее полученный результат, не выполняя повторно дублирующий запрос."
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "delete_elements",
+        "description": "Безопасно удаляет элементы из графа C++20 с каскадной очисткой зависимостей и пересчётом узлов (кроме закрепленных Pin).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision",
+            "element_ids"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "element_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Необязательный ключ идемпотентности. Реализация v1.2 должна возвращать ранее полученный результат, не выполняя повторно дублирующий запрос."
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "undo_last_ai_transaction",
+        "description": "Откатывает последнюю подтверждённую ИИ-транзакцию через C++20 CommandDispatcher / WAL (F065, F109).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "expected_revision"
+          ],
+          "properties": {
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "transaction_id": {
+              "type": "string",
+              "description": "Опциональный ID транзакции для точного отката"
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "Необязательный ключ идемпотентности. Реализация v1.2 должна возвращать ранее полученный результат, не выполняя повторно дублирующий запрос."
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "run_engineering_check",
+        "description": "Запускает в ядре C++20 проверку норм СП/ГОСТ (F088), поиск геометрических коллизий (F057) или теплотехнический расчет стены (F089).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "check_type"
+          ],
+          "properties": {
+            "check_type": {
+              "type": "string",
+              "enum": [
+                "NormControl_SP_GOST",
+                "ClashDetection",
+                "ThermalCalculation"
+              ]
+            },
+            "target_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "region_climate_code": {
+              "type": "string",
+              "default": "RU-MOW"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_schedules_and_qto",
+        "description": "Получает из ядра динамическую ведомость объемов работ, площадей помещений, отделки по ГОСТ 21.501 или спецификацию проемов (F055, F083).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "schedule_type"
+          ],
+          "properties": {
+            "schedule_type": {
+              "type": "string",
+              "enum": [
+                "RoomExplication",
+                "FinishingSchedule_GOST",
+                "WallMaterialTakeoff",
+                "DoorsAndWindowsSchedule"
+              ]
+            },
+            "level_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_normative_rag",
+        "description": "Выполняет семантический и FTS5 поиск по локальной базе строительных норм СП, ГОСТ, СНиП и каталогу семейств NAGAPLAS (F102).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "domain": {
+              "type": "string",
+              "enum": [
+                "FireSafety",
+                "Architecture_SP",
+                "Structures_KZh_KM",
+                "Thermal_Physics",
+                "GOST_Docs",
+                "All"
+              ],
+              "default": "All"
+            },
+            "top_k": {
+              "type": "integer",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        }
+      }
+    }
+  ],
+  "ghost_preview_response_envelope": {
+    "description": "Формат ответа от AI-роутера (F099) в Jetpack Compose UI для отрисовки Ghost Render Pass (F100) из теневой Copy-on-Write ветки ядра C++20.",
+    "type": "object",
+    "required": [
+      "transaction_id",
+      "base_scene_revision",
+      "summary_ru",
+      "requires_user_confirmation",
+      "affected_elements_count",
+      "resolved_temp_ids",
+      "shadow_diagnostics",
+      "tool_calls",
+      "integrity_report",
+      "validation_summary"
+    ],
+    "properties": {
+      "transaction_id": {
+        "type": "string",
+        "example": "AI_TX_20261128_0042"
+      },
+      "base_scene_revision": {
+        "type": "integer",
+        "example": 148
+      },
+      "summary_ru": {
+        "type": "string",
+        "example": "Построена перегородка санузла 2400×1800 мм из газобетона 100 мм и врезана дверь 700×2100 мм."
+      },
+      "requires_user_confirmation": {
+        "type": "boolean",
+        "default": true
+      },
+      "elevated_risk_confirmation": {
+        "type": "boolean",
+        "description": "True, если затронуто > 15 элементов или обнаружены критические ошибки СП.",
+        "default": false
+      },
+      "affected_elements_count": {
+        "type": "integer",
+        "example": 3
+      },
+      "skipped_pinned_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Список ID элементов с is_pinned=true, которые ядро C++20 автоматически защитило от изменения."
+      },
+      "resolved_temp_ids": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "example": {
+          "$w1": "W_065",
+          "$w2": "W_066"
+        }
+      },
+      "shadow_diagnostics": {
+        "type": "object",
+        "description": "Результат автоматического прогона нормоконтроля (F088) и поиска коллизий (F057) по теневой ветке сцены до подтверждения.",
+        "properties": {
+          "norm_warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "new_clashes_count": {
+            "type": "integer",
+            "example": 0,
+            "deprecated": true,
+            "description": "Устаревшее поле. Сохраняется исключительно для обратной совместимости с контрактом v1.1; каноническое значение находится в validation_summary.new_clashes_count."
+          }
+        }
+      },
+      "tool_calls": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "integrity_report": {
+        "type": "object",
+        "description": "Результат проверки целостности теневой сцены до фиксации транзакции.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Valid",
+              "Warnings",
+              "Invalid"
+            ]
+          },
+          "errors_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warnings_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "Error",
+                    "Warning",
+                    "Info"
+                  ]
+                },
+                "element_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "request_id": {
+        "type": "string",
+        "description": "Ключ идемпотентности данного запроса ИИ-транзакции."
+      },
+      "validation_summary": {
+        "type": "object",
+        "properties": {
+          "geometry_valid": {
+            "type": "boolean"
+          },
+          "topology_valid": {
+            "type": "boolean"
+          },
+          "normative_checks_status": {
+            "type": "string",
+            "enum": [
+              "Verified",
+              "Unverified",
+              "NotApplicable",
+              "Failed"
+            ]
+          },
+          "new_clashes_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Каноническое количество новых коллизий, обнаруженных при проверке теневой модели."
+          }
+        }
+      }
+    }
+  },
+  "engineering_quality_policy_v1_2": {
+    "canonical_model_owner": "Ядро C++20",
+    "ui_model_ownership": "Compose может владеть состоянием UI, представлением выделения, активным инструментом, камерой и жестами; оно не должно хранить авторитетную копию геометрии модели.",
+    "invariants": [
+      "Все сохранённые координаты являются конечными числами.",
+      "Идентификаторы уникальны; ссылки разрешаются либо явно обозначены как необязательные.",
+      "Элементы имеют допустимые параметры и явно заданные единицы измерения.",
+      "Топология модели внутренне согласована.",
+      "Закреплённые элементы нельзя изменять обычными командами записи или командами ИИ.",
+      "Неуспешные команды не изменяют каноническую модель и её ревизию.",
+      "Undo/Redo восстанавливает состояния, прошедшие проверку.",
+      "Цикл сериализации и десериализации сохраняет геометрию в пределах допусков, заданных для каждого типа."
+    ],
+    "validation_stages": [
+      "Проверка предусловий",
+      "Выполнение транзакции в теневой копии",
+      "Проверка постусловий и инвариантов",
+      "Проверка применимых нормативных правил и коллизий",
+      "Подтверждение пользователя, если оно требуется",
+      "Атомарная фиксация транзакции",
+      "Запись в журнал аудита и проверка сохранения"
+    ],
+    "ambiguity_policy": "Не угадывать при неоднозначной геометрии или намерении пользователя; возвращать структурированные варианты либо отклонять запрос."
+  },
+  "performance_budgets_v1_2": {
+    "status": "ЦЕЛЕВЫЕ ПОКАЗАТЕЛИ_НЕ ИЗМЕРЕННЫЕ ГАРАНТИИ",
+    "frame_budget_60fps_ms": 16.67,
+    "gesture_processing_target_ms": 8.0,
+    "snap_query_target_ms": 1.0,
+    "simple_geometry_operation_target_ms": 2.0,
+    "local_wall_join_recompute_target_ms": 1.0,
+    "compact_scene_context_serialization_target_ms": 2.0,
+    "selection_target_ms": 5.0,
+    "requirements": [
+      "Измерять на явно указанных устройствах и наборах данных.",
+      "Не блокировать UI операциями ввода-вывода, полной проверкой модели, объёмной сериализацией или тяжёлыми геометрическими вычислениями.",
+      "По возможности использовать инкрементальный пересчёт, пространственные индексы, кэширование и отсечение объектов вне области просмотра.",
+      "Отчёты о регрессиях производительности сравнивать с воспроизводимым базовым результатом.",
+      "Целевые показатели нельзя заявлять как достигнутые критерии до получения результатов измерений."
+    ]
+  },
+  "normative_check_policy_v1_2": {
+    "required_rule_metadata": [
+      "rule_id",
+      "source_document",
+      "clause_reference",
+      "edition_or_revision",
+      "jurisdiction",
+      "applicable_project_context",
+      "effective_date_or_verified_status",
+      "formal_check_definition"
+    ],
+    "policy": [
+      "Примерные значения нельзя считать универсальными обязательными нормативными требованиями.",
+      "Заявлять о выполненной проверке только при наличии выбранного правила с версией и установленной областью применимости.",
+      "Для выявленных нарушений указывать источник нормы и конкретный пункт.",
+      "Разделять геометрическую проверку, проверку по нормативным правилам и профессиональное согласование.",
+      "Если применимость или версия источника не подтверждена, помечать результат как непроверенный и требовать экспертной проверки."
+    ]
+  },
+  "release_notes_v1_2": {
+    "added": [
+      "Политика целостности геометрии",
+      "Политика идемпотентности команд записи",
+      "Правила единиц измерения",
+      "Политика журнала аудита модели",
+      "Целевые показатели производительности явно обозначены как неизмеренные",
+      "Политика нормативных проверок с версионированием источников",
+      "Структурированные отчёты о целостности и проверках"
+    ],
+    "compatibility": "Поля v1.2 являются дополнениями. Читатели v1.1 могут игнорировать необязательные поля; отправители команд не должны молча предполагать неподдерживаемую семантику транзакций.",
+    "migration": "Существующие данные v1.1 остаются читаемыми. Перед использованием семантики команд записи v1.2 рекомендуется согласовать поддерживаемые возможности."
+  }
+}
