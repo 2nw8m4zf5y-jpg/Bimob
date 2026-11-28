@@ -70,6 +70,23 @@ class ExtensionProviderRegistryTest {
     }
 
     @Test
+    fun registeredBindingIdentityAndOrderAreStableWhenProviderGetterChanges() {
+        val registry = ExtensionProviderRegistry.empty<MutableStubProvider>(
+            ExtensionPoint.GEOMETRY,
+            manifests(ExtensionPoint.GEOMETRY to "alpha", ExtensionPoint.GEOMETRY to "zeta")
+        )
+        val alpha = MutableStubProvider(provider(ExtensionPoint.GEOMETRY, "alpha").identity)
+        val zeta = MutableStubProvider(provider(ExtensionPoint.GEOMETRY, "zeta").identity)
+        val accepted = registry.registerAll(listOf(zeta, alpha)) as ProviderRegistryResult.Accepted
+
+        assertEquals(listOf("alpha", "zeta"), accepted.registry.bindings.map { it.identity.contributionId })
+        alpha.identity = ProviderIdentity("com.example.architecture", "zeta", ExtensionPoint.GEOMETRY, contract)
+        assertEquals(listOf("alpha", "zeta"), accepted.registry.bindings.map { it.identity.contributionId })
+        assertEquals(alpha, accepted.registry.provider("com.example.architecture", "alpha"))
+        assertNull(accepted.registry.provider("com.example.architecture", "zeta")?.takeIf { it === alpha })
+    }
+
+    @Test
     fun rejectsMalformedProviderIdentifiers() {
         val registry = ExtensionProviderRegistry.empty<StubProvider>(ExtensionPoint.GEOMETRY, manifests(ExtensionPoint.GEOMETRY to "wall"))
         assertRejected(registry.register(provider(ExtensionPoint.GEOMETRY, "Bad ID")), ProviderRegistryFailureCode.INVALID_PROVIDER_ID)
@@ -81,6 +98,7 @@ class ExtensionProviderRegistryTest {
     }
 
     private class StubProvider(override val identity: ProviderIdentity) : ExtensionProvider
+    private class MutableStubProvider(override var identity: ProviderIdentity) : ExtensionProvider
 }
 
 class ExtensionProviderContractTest {
