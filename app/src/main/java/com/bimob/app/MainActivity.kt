@@ -69,11 +69,11 @@ class MainActivity:ComponentActivity(){
    val dxfExporter=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/dxf")){uri->uri?.let{writeJson(it,pendingVector)}}
 
    BlueprintThemeProvider {
-    MaterialTheme(colorScheme=if(BlueprintTheme.active.value.id=="paper")lightColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted)else darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
+    MaterialTheme(colorScheme=if(BlueprintTheme.active.value.id in listOf("paper","cream","parchment"))lightColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted)else darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
      "launcher"->ProgramLauncherScreen(onCad={dialog=true},onSettings={route="settings"})
      "settings"->GridSettingsScreen(onBack={route="launcher"})
-     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))},onExportVector={format,text->pendingVector=text;if(format=="SVG")svgExporter.launch("drawing.svg")else dxfExporter.launch("drawing.dxf")})
+     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))},onSettings={route="settings"},onProjects={route="launcher"},onExportVector={format,text->pendingVector=text;if(format=="SVG")svgExporter.launch("drawing.svg")else dxfExporter.launch("drawing.dxf")})
     }
      if(dialog){
       val keyboard=LocalSoftwareKeyboardController.current
@@ -114,7 +114,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable
-private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit,onExportVector:(String,String)->Unit){
+private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit,onSettings:()->Unit,onProjects:()->Unit,onExportVector:(String,String)->Unit){
  val owner=LocalContext.current as ComponentActivity
  val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
  BackHandler{editor.closeAndReset();onBack()}
@@ -127,5 +127,5 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
  }
  AutoCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
   onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},
-  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}})
+  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport,onSettings=onSettings,onProjects=onProjects)
 }
