@@ -83,7 +83,7 @@ class ExtensionProviderRegistryTest {
         alpha.identity = ProviderIdentity("com.example.architecture", "zeta", ExtensionPoint.GEOMETRY, contract)
         assertEquals(listOf("alpha", "zeta"), accepted.registry.bindings.map { it.identity.contributionId })
         assertEquals(alpha, accepted.registry.provider("com.example.architecture", "alpha"))
-        assertNull(accepted.registry.provider("com.example.architecture", "zeta")?.takeIf { it === alpha })
+        assertEquals(zeta, accepted.registry.provider("com.example.architecture", "zeta"))
     }
 
     @Test
