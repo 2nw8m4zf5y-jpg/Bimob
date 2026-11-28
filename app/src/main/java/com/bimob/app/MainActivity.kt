@@ -73,7 +73,7 @@ class MainActivity:ComponentActivity(){
     when(route){
      "launcher"->ProgramLauncherScreen(onCad={dialog=true},onSettings={route="settings"})
      "settings"->GridSettingsScreen(onBack={route="launcher"})
-     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))},onSettings={route="settings"},onProjects={route="launcher"},onExportVector={format,text->pendingVector=text;if(format=="SVG")svgExporter.launch("drawing.svg")else dxfExporter.launch("drawing.dxf")})
+     "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))},onSettings={route="settings"},onProjects={route="launcher"},onNewProject={dialog=true},onExportVector={format,text->pendingVector=text;if(format=="SVG")svgExporter.launch("drawing.svg")else dxfExporter.launch("drawing.dxf")})
     }
      if(dialog){
       val keyboard=LocalSoftwareKeyboardController.current
@@ -114,7 +114,7 @@ class MainActivity:ComponentActivity(){
 }
 
 @Composable
-private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit,onSettings:()->Unit,onProjects:()->Unit,onExportVector:(String,String)->Unit){
+private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String?,onBack:()->Unit,onSaved:(String,String)->Unit,onExport:(String)->Unit,onImport:()->Unit,onSettings:()->Unit,onProjects:()->Unit,onNewProject:()->Unit,onExportVector:(String,String)->Unit){
  val owner=LocalContext.current as ComponentActivity
  val editor:NativeEditorViewModel=remember(owner){ViewModelProvider(owner)[NativeEditorViewModel::class.java]}
  BackHandler{editor.closeAndReset();onBack()}
@@ -127,5 +127,5 @@ private fun WorkspaceRoute(projectId:String,projectName:String,importJson:String
  }
  AutoCadWorkspaceScreen(projectName=projectName,editor=editor,onBack={editor.closeAndReset();onBack()},
   onSave={editor.exportProjectSnapshotAsync{r->r.onSuccess{json->onSaved(projectName,json)}.onFailure{android.widget.Toast.makeText(context,it.message?: "Ошибка сохранения",android.widget.Toast.LENGTH_SHORT).show()}}},
-  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport,onSettings=onSettings,onProjects=onProjects)
+  onExport={editor.exportProjectSnapshotAsync{r->r.onSuccess(onExport).onFailure{}}},onImport=onImport,onSettings=onSettings,onProjects=onProjects,onNewProject=onNewProject)
 }
