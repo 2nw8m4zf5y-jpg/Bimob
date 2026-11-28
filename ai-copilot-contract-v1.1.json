@@ -997,4 +997,150 @@
               "default": "RU-MOW"
             }
           }
+        }      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_schedules_and_qto",
+        "description": "Получает из ядра динамическую ведомость объемов работ, площадей помещений, отделки по ГОСТ 21.501 или спецификацию проемов (F055, F083).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "schedule_type"
+          ],
+          "properties": {
+            "schedule_type": {
+              "type": "string",
+              "enum": [
+                "RoomExplication",
+                "FinishingSchedule_GOST",
+                "WallMaterialTakeoff",
+                "DoorsAndWindowsSchedule"
+              ]
+            },
+            "level_id": {
+              "type": "string"
+            }
+          }
         }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_normative_rag",
+        "description": "Выполняет семантический и FTS5 поиск по локальной базе строительных норм СП, ГОСТ, СНиП и каталогу семейств NAGAPLAS (F102).",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "domain": {
+              "type": "string",
+              "enum": [
+                "FireSafety",
+                "Architecture_SP",
+                "Structures_KZh_KM",
+                "Thermal_Physics",
+                "GOST_Docs",
+                "All"
+              ],
+              "default": "All"
+            },
+            "top_k": {
+              "type": "integer",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        }
+      }
+    }
+  ],
+  "ghost_preview_response_envelope": {
+    "description": "Формат ответа от AI-роутера (F099) в Jetpack Compose UI для отрисовки Ghost Render Pass (F100) из теневой Copy-on-Write ветки ядра C++20.",
+    "type": "object",
+    "required": [
+      "transaction_id",
+      "base_scene_revision",
+      "summary_ru",
+      "requires_user_confirmation",
+      "affected_elements_count",
+      "resolved_temp_ids",
+      "shadow_diagnostics",
+      "tool_calls"
+    ],
+    "properties": {
+      "transaction_id": {
+        "type": "string",
+        "example": "AI_TX_20261128_0042"
+      },
+      "base_scene_revision": {
+        "type": "integer",
+        "example": 148
+      },
+      "summary_ru": {
+        "type": "string",
+        "example": "Построена перегородка санузла 2400×1800 мм из газобетона 100 мм и врезана дверь 700×2100 мм."
+      },
+      "requires_user_confirmation": {
+        "type": "boolean",
+        "default": true
+      },
+      "elevated_risk_confirmation": {
+        "type": "boolean",
+        "description": "True, если затронуто > 15 элементов или обнаружены критические ошибки СП.",
+        "default": false
+      },
+      "affected_elements_count": {
+        "type": "integer",
+        "example": 3
+      },
+      "skipped_pinned_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Список ID элементов с is_pinned=true, которые ядро C++20 автоматически защитило от изменения."
+      },
+      "resolved_temp_ids": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "example": {
+          "$w1": "W_065",
+          "$w2": "W_066"
+        }
+      },
+      "shadow_diagnostics": {
+        "type": "object",
+        "description": "Результат автоматического прогона нормоконтроля (F088) и поиска коллизий (F057) по теневой ветке сцены до подтверждения.",
+        "properties": {
+          "norm_warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "new_clashes_count": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      },
+      "tool_calls": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
