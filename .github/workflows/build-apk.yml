@@ -26,6 +26,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      - name: Validate AI contract JSON and trim strings
+        run: python3 -c 'import json,pathlib; d=json.loads(pathlib.Path("ai-copilot-contract-v1.2.json").read_text()); walk=lambda x: [assert_clean(s) for s in x] if isinstance(x,list) and all(isinstance(s,str) for s in x) else [walk(v) for v in x.values()] if isinstance(x,dict) else [walk(v) for v in x] if isinstance(x,list) else None; assert_clean=lambda s: (_ for _ in ()).throw(AssertionError("untrimmed string")) if s!=s.strip() else None; walk(d); assert d["$id"]=="https://nagaplas.dev"; print("contract validation PASS")'
       - name: Validate shared parity fixture contract
         run: python3 scripts/validate_golden_fixtures.py
       - name: Configure native core
