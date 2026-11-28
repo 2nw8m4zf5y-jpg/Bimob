@@ -64,7 +64,7 @@ fun launcherModuleSpecs()=listOf(
  }
 }
 @Composable internal fun ThemeMatrix(current:BlueprintPalette,onSelect:(BlueprintPalette)->Unit,p:BlueprintPalette){
- Row(Modifier.border(1.dp,p.linePrimary).padding(horizontal=5.dp,vertical=3.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){BlueprintTheme.palettes.forEach{theme->val label=when(theme.id){"blue"->"BLUE";"dark"->"DARK";else->"CAD"};Text(label,color=if(current.id==theme.id)p.accentAmber else p.textMuted,fontSize=8.sp,fontFamily=FontFamily.Monospace,fontWeight=if(current.id==theme.id)FontWeight.Bold else FontWeight.Normal,modifier=Modifier.clickable{onSelect(theme)})}}
+ Row(Modifier.border(1.dp,p.linePrimary).padding(horizontal=5.dp,vertical=3.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){BlueprintTheme.palettes.forEach{theme->val label=when(theme.id){"cream"->"REVIT";"dark"->"CAD";"blue"->"BLUE";"parchment"->"PARCH";else->"SLATE"};Text(label,color=if(current.id==theme.id)p.accentAmber else p.textMuted,fontSize=8.sp,fontFamily=FontFamily.Monospace,fontWeight=if(current.id==theme.id)FontWeight.Bold else FontWeight.Normal,modifier=Modifier.clickable{onSelect(theme)})}}
 }
 @Composable internal fun ModuleTile(spec:LauncherModuleSpec,p:BlueprintPalette,modifier:Modifier=Modifier,onClick:()->Unit,enabled:Boolean=spec.isActive){
  val active=spec.statusBadge=="ACTIVE";val stageH=spec.statusBadge=="STAGE H";val stageI=spec.statusBadge=="STAGE I"
