@@ -33,7 +33,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.bimob.app.editor.NativeEditorViewModel
 import com.bimob.app.ui.workspace.AutoCadWorkspaceScreen
 import com.bimob.app.ui.workspace.GridSettingsScreen
-import com.bimob.app.ui.launcher.ProgramLauncherScreen\nimport com.bimob.app.ui.launcher.SavedProjectsScreen
+import com.bimob.app.ui.launcher.ProgramLauncherScreen
+import com.bimob.app.ui.launcher.SavedProjectsScreen
 import com.bimob.app.ui.blueprint.BlueprintTheme
 import com.bimob.app.ui.blueprint.BlueprintThemeProvider
 import java.io.File
@@ -72,7 +73,8 @@ class MainActivity:ComponentActivity(){
     MaterialTheme(colorScheme=if(BlueprintTheme.active.value.id in listOf("paper","cream","parchment"))lightColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted)else darkColorScheme(primary=BlueprintTheme.AccentCyan,secondary=BlueprintTheme.LinePrimary,tertiary=BlueprintTheme.AccentAmber,background=BlueprintTheme.BgPrimary,surface=BlueprintTheme.BgSurface,onSurface=BlueprintTheme.TextPrimary,onSurfaceVariant=BlueprintTheme.TextMuted),shapes=Shapes(small=RoundedCornerShape(0.dp),medium=RoundedCornerShape(0.dp),large=RoundedCornerShape(0.dp))){
     when(route){
      "launcher"->ProgramLauncherScreen(onCad={dialog=true},onSettings={route="settings"})
-     "settings"->GridSettingsScreen(onBack={route="launcher"})\n     "projects"->SavedProjectsScreen(projectNames=prefs.all.filterValues{it=="saved"}.keys.toList(),onBack={route="launcher"},onOpen={name->loadSavedProject(name){json->projectName=name;importJson=json;projectId="saved-"+System.currentTimeMillis();route="workspace"}})
+     "settings"->GridSettingsScreen(onBack={route="launcher"})
+     "projects"->SavedProjectsScreen(projectNames=prefs.all.filterValues{it=="saved"}.keys.toList(),onBack={route="launcher"},onOpen={name->loadSavedProject(name){json->projectName=name;importJson=json;projectId="saved-"+System.currentTimeMillis();route="workspace"}})
      "workspace"->WorkspaceRoute(projectId,projectName,importJson,onBack={route="launcher"},onSaved={name,json->saveSnapshot(name,json)},onExport={json->pendingJson=json;exporter.launch("nagaplas-project.json")},onImport={opener.launch(arrayOf("application/json","text/plain"))},onSettings={route="settings"},onProjects={route="projects"},onNewProject={dialog=true},onExportVector={format,text->pendingVector=text;if(format=="SVG")svgExporter.launch("drawing.svg")else dxfExporter.launch("drawing.dxf")})
     }
      if(dialog){
