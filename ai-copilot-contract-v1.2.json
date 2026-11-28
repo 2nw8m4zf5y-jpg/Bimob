@@ -13,10 +13,10 @@
   },
   "precision_and_tolerances": {
     "description": "Строгие геометрические и топологические допуски ядра C++20 для защиты графа от микро-сегментов и разрывов. Допуски — параметры конкретных операций, не универсальное правило автоматического объединения.",
-    "snap_tolerance_mm": 1.0,
+    "snap_tolerance_mm": 1,
     "angle_tolerance_deg": 0.05,
-    "min_wall_length_mm": 50.0,
-    "min_opening_clearance_mm": 50.0,
+    "min_wall_length_mm": 50,
+    "min_opening_clearance_mm": 50,
     "coordinate_rounding_step_mm": 0.1,
     "auto_t_join_solver": "F103",
     "tolerance_policy_v1_2": {
@@ -28,9 +28,9 @@
         "Использовать double и устойчивые предикаты для критичных пересечений/принадлежности."
       ],
       "suggested_defaults_not_certified": {
-        "input_snap_mm": 1.0,
+        "input_snap_mm": 1,
         "display_rounding_mm": 0.1,
-        "minimum_wall_length_mm": 50.0,
+        "minimum_wall_length_mm": 50,
         "angle_snap_deg": 0.05,
         "note": "Настраиваемые проектные значения, не гарантии инженерной точности."
       }
@@ -169,11 +169,11 @@
               },
               "elevation_mm": {
                 "type": "number",
-                "example": 0.0
+                "example": 0
               },
               "floor_to_floor_mm": {
                 "type": "number",
-                "example": 3300.0
+                "example": 3300
               }
             }
           },
@@ -310,11 +310,11 @@
             "properties": {
               "x": {
                 "type": "number",
-                "example": 4500.0
+                "example": 4500
               },
               "y": {
                 "type": "number",
-                "example": 3200.0
+                "example": 3200
               },
               "snapped_element_id": {
                 "type": [
@@ -997,7 +997,8 @@
             "parameters"
           ],
           "properties": {
-            "expected_revision": {              "type": "integer",
+            "expected_revision": {
+              "type": "integer",
               "minimum": 1
             },
             "element_ids": {
@@ -1423,14 +1424,14 @@
     "ambiguity_policy": "Не угадывать при неоднозначной геометрии или намерении пользователя; возвращать структурированные варианты либо отклонять запрос."
   },
   "performance_budgets_v1_2": {
-    "status": "ЦЕЛЕВЫЕ ПОКАЗАТЕЛИ_НЕ ИЗМЕРЕННЫЕ ГАРАНТИИ",
+    "status": "TARGETS_NOT_MEASURED_GUARANTEES",
     "frame_budget_60fps_ms": 16.67,
-    "gesture_processing_target_ms": 8.0,
-    "snap_query_target_ms": 1.0,
-    "simple_geometry_operation_target_ms": 2.0,
-    "local_wall_join_recompute_target_ms": 1.0,
-    "compact_scene_context_serialization_target_ms": 2.0,
-    "selection_target_ms": 5.0,
+    "gesture_processing_target_ms": 8,
+    "snap_query_target_ms": 1,
+    "simple_geometry_operation_target_ms": 2,
+    "local_wall_join_recompute_target_ms": 1,
+    "compact_scene_context_serialization_target_ms": 2,
+    "selection_target_ms": 5,
     "requirements": [
       "Измерять на явно указанных устройствах и наборах данных.",
       "Не блокировать UI операциями ввода-вывода, полной проверкой модели, объёмной сериализацией или тяжёлыми геометрическими вычислениями.",
