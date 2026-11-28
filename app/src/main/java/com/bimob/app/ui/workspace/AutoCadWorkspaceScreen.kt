@@ -65,31 +65,115 @@ private val ribbonTools = mapOf(
 private val workspaceTabs = listOf("ГЛАВНАЯ","ПОСТРОЕНИЕ","РЕДАКТИРОВАНИЕ","АРХИТЕКТУРА","BIM","АННОТАЦИИ","СЛОИ","ВИД","ИНСТРУМЕНТЫ")
 private val layers=listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS")
 
-@Composable fun AutoCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onBack:()->Unit,onSave:()->Unit,onExport:()->Unit){
+private data class WorkspaceTool(val id:String,val label:String,val glyph:String,val implemented:Boolean)
+private val nagaplasTools=listOf(
+ WorkspaceTool("SELECT","Выбор","SELECT",true),WorkspaceTool("WALL","Стена","WALL",true),
+ WorkspaceTool("ROOM","Комната","RECT",true),WorkspaceTool("DOOR","Дверь","DOOR",true),
+ WorkspaceTool("WINDOW","Окно","WINDOW",true),WorkspaceTool("LINE","Линия","LINE",true),
+ WorkspaceTool("RECT","Прямоугольник","RECT",true),WorkspaceTool("CIRCLE","Круг","CIRCLE",false),
+ WorkspaceTool("ARC","Дуга","ARC",false),WorkspaceTool("DIM","Размер","DIM",false),
+ WorkspaceTool("MOVE","Перенос","MOVE",false),WorkspaceTool("COPY","Копия","COPY",false),
+ WorkspaceTool("ROTATE","Поворот","ROTATE",false),WorkspaceTool("MIRROR","Зеркало","MIRROR",false),
+ WorkspaceTool("TRIM","Обрезать","TRIM",false),WorkspaceTool("EXTEND","Удлинить","EXTEND",false),
+ WorkspaceTool("OFFSET","Смещение","OFFSET",false),WorkspaceTool("DELETE","Удалить","DELETE",true),
+ WorkspaceTool("NODE","Узел","NODE",false),WorkspaceTool("PAN","Панорама","PAN",false),
+ WorkspaceTool("ZOOM","Масштаб","ZOOM",true),WorkspaceTool("GRID","Сетка","GRID",true),
+ WorkspaceTool("ORTHO","Орто","GRID",true),WorkspaceTool("OSNAP","Привязки","NODE",true),
+ WorkspaceTool("LAYERS","Слои","LAYERS",true),WorkspaceTool("MATERIAL","Материал","NODE",false),
+ WorkspaceTool("TABLE","Стол","NODE",true),WorkspaceTool("BED","Кровать","NODE",true),
+ WorkspaceTool("SOFA","Диван","NODE",true),WorkspaceTool("WARDROBE","Шкаф","NODE",true),
+ WorkspaceTool("TOILET","Унитаз","NODE",true),WorkspaceTool("SINK","Раковина","NODE",true),
+ WorkspaceTool("BATH","Ванна","NODE",true),WorkspaceTool("SHOWER","Душ","NODE",true)
+)
+private val nagaplasCatalog=mapOf("TABLE" to CatalogPreset.TABLE,"BED" to CatalogPreset.BED,"SOFA" to CatalogPreset.SOFA,"WARDROBE" to CatalogPreset.WARDROBE,"TOILET" to CatalogPreset.TOILET,"SINK" to CatalogPreset.SINK,"BATH" to CatalogPreset.BATH,"SHOWER" to CatalogPreset.SHOWER)
+
+@Composable fun AutoCadWorkspaceScreen(projectName:String,editor:NativeEditorViewModel,onBack:()->Unit,onSave:()->Unit,onExport:()->Unit,onImport:()->Unit={},onSettings:()->Unit={},onProjects:()->Unit={}){
  val palette=BlueprintTheme.active.value;val c=wc(palette);val state by editor.state.collectAsState();val camera by editor.camera.collectAsState();val g=state.typedGeometry
- var category by remember{mutableStateOf("АРХИТЕКТУРА")};var activeTool by remember{mutableStateOf("SELECT")};var cursor by remember{mutableStateOf(Vec2(0.0,0.0))}
- var menu by remember{mutableStateOf(false)};var infoMenu by remember{mutableStateOf(false)};var infoOpen by remember{mutableStateOf(true)}
- var gridOn by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)};var wallStart by remember{mutableStateOf<Vec2?>(null)};var thickness by remember{mutableStateOf(.2)};var anchor by remember{mutableStateOf("ОСЬ")}
+ var activeTool by remember{mutableStateOf("SELECT")};var cursor by remember{mutableStateOf(Vec2(0.0,0.0))}
+ var menu by remember{mutableStateOf(false)};var infoMenu by remember{mutableStateOf(false)};var catalogMenu by remember{mutableStateOf(false)}
+ var gridOn by remember{mutableStateOf(true)};var ortho by remember{mutableStateOf(true)};var snap by remember{mutableStateOf(true)}
+ var pendingPoint by remember{mutableStateOf<Vec2?>(null)};var catalogChoice by remember{mutableStateOf("TABLE")};var layer by remember{mutableStateOf("A-WALL-MAIN")}
+ var status by remember{mutableStateOf("ГОТОВ")};var showThemes by remember{mutableStateOf(false)}
  BoxWithConstraints(Modifier.fillMaxSize().background(c.canvas)){
   val cw=maxWidth/104;val ch=maxHeight/48
   fun at(col:Int,row:Int,w:Int,h:Int)=Modifier.offset(cw*col,ch*row).size(cw*w,ch*h)
-  fun id(n:Int,w:Int,h:Int)=at((n-1)%104,(n-1)/104,w,h)
-  Box(id(1,7,1).background(c.panel).border(.5.dp,c.grid),Alignment.Center){BrandMark(c)}
-  Box(id(45,16,1).background(c.panel).border(.5.dp,c.grid),Alignment.Center){Txt(if(projectName.endsWith(".nagaplas"))projectName else projectName+".nagaplas",c.ink,6.sp,max=1,center=true)}
-  listOf(77 to "DELETE",84 to "REDO",91 to "UNDO",98 to "THEME").forEach{(n,a)->Box(id(n,7,3).background(c.panel).border(.5.dp,c.grid).clickable{when(a){"DELETE"->editor.deleteSelection();"REDO"->editor.redo();"UNDO"->editor.undo();else->BlueprintTheme.next()}},Alignment.Center){CadVectorIcon(when(a){"DELETE"->CadGlyph.DELETE;"REDO"->CadGlyph.ROTATE;"UNDO"->CadGlyph.MOVE;else->CadGlyph.SETTINGS},c.accent,iconSizeDp=13f)}}
-  Box(id(105,6,2).background(c.panel).border(.5.dp,c.grid).clickable{menu=!menu},Alignment.Center){Txt("ГЛАВНЫЙ",c.ink,5.sp,center=true)}
-  listOf("АРХИТЕКТУРА" to 111,"ИНСТРУМЕНТЫ" to 116,"МАТЕРИАЛЫ" to 121).forEach{(name,n)->Box(id(n,5,2).background(if(category==name)c.accent.copy(alpha=.14f)else c.panel).border(.5.dp,if(category==name)c.accent else c.grid).clickable{category=name},Alignment.Center){Txt(name,c.ink,4.5.sp,center=true,max=1)}}
-  val tools=when(category){"АРХИТЕКТУРА"->listOf("WALL","DOOR","WINDOW","RECT","LINE");"ИНСТРУМЕНТЫ"->listOf("SELECT","MOVE","COPY","DELETE","ZOOM");else->listOf("TABLE","BED","SOFA","TOILET","SINK")}
-  Row(at(0,3,15,3).background(c.panel).border(.5.dp,c.grid)){tools.forEach{t->Box(Modifier.weight(1f).fillMaxHeight().border(.5.dp,c.grid).clickable{activeTool=t},Alignment.Center){CadVectorIcon(cadGlyph(t),if(activeTool==t)c.accent else c.ink,iconSizeDp=12f)}}}
-  Box(at(0,6,86,41).background(c.canvas).border(.5.dp,c.grid)){
-   VectorCanvas(Modifier.fillMaxSize(),c,g,state.selection?.id,camera.zoom,camera.panX,camera.panY,gridOn,false,cursor,wallStart,snap,{cursor=it},{p->if(activeTool=="WALL"){val a=wallStart;if(a==null)wallStart=p else{val q=if(ortho){if(abs(p.x-a.x)>=abs(p.y-a.y))Vec2(p.x,a.y)else Vec2(a.x,p.y)}else p;editor.createWall(a.x,a.y,q.x,q.y,thickness,anchor);wallStart=null}}else editor.selectAt(p.x,p.y)})
-   Txt("GRID 104×48",c.muted,5.sp,Modifier.align(Alignment.TopStart).padding(2.dp));Txt("X "+cursor.x+"  Y "+cursor.y,c.accent,5.sp,Modifier.align(Alignment.BottomStart).padding(2.dp))
+  fun toolRegion(i:Int)=NagaplasWorkspaceLayout.tools[i].rect
+  // Q0001: brand and menu button share the registered 12x3 block.
+  Box(at(0,0,7,3).background(c.panel).border(.5.dp,c.grid),Alignment.Center){BrandMark(c)}
+  Box(at(7,0,5,3).background(c.panel).border(.5.dp,c.grid).clickable{menu=!menu},Alignment.Center){Txt("≡  МЕНЮ",c.accent,7.sp,center=true,bold=true)}
+  // Reserved cells are intentionally left empty.
+  val quick=listOf("SELECT","WALL","ROOM","DOOR","WINDOW","CATALOG","SAVE")
+  val quickRects=listOf(20,27,34,41,55,62,69)
+  quick.forEachIndexed{i,tool->val col=quickRects[i];val label=when(tool){"SELECT"->"ВЫБОР";"WALL"->"СТЕНА";"ROOM"->"КОМНАТА";"DOOR"->"ДВЕРЬ";"WINDOW"->"ОКНО";"CATALOG"->"КАТАЛОГ";else->"СОХРАНИТЬ"}
+   Box(at(col,0,7,3).background(if(activeTool==tool)c.accent.copy(alpha=.12f)else c.panel).border(.5.dp,if(activeTool==tool)c.accent else c.grid).clickable{if(tool=="SAVE")onSave()else if(tool=="CATALOG"){catalogMenu=true;activeTool="CATALOG"}else activeTool=tool},Alignment.Center){Txt(label,c.ink,6.sp,center=true,max=1)}
   }
-  Box(id(711,18,1).background(c.panel).border(.5.dp,c.grid)){Row(Modifier.fillMaxSize(),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(.17f).fillMaxHeight().clickable{infoOpen=!infoOpen},Alignment.Center){Txt(if(infoOpen)"▼" else "▲",c.accent,5.sp)};Box(Modifier.weight(.66f),Alignment.Center){Txt("ИНФОРМАЦИЯ",c.ink,5.sp,center=true)};Box(Modifier.weight(.17f).fillMaxHeight().clickable{infoMenu=!infoMenu},Alignment.Center){Txt("⋮",c.accent,6.sp)}}}
-  if(infoOpen)Box(at(86,7,18,40).background(c.panel).border(.5.dp,c.grid)){Column(Modifier.fillMaxSize().padding(2.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){Header("СВОЙСТВА ОБЪЕКТА",c);if(state.selection==null)RowProp("Выбор","Не выбран",c)else RowProp("ID",state.selection!!.id.take(12),c);Header("СЛОИ",c);layers.forEach{Txt(it,c.muted,5.sp,max=1)};Header("КООРДИНАТЫ",c);RowProp("X",cursor.x.toString(),c);RowProp("Y",cursor.y.toString(),c);Header("ЯДРО",c);RowProp("Стены",(g?.walls?.size?:0).toString(),c);RowProp("Узлы",(g?.walls?.flatMap{listOf(key(it.axisStart),key(it.axisEnd))}?.distinct()?.size?:0).toString(),c)}}
-  if(menu)Box(at(0,1,11,8).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column(Modifier.fillMaxSize()){listOf("Новый","Проекты","Сохранить","Экспорт","Импорт","Настройка","Выход").forEach{item->Box(Modifier.weight(1f).fillMaxWidth().background(c.canvas).clickable{menu=false;when(item){"Новый"->{editor.closeAndReset();editor.resetProject("new-project","Без_имени")};"Сохранить"->onSave();"Экспорт"->onExport();"Выход"->{editor.closeAndReset();onBack()};else->BlueprintTheme.next()}},Alignment.CenterStart){Txt(item,c.ink,5.sp,Modifier.padding(start=2.dp))}}}}
-  if(infoMenu)Box(at(86,6,18,8).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column{listOf("Свойства объекта","Слои","Координаты и сетка","Приоритет ▲/▼").forEach{Txt(it,c.ink,5.sp,Modifier.fillMaxWidth().clickable{infoMenu=false}.padding(2.dp))}}}
-  Row(at(0,47,104,1).background(c.panel).border(.5.dp,c.grid),verticalAlignment=Alignment.CenterVertically){Txt("MODEL",c.accent,4.5.sp);Spacer(Modifier.weight(1f));listOf("СЕТКА" to gridOn,"ОРТО" to ortho,"OSNAP" to snap).forEach{(label,on)->Txt(label+" "+(if(on)"ON" else "OFF"),if(on)c.accent else c.muted,4.5.sp,Modifier.clickable{when(label){"СЕТКА"->gridOn=!gridOn;"ОРТО"->ortho=!ortho;"OSNAP"->snap=!snap}}.padding(horizontal=2.dp))}}
+  Box(at(48,0,7,3).background(c.panel).border(.5.dp,c.grid),Alignment.Center){Txt((if(projectName.endsWith(".nagaplas"))projectName else "$projectName.nagaplas")+(if(state.canUndo)" *" else ""),c.ink,6.sp,max=1,center=true)}
+  // Top command group coordinates from Q0011–Q0014.
+  val commandButtons=listOf(76 to "DELETE",83 to "REDO",90 to "UNDO")
+  commandButtons.forEach{(col,cmd)->Box(at(col,0,7,3).background(c.panel).border(.5.dp,c.grid).clickable{when(cmd){"DELETE"->editor.deleteSelection();"REDO"->editor.redo();"UNDO"->editor.undo()}},Alignment.Center){CadVectorIcon(cadGlyph(cmd),c.accent,iconSizeDp=14f)}}
+  Box(at(97,0,7,3).background(c.panel).border(.5.dp,c.grid).clickable{showThemes=!showThemes},Alignment.Center){
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){BlueprintTheme.palettes.forEach{theme->Canvas(Modifier.size(8.dp)){drawCircle(when(theme.id){"cream"->Color(0xFFFAF9F6);"dark"->Color(0xFF1E1F22);"blue"->Color(0xFF0F233C);"parchment"->Color(0xFFF3EFE6);else->Color(0xFF262A30)});if(BlueprintTheme.active.value.id==theme.id)drawCircle(c.accent,style=Stroke(1.3.dp.toPx()))}}}
+  }
+  // 34 vector tool slots, each anchored to a 3x3 cell rectangle.
+  nagaplasTools.forEachIndexed{i,t->val r=toolRegion(i);val isActive=activeTool==t.id
+   Box(at(r.left,r.top,r.width,r.height).background(if(isActive)c.accent.copy(alpha=.12f)else c.panel).border(if(isActive)1.dp else .4.dp,if(isActive)c.accent else c.grid)
+    .semantics{contentDescription=t.label;role=androidx.compose.ui.semantics.Role.Button;selected=isActive}
+    .clickable{if(!t.implemented){status="ИНСТРУМЕНТ «${t.label}» ЕЩЁ НЕ РЕАЛИЗОВАН";return@clickable};when(t.id){"GRID"->gridOn=!gridOn;"ORTHO"->ortho=!ortho;"OSNAP"->snap=!snap;"ZOOM"->{editor.setCamera(camera.zoom*1.25f,camera.panX,camera.panY);activeTool=t.id};"DELETE"->editor.deleteSelection();in nagaplasCatalog.keys->{catalogChoice=t.id;catalogMenu=true;activeTool="CATALOG"};else->{activeTool=t.id;pendingPoint=null;status=t.label.uppercase()}}},Alignment.Center){
+    CadVectorIcon(cadGlyph(t.glyph),if(!t.implemented)c.muted else if(isActive)c.accent else c.ink,iconSizeDp=12f)
+   }
+  }
+  Box(at(102,3,2,3).background(c.panel).border(.4.dp,c.grid),Alignment.Center){Txt("⋯",c.muted,6.sp,center=true)}
+  // Q0050/Q0052: project navigator and layer list.
+  Box(at(0,6,12,1).background(c.panel).border(.5.dp,c.grid).clickable{infoMenu=!infoMenu},Alignment.CenterStart){Txt("ПРОЕКТ  ▾",c.accent,6.sp,Modifier.padding(start=2.dp),bold=true)}
+  Box(at(0,7,12,38).background(c.panel).border(.5.dp,c.grid)){
+   Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(2.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+    Txt("ФАЙЛ",c.accent,6.sp,bold=true);Txt(projectName,c.ink,5.sp,max=2)
+    Txt("УРОВНИ",c.accent,6.sp,bold=true);Txt("▣  Level 1 · 0.000",c.ink,5.sp)
+    Txt("ЭЛЕМЕНТЫ",c.accent,6.sp,bold=true);RowProp("Стены",g?.walls?.size?.toString()?: "0",c);RowProp("Проёмы",g?.openings?.size?.toString()?: "0",c);RowProp("Объекты",g?.catalog?.size?.toString()?: "0",c)
+    Txt("СЛОИ",c.accent,6.sp,bold=true)
+    listOf("A-WALL-MAIN","A-WALL-PART","A-DOOR-WIND","A-GRID-AXIS").forEach{ln->Box(Modifier.fillMaxWidth().clickable{layer=ln}.background(if(layer==ln)c.accent.copy(alpha=.1f)else Color.Transparent).padding(2.dp)){Txt((if(layer==ln)"● "else"○ ")+ln,c.ink,5.sp,max=1)}}
+   }
+  }
+  // Main viewport is M7:CN45. It is not inset by old side-panel padding.
+  Box(at(12,6,80,39).background(c.canvas).border(.5.dp,c.grid)){
+   VectorCanvas(Modifier.fillMaxSize(),c,g,state.selection?.id,camera.zoom,camera.panX,camera.panY,gridOn,true,cursor,pendingPoint,snap,{cursor=it},{p->
+    when(activeTool){
+     "WALL","LINE"->{val first=pendingPoint;if(first==null){pendingPoint=p;status="УКАЖИТЕ КОНЕЧНУЮ ТОЧКУ"}else{val q=if(ortho){if(abs(p.x-first.x)>=abs(p.y-first.y))Vec2(p.x,first.y)else Vec2(first.x,p.y)}else p;editor.createWall(first.x,first.y,q.x,q.y,.2, "ОСЬ");pendingPoint=null;status="СТЕНА СОЗДАНА"}}
+     "ROOM","RECT"->{val first=pendingPoint;if(first==null){pendingPoint=p;status="УКАЖИТЕ ПРОТИВОПОЛОЖНЫЙ УГОЛ"}else{val x=min(first.x,p.x);val y=min(first.y,p.y);editor.createRoom(x,y,abs(p.x-first.x),abs(p.y-first.y),.2,"ОСЬ");pendingPoint=null;status="КОМНАТА СОЗДАНА"}}
+     "DOOR"->{if(editor.createOpening("DOOR",p.x,p.y))status="ДВЕРЬ РАЗМЕЩЕНА" else status="НЕ НАЙДЕНА СТЕНА ДЛЯ ДВЕРИ"}
+     "WINDOW"->{if(editor.createOpening("WINDOW",p.x,p.y))status="ОКНО РАЗМЕЩЕНО" else status="НЕ НАЙДЕНА СТЕНА ДЛЯ ОКНА"}
+     "CATALOG"->{val preset=nagaplasCatalog[catalogChoice]?:CatalogPreset.TABLE;editor.createCatalog(preset,p.x,p.y,0.0);status="ОБЪЕКТ ДОБАВЛЕН"}
+     else->{editor.selectAt(p.x,p.y);status=if(state.selection==null)"ВЫБОР" else"ОБЪЕКТ ВЫБРАН"}
+    }
+   })
+   Txt("GRID 104×48 · ${activeTool}",c.muted,5.sp,Modifier.align(Alignment.TopStart).padding(2.dp));Txt("X ${"%.3f".format(cursor.x)}  Y ${"%.3f".format(cursor.y)}",c.accent,5.sp,Modifier.align(Alignment.BottomStart).padding(2.dp))
+   state.error?.let{Txt(it,c.dim,5.sp,Modifier.align(Alignment.BottomCenter).background(c.panel).padding(2.dp),max=2)}
+  }
+  // Q0051/Q0053: Inspector.
+  Box(at(92,6,12,1).background(c.panel).border(.5.dp,c.grid),Alignment.Center){Row(Modifier.fillMaxSize(),verticalAlignment=Alignment.CenterVertically){Txt("ИНСПЕКТОР",c.accent,5.5.sp,Modifier.weight(1f),bold=true);Txt("⋮",c.accent,7.sp,Modifier.clickable{infoMenu=!infoMenu}.padding(horizontal=2.dp))}}
+  Box(at(92,7,12,38).background(c.panel).border(.5.dp,c.grid)){
+   Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(2.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
+    Header("ВЫБРАННЫЙ ОБЪЕКТ",c)
+    val sel=state.selection
+    if(sel==null)RowProp("Selection","Нет",c)else{RowProp("Тип",sel.kind.name,c);RowProp("ID",sel.id.take(10),c)}
+    val wall=g?.walls?.firstOrNull{it.id==sel?.id}
+    if(wall!=null){RowProp("L", "${(hypot(wall.axisEnd.x-wall.axisStart.x,wall.axisEnd.y-wall.axisStart.y)*1000).roundToInt()} мм",c);RowProp("B","${(hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).roundToInt()} мм",c);RowProp("H","${(wall.height*1000).roundToInt()} мм",c);listOf(100,120,200,300,400).forEach{v->ButtonMiniFit("${v} мм",c,{editor.updateSelectedProperty("thickness",v/1000.0)},Modifier.fillMaxWidth().height(18.dp),((hypot(wall.corners[0].x-wall.corners[3].x,wall.corners[0].y-wall.corners[3].y)*1000).roundToInt()==v))}}
+    Header("СЛОЙ",c);Txt(layer,c.ink,5.sp,max=2);Header("ГЕОМЕТРИЯ CORE",c);RowProp("Узлы",g?.walls?.flatMap{listOf(key(it.axisStart),key(it.axisEnd))}?.distinct()?.size?.toString()?: "0",c);RowProp("Сегменты",g?.walls?.size?.toString()?: "0",c);RowProp("Undo",if(state.canUndo)"READY"else"EMPTY",c);RowProp("Redo",if(state.canRedo)"READY"else"EMPTY",c)
+   }
+  }
+  // Q0054 status row; each status indicator is interactive and grounded.
+  Row(at(0,45,104,3).background(c.panel).border(.5.dp,c.grid),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
+   Txt("NAGAPLAS",c.accent,5.sp,bold=true);Txt(status,c.ink,5.sp,max=1);Spacer(Modifier.weight(1f))
+   Txt("X ${"%.2f".format(cursor.x)}",c.muted,5.sp);Txt("Y ${"%.2f".format(cursor.y)}",c.muted,5.sp)
+   listOf("GRID" to gridOn,"ORTHO" to ortho,"SNAP" to snap).forEach{(name,enabled)->Txt("${name} ${if(enabled)"ON"else"OFF"}",if(enabled)c.accent else c.muted,5.sp,Modifier.clickable{when(name){"GRID"->gridOn=!gridOn;"ORTHO"->ortho=!ortho;"SNAP"->snap=!snap}}.padding(horizontal=2.dp))}
+   Txt("1:${"%.1f".format(camera.zoom)}",c.muted,5.sp);Txt(if(state.canUndo)"●"else"○",c.accent,5.sp)
+  }
+  if(menu)Box(at(0,3,12,9).background(c.panel).border(1.dp,c.accent).padding(2.dp)){
+   Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(1.dp)){listOf("Новый","Проекты","Сохранить","Экспорт","Импорт","Настройка","Выход").forEach{item->Box(Modifier.weight(1f).fillMaxWidth().background(c.canvas).clickable{menu=false;when(item){"Новый"->{editor.closeAndReset();editor.resetProject("new-${System.currentTimeMillis()}","Без_имени");status="НОВЫЙ ПРОЕКТ"};"Проекты"->onProjects();"Сохранить"->onSave();"Экспорт"->onExport();"Импорт"->onImport();"Настройка"->onSettings();"Выход"->onBack()}},Alignment.CenterStart){Txt(item,c.ink,6.sp,Modifier.padding(start=3.dp))}}}
+  }
+  if(showThemes)Box(at(97,3,7,5).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(1.dp)){BlueprintTheme.palettes.forEach{theme->Box(Modifier.weight(1f).fillMaxWidth().clickable{BlueprintTheme.select(theme);showThemes=false}.background(if(BlueprintTheme.active.value==theme)c.accent.copy(alpha=.15f)else c.canvas),Alignment.CenterStart){Txt(theme.label,c.ink,5.sp,Modifier.padding(start=2.dp))}}}}
+  if(catalogMenu)Box(at(35,12,22,18).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(1.dp)){nagaplasCatalog.forEach{(key,preset)->Box(Modifier.fillMaxWidth().height(22.dp).clickable{catalogChoice=key;catalogMenu=false;activeTool="CATALOG";status="ВЫБЕРИТЕ ТОЧКУ РАЗМЕЩЕНИЯ: ${preset.label}"}.background(c.canvas),Alignment.CenterStart){Txt(preset.label,c.ink,6.sp,Modifier.padding(start=2.dp))};Box(Modifier.fillMaxWidth().height(20.dp).clickable{catalogMenu=false},Alignment.Center){Txt("ЗАКРЫТЬ",c.muted,5.sp)}}}
+  if(infoMenu)Box(at(92,6,12,7).background(c.panel).border(1.dp,c.accent).padding(2.dp)){Column{listOf("Инспектор","Настройки","Скрыть панель").forEach{Box(Modifier.fillMaxWidth().height(22.dp).clickable{infoMenu=false;when(it){"Настройки"->onSettings();"Скрыть панель"->status="СВОРАЧИВАНИЕ ПАНЕЛИ: ПОСЛЕДУЮЩИЙ ЭТАП"}},Alignment.CenterStart){Txt(it,c.ink,5.sp,Modifier.padding(2.dp))}}}}
  }
 }
 @Composable private fun VectorCanvas(modifier:Modifier,c:WC,g:TypedGeometry?,selected:String?,zoom:Float,px:Float,py:Float,grid:Boolean,weight:Boolean,cursor:Vec2,pendingStart:Vec2?,snapEnabled:Boolean,onCursor:(Vec2)->Unit,onWorldTap:(Vec2)->Unit){
